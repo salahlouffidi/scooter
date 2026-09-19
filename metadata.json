@@ -1,0 +1,6 @@
+{
+  "name": "Sky Scooter",
+  "description": "3D third-person scooter auto-runner game — Louffi Edition with 16 unique rounds, procedural worlds, and adaptive gameplay.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

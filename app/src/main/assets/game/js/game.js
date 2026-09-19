@@ -1,0 +1,833 @@
+// SKY SCOOTER — LOUFFI EDITION
+// Main Game Engine, State Machine, HUD & Loop Coordinator
+window.SkyScooterGame = class SkyScooterGame {
+  constructor() {
+    this.THREE = window.THREE;
+    this.state = 'BOOT'; // BOOT, INTRO, MENU, ROUND_SELECT, HOW_TO_PLAY, SETTINGS, COUNTDOWN, PLAYING, PAUSED, ROUND_COMPLETE, GAME_OVER, ENDLESS
+    this.currentRoundId = 1;
+    this.isEndless = false;
+
+    // Simulation & Scoring
+    this.hearts = 3;
+    this.maxHearts = 3;
+    this.score = 0;
+    this.distanceScore = 0;
+    this.coinScore = 0;
+    this.gemScore = 0;
+    this.jumpScore = 0;
+    this.consecutiveCoins = 0;
+    this.coinMultiplier = 1;
+    this.coinsCollectedThisRun = 0;
+    this.totalSpawnedCoinsEstimate = 50;
+
+    // Unique run ID for idempotent reward transactions
+    this.currentRunTxId = '';
+
+    // Machine Learning Window Tracker
+    this.mlWindowTimer = 0.0;
+    this.mlWindowFeaturesSnapshot = null;
+    this.mlWindowHadDamage = false;
+
+    // 3D Scene Core
+    this.container = document.getElementById('canvas-container');
+    this.scene = null;
+    this.camera = null;
+    this.renderer = null;
+    this.dirLight = null;
+    this.hemiLight = null;
+
+    // Systems
+    this.factory = null;
+    this.trackGen = null;
+    this.input = null;
+    this.riderCtrl = null;
+    this.gameCam = null;
+    this.ml = null;
+    this.validator = null;
+
+    // Timing
+    this.lastTime = 0;
+    this.countdownSeconds = 3;
+    this.countdownTimer = null;
+    this.fps = 60;
+    this.fpsFrames = 0;
+    this.fpsLastTime = 0;
+
+    this.init();
+  }
+
+  init() {
+    this.initThree();
+    this.factory = new window.AssetFactory(this.THREE);
+    this.trackGen = new window.TrackGenerator(this.scene, this.factory, this.THREE);
+    this.input = new window.InputManager();
+    this.ml = new window.AdaptiveDifficultyML();
+    this.validator = new window.ReachabilityValidator();
+
+    // Create player rider with scooter
+    const riderMesh = this.factory.createRiderWithScooter();
+    this.scene.add(riderMesh);
+    this.riderCtrl = new window.RiderController(riderMesh, this.trackGen);
+    this.gameCam = new window.GameCamera(this.camera, this.THREE);
+
+    // Wire input pause callback
+    this.input.onPauseRequested = () => {
+      if (this.state === 'PLAYING') this.pause();
+      else if (this.state === 'PAUSED') this.resume();
+    };
+
+    // Apply saved settings
+    const settings = window.GameStorage.getSettings();
+    this.input.updateSensitivity(settings.steeringSensitivity);
+    this.applyGraphicsQuality(settings.graphicsQuality);
+
+    this.initUI();
+    this.showIntro();
+
+    // Start loop
+    this.lastTime = performance.now();
+    requestAnimationFrame((t) => this.loop(t));
+  }
+
+  initThree() {
+    const THREE = this.THREE;
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x4fc3f7);
+    this.scene.fog = new THREE.FogExp2(0xb3e5fc, 0.007);
+
+    const aspect = window.innerWidth / window.innerHeight;
+    this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 800);
+
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.container.appendChild(this.renderer.domElement);
+
+    // Lights
+    this.hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.85);
+    this.scene.add(this.hemiLight);
+
+    this.dirLight = new THREE.DirectionalLight(0xffffff, 0.95);
+    this.dirLight.position.set(20, 40, 20);
+    this.dirLight.castShadow = true;
+    this.dirLight.shadow.mapSize.width = 1024;
+    this.dirLight.shadow.mapSize.height = 1024;
+    this.dirLight.shadow.camera.near = 0.5;
+    this.dirLight.shadow.camera.far = 150;
+    this.scene.add(this.dirLight);
+
+    window.addEventListener('resize', () => this.onResize());
+  }
+
+  onResize() {
+    if (!this.camera || !this.renderer) return;
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  applyGraphicsQuality(quality) {
+    if (!this.renderer) return;
+    if (quality === 'low') {
+      this.renderer.setPixelRatio(1.0);
+      this.renderer.shadowMap.enabled = false;
+    } else if (quality === 'medium') {
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+      this.renderer.shadowMap.enabled = true;
+    } else {
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
+      this.renderer.shadowMap.enabled = true;
+    }
+  }
+
+  // --- State Transitions ---
+
+  showIntro() {
+    this.state = 'INTRO';
+    const introOverlay = document.getElementById('intro-overlay');
+    if (introOverlay) {
+      introOverlay.classList.remove('hidden');
+      // Skippable on click / tap
+      const skipIntro = () => {
+        introOverlay.removeEventListener('click', skipIntro);
+        introOverlay.classList.add('hidden');
+        this.showMainMenu();
+      };
+      introOverlay.addEventListener('click', skipIntro);
+      // Auto-advance after 3.2s
+      setTimeout(() => {
+        if (this.state === 'INTRO') skipIntro();
+      }, 3200);
+    } else {
+      this.showMainMenu();
+    }
+  }
+
+  showMainMenu() {
+    this.state = 'MENU';
+    this.hideAllScreens();
+    const menu = document.getElementById('main-menu');
+    if (menu) menu.classList.remove('hidden');
+
+    this.updateStatsDisplay();
+
+    // Prepare animated 3D background with Round 1 track
+    const r1 = window.ROUNDS_DATA[0];
+    this.trackGen.buildRound(r1, 42);
+    this.riderCtrl.reset(0, 0); // idle in menu
+
+    if (window.GameAudio) window.GameAudio.startMusic();
+    this.notifyAndroidState('MENU');
+  }
+
+  startRound(roundId, isEndless = false) {
+    this.currentRoundId = roundId;
+    this.isEndless = isEndless;
+    this.currentRunTxId = `run_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+
+    const roundData = isEndless
+      ? { ...window.ROUNDS_DATA[15], id: 99, name: 'Endless Skyway', length: 999999, baseSpeed: 12 }
+      : window.ROUNDS_DATA.find(r => r.id === roundId) || window.ROUNDS_DATA[0];
+
+    // Reset scoring & health
+    this.hearts = 3;
+    this.score = 0;
+    this.distanceScore = 0;
+    this.coinScore = 0;
+    this.gemScore = 0;
+    this.jumpScore = 0;
+    this.consecutiveCoins = 0;
+    this.coinMultiplier = 1;
+    this.coinsCollectedThisRun = 0;
+    this.totalSpawnedCoinsEstimate = Math.floor(roundData.length / 14);
+
+    // Apply Biome visual colors
+    this.scene.background = new this.THREE.Color(roundData.skyColor);
+    this.scene.fog.color = new this.THREE.Color(roundData.fogColor);
+    this.hemiLight.color = new this.THREE.Color(roundData.ambientLight);
+
+    // Build track with seeded randomness
+    const seed = Date.now();
+    this.trackGen.buildRound(roundData, seed);
+
+    // Reset rider
+    this.riderCtrl.reset(0, roundData.baseSpeed);
+    this.gameCam.reset(this.riderCtrl.mesh, this.trackGen);
+
+    // ML Challenge Window initialization
+    this.mlWindowTimer = 0.0;
+    this.mlWindowHadDamage = false;
+    this.mlWindowFeaturesSnapshot = this.ml.extractFeatures(
+      this.riderCtrl,
+      roundData.baseSpeed,
+      { densityMult: 1.0, spacingMult: 1.0 },
+      roundData
+    );
+
+    this.hideAllScreens();
+    this.startCountdown();
+  }
+
+  startCountdown() {
+    this.state = 'COUNTDOWN';
+    this.notifyAndroidState('COUNTDOWN');
+    const countdownEl = document.getElementById('countdown-display');
+    countdownEl.classList.remove('hidden');
+
+    this.countdownSeconds = 3;
+    countdownEl.innerText = '3';
+
+    if (this.countdownTimer) clearInterval(this.countdownTimer);
+    this.countdownTimer = setInterval(() => {
+      this.countdownSeconds--;
+      if (this.countdownSeconds > 0) {
+        countdownEl.innerText = `${this.countdownSeconds}`;
+        if (window.GameAudio) window.GameAudio.playClick();
+      } else if (this.countdownSeconds === 0) {
+        countdownEl.innerText = 'GO!';
+        if (window.GameAudio) window.GameAudio.playJump();
+      } else {
+        clearInterval(this.countdownTimer);
+        this.countdownTimer = null;
+        countdownEl.classList.add('hidden');
+        this.state = 'PLAYING';
+        this.notifyAndroidState('PLAYING');
+        const hud = document.getElementById('gameplay-hud');
+        if (hud) hud.classList.remove('hidden');
+      }
+    }, 800);
+  }
+
+  pause() {
+    if (this.state !== 'PLAYING') return;
+    this.state = 'PAUSED';
+    this.notifyAndroidState('PAUSED');
+    const pauseMenu = document.getElementById('pause-modal');
+    if (pauseMenu) pauseMenu.classList.remove('hidden');
+  }
+
+  resume() {
+    if (this.state !== 'PAUSED') return;
+    const pauseMenu = document.getElementById('pause-modal');
+    if (pauseMenu) pauseMenu.classList.add('hidden');
+    this.startCountdown(); // Resume with smooth countdown
+  }
+
+  // --- Gameplay Event Handler ---
+
+  onGameplayEvent(eventType, param) {
+    const settings = window.GameStorage.getSettings();
+
+    if (eventType === 'coin') {
+      this.consecutiveCoins++;
+      this.coinsCollectedThisRun++;
+      // Combo multiplier: +1 every 10 consecutive coins up to x5
+      this.coinMultiplier = Math.min(5, 1 + Math.floor(this.consecutiveCoins / 10));
+
+      const doubleFactor = this.riderCtrl.activeDouble ? 2 : 1;
+      const pts = 10 * this.coinMultiplier * doubleFactor;
+      this.coinScore += pts;
+      this.score += pts;
+
+      this.showFloatingLabel(`+${pts}`, param);
+      if (window.GameAudio) window.GameAudio.playCoin();
+      this.vibrate(18);
+    } else if (eventType === 'gem') {
+      const pts = 100;
+      this.gemScore += pts;
+      this.score += pts;
+      this.showFloatingLabel('+100 GEM!', param);
+      if (window.GameAudio) window.GameAudio.playGem();
+      this.vibrate(40);
+    } else if (eventType === 'jump_challenge') {
+      const pts = 50;
+      this.jumpScore += pts;
+      this.score += pts;
+      this.showFloatingLabel('+50 JUMP CLEAR!', this.riderCtrl.mesh.position);
+      if (window.GameAudio) window.GameAudio.playGem();
+    } else if (eventType === 'jump') {
+      if (window.GameAudio) window.GameAudio.playJump();
+    } else if (eventType === 'hit_obstacle') {
+      this.mlWindowHadDamage = true;
+      this.consecutiveCoins = 0; // breaks combo
+      this.coinMultiplier = 1;
+      this.hearts--;
+      this.showFloatingLabel('-1 HEART!', this.riderCtrl.mesh.position, '#f44336');
+      if (window.GameAudio) window.GameAudio.playDamage();
+      this.vibrate(100);
+
+      if (this.hearts <= 0) {
+        this.triggerGameOver();
+      }
+    } else if (eventType === 'shield_absorbed') {
+      this.showFloatingLabel('SHIELD BLOCKED!', this.riderCtrl.mesh.position, '#00e5ff');
+      if (window.GameAudio) window.GameAudio.playShield();
+      this.vibrate(50);
+    } else if (eventType === 'fall') {
+      this.mlWindowHadDamage = true;
+      this.consecutiveCoins = 0;
+      this.coinMultiplier = 1;
+      this.hearts--;
+      this.showFloatingLabel('FELL! -1 HEART', this.riderCtrl.mesh.position, '#e91e63');
+      if (window.GameAudio) window.GameAudio.playDamage();
+      this.vibrate(120);
+
+      if (this.hearts <= 0) {
+        this.triggerGameOver();
+      }
+    } else if (eventType === 'heart_pickup') {
+      if (this.hearts < this.maxHearts) {
+        this.hearts++;
+        this.showFloatingLabel('+1 HEART RESTORED!', this.riderCtrl.mesh.position, '#4caf50');
+      } else {
+        this.score += 50;
+        this.showFloatingLabel('+50 MAX HEARTS BONUS!', this.riderCtrl.mesh.position, '#ffeb3b');
+      }
+      if (window.GameAudio) window.GameAudio.playPowerup();
+    } else if (eventType === 'powerup') {
+      const name = String(param).toUpperCase();
+      this.showFloatingLabel(`${name}!`, this.riderCtrl.mesh.position, '#ffeb3b');
+      if (window.GameAudio) window.GameAudio.playPowerup();
+      this.vibrate(35);
+    } else if (eventType === 'checkpoint') {
+      this.showFloatingLabel('CHECKPOINT REACHED!', this.riderCtrl.mesh.position, '#00e676');
+      if (window.GameAudio) window.GameAudio.playFinish();
+      this.vibrate(45);
+    }
+  }
+
+  showFloatingLabel(text, position, color = '#ffd700') {
+    const container = document.getElementById('floating-labels-layer');
+    if (!container) return;
+
+    const el = document.createElement('div');
+    el.className = 'floating-score-label';
+    el.innerText = text;
+    el.style.color = color;
+
+    // Convert 3D world pos to screen coordinates
+    if (position && this.camera) {
+      const p = position.clone ? position.clone() : new this.THREE.Vector3(position.x, position.y + 1.2, position.z);
+      p.project(this.camera);
+      const x = (p.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-(p.y * 0.5) + 0.5) * window.innerHeight;
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+    } else {
+      el.style.left = '50%';
+      el.style.top = '40%';
+    }
+
+    container.appendChild(el);
+    setTimeout(() => {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }, 1200);
+  }
+
+  vibrate(ms) {
+    const settings = window.GameStorage.getSettings();
+    if (!settings.vibration) return;
+
+    // Android Native Bridge
+    if (window.AndroidBridge && window.AndroidBridge.vibrate) {
+      try {
+        window.AndroidBridge.vibrate(ms);
+      } catch (e) {}
+    } else if (navigator.vibrate) {
+      try {
+        navigator.vibrate(ms);
+      } catch (e) {}
+    }
+  }
+
+  notifyAndroidState(stateName) {
+    if (window.AndroidBridge && window.AndroidBridge.onGameStateChanged) {
+      try {
+        window.AndroidBridge.onGameStateChanged(stateName);
+      } catch (e) {}
+    }
+  }
+
+  triggerGameOver() {
+    this.state = 'GAME_OVER';
+    this.notifyAndroidState('GAME_OVER');
+    this.hideAllScreens();
+
+    const gameOverEl = document.getElementById('game-over-modal');
+    if (gameOverEl) gameOverEl.classList.remove('hidden');
+
+    document.getElementById('go-run-score').innerText = `${Math.floor(this.score)}`;
+    const progress = window.GameStorage.getProgress();
+    const best = progress.bestScores[this.currentRoundId] || 0;
+    document.getElementById('go-best-score').innerText = `${Math.max(best, Math.floor(this.score))}`;
+
+    // Record coins to wallet
+    window.GameStorage.addCoins(this.coinsCollectedThisRun, this.currentRunTxId);
+  }
+
+  triggerRoundComplete() {
+    this.state = 'ROUND_COMPLETE';
+    this.notifyAndroidState('ROUND_COMPLETE');
+    this.hideAllScreens();
+
+    if (window.GameAudio) window.GameAudio.playFinish();
+    this.vibrate(150);
+
+    // Scoring calculations
+    const finishBonus = 500 + this.hearts * 200;
+    this.score += finishBonus;
+
+    // Calculate stars:
+    // Star 1: Finished round
+    // Star 2: Finished with >= 2 hearts
+    // Star 3: Collected >= 70% of spawned coins
+    let starsEarned = 1;
+    if (this.hearts >= 2) starsEarned++;
+    const collectionPercent = this.coinsCollectedThisRun / Math.max(1, this.totalSpawnedCoinsEstimate);
+    if (collectionPercent >= 0.7) starsEarned++;
+
+    const isAdaptive = window.GameStorage.getSettings().adaptiveDifficulty;
+    window.GameStorage.recordRoundResult(this.currentRoundId, Math.floor(this.score), starsEarned, isAdaptive, this.currentRunTxId);
+    window.GameStorage.addCoins(this.coinsCollectedThisRun, this.currentRunTxId);
+
+    const completeModal = document.getElementById('round-complete-modal');
+    if (completeModal) completeModal.classList.remove('hidden');
+
+    document.getElementById('rc-round-name').innerText = `Round ${this.currentRoundId}: ${this.trackGen.roundData.name}`;
+    document.getElementById('rc-total-score').innerText = `${Math.floor(this.score)}`;
+    document.getElementById('rc-distance-pts').innerText = `+${Math.floor(this.distanceScore)}`;
+    document.getElementById('rc-coin-pts').innerText = `+${Math.floor(this.coinScore)}`;
+    document.getElementById('rc-gem-pts').innerText = `+${Math.floor(this.gemScore)}`;
+    document.getElementById('rc-bonus-pts').innerText = `+${finishBonus} (Hearts: ${this.hearts})`;
+
+    // Stars display
+    const starsContainer = document.getElementById('rc-stars');
+    if (starsContainer) {
+      starsContainer.innerHTML = '⭐'.repeat(starsEarned) + '☆'.repeat(3 - starsEarned);
+    }
+
+    // Next round button text
+    const btnNext = document.getElementById('btn-next-round');
+    if (btnNext) {
+      if (this.currentRoundId >= 16) {
+        btnNext.innerText = 'ENDLESS MODE';
+      } else {
+        btnNext.innerText = 'NEXT ROUND';
+      }
+    }
+  }
+
+  // --- Main Animation & Simulation Loop ---
+
+  loop(timestamp) {
+    requestAnimationFrame((t) => this.loop(t));
+
+    const dt = Math.min(0.06, (timestamp - this.lastTime) / 1000.0);
+    this.lastTime = timestamp;
+
+    // Track FPS
+    this.fpsFrames++;
+    if (timestamp - this.fpsLastTime >= 1000) {
+      this.fps = this.fpsFrames;
+      this.fpsFrames = 0;
+      this.fpsLastTime = timestamp;
+      this.updateDevPanel();
+    }
+
+    const settings = window.GameStorage.getSettings();
+
+    // 1. Process Gameplay Simulation
+    if (this.state === 'PLAYING') {
+      this.input.update(dt);
+
+      const roundData = this.trackGen.roundData;
+      this.riderCtrl.update(dt, this.input, roundData.baseSpeed, roundData.roadWidth, (ev, p) => this.onGameplayEvent(ev, p));
+
+      // Distance score: 1 point per new forward meter
+      const newDistance = Math.floor(this.riderCtrl.furthestS);
+      if (newDistance > this.distanceScore) {
+        const delta = newDistance - this.distanceScore;
+        this.distanceScore = newDistance;
+        this.score += delta;
+      }
+
+      // Update Track Generator & recycle
+      this.trackGen.update(this.riderCtrl.s);
+
+      // Check finish gate reached
+      if (this.riderCtrl.s >= roundData.length) {
+        this.triggerRoundComplete();
+      }
+
+      // Machine Learning Challenge Window Update (Every 10 seconds of active play)
+      this.mlWindowTimer += dt;
+      if (this.mlWindowTimer >= this.ml.windowDuration) {
+        this.ml.recordWindowOutcome(
+          this.mlWindowFeaturesSnapshot,
+          { speed: this.riderCtrl.forwardSpeed },
+          !this.mlWindowHadDamage
+        );
+        this.mlWindowTimer = 0.0;
+        this.mlWindowHadDamage = false;
+
+        // Select candidate difficulty for future windows
+        const candidate = this.ml.selectCandidate(roundData, this.riderCtrl, this.validator);
+        this.mlWindowFeaturesSnapshot = this.ml.extractFeatures(this.riderCtrl, roundData.baseSpeed * candidate.speedMultiplier, candidate, roundData);
+      }
+
+      this.updateHUD();
+    } else if (this.state === 'MENU' || this.state === 'ROUND_SELECT') {
+      // Gentle menu background camera motion
+      const menuS = (timestamp * 0.003) % 400;
+      this.trackGen.update(menuS);
+      const tp = this.trackGen.getTrackPoint(menuS);
+      this.camera.position.set(tp.x + 8, tp.y + 4, tp.z - 10);
+      this.camera.lookAt(tp.x, tp.y + 1, tp.z + 10);
+    }
+
+    // 2. Camera Update
+    if (this.state === 'PLAYING' || this.state === 'COUNTDOWN') {
+      this.gameCam.update(dt, this.riderCtrl.mesh, this.trackGen, this.riderCtrl.activeOverdrive, settings);
+    }
+
+    // 3. Render 3D Scene
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  updateHUD() {
+    // Score
+    const scoreVal = document.getElementById('hud-score-val');
+    if (scoreVal) scoreVal.innerText = `${Math.floor(this.score)}`;
+
+    // Hearts
+    const heartsVal = document.getElementById('hud-hearts-val');
+    if (heartsVal) {
+      heartsVal.innerHTML = '❤️'.repeat(Math.max(0, this.hearts)) + '🖤'.repeat(Math.max(0, 3 - this.hearts));
+    }
+
+    // Multiplier
+    const multVal = document.getElementById('hud-multiplier-val');
+    if (multVal) {
+      const double = this.riderCtrl.activeDouble ? 2 : 1;
+      const totalMult = this.coinMultiplier * double;
+      multVal.innerText = `x${totalMult}`;
+    }
+
+    // Progress Bar
+    const progBar = document.getElementById('hud-progress-fill');
+    if (progBar && this.trackGen.roundData) {
+      const pct = Math.min(100, Math.max(0, (this.riderCtrl.s / this.trackGen.roundData.length) * 100));
+      progBar.style.width = `${pct}%`;
+    }
+
+    // Active Power-ups Bar
+    const powBar = document.getElementById('hud-powerups');
+    if (powBar) {
+      let html = '';
+      if (this.riderCtrl.activeShield) {
+        html += `<span class="powerup-badge shield">SHIELD ${Math.ceil(this.riderCtrl.shieldTimer)}s</span>`;
+      }
+      if (this.riderCtrl.activeMagnet) {
+        html += `<span class="powerup-badge magnet">MAGNET ${Math.ceil(this.riderCtrl.magnetTimer)}s</span>`;
+      }
+      if (this.riderCtrl.activeDouble) {
+        html += `<span class="powerup-badge double">2X COINS ${Math.ceil(this.riderCtrl.doubleTimer)}s</span>`;
+      }
+      if (this.riderCtrl.activeOverdrive) {
+        html += `<span class="powerup-badge overdrive">OVERDRIVE ${Math.ceil(this.riderCtrl.overdriveTimer)}s</span>`;
+      }
+      powBar.innerHTML = html;
+    }
+  }
+
+  updateStatsDisplay() {
+    const wallet = window.GameStorage.getWallet();
+    const progress = window.GameStorage.getProgress();
+
+    const coinsEl = document.getElementById('menu-total-coins');
+    if (coinsEl) coinsEl.innerText = `${wallet.totalCoins || 0}`;
+
+    const roundEl = document.getElementById('menu-highest-round');
+    if (roundEl) roundEl.innerText = `${progress.highestUnlockedRound || 1} / 16`;
+
+    let bestTotal = 0;
+    Object.values(progress.bestScores).forEach(s => bestTotal = Math.max(bestTotal, s));
+    const bestEl = document.getElementById('menu-best-score');
+    if (bestEl) bestEl.innerText = `${bestTotal}`;
+  }
+
+  updateDevPanel() {
+    const panel = document.getElementById('dev-panel');
+    if (!panel || panel.classList.contains('hidden')) return;
+
+    document.getElementById('dev-fps').innerText = `${this.fps}`;
+    document.getElementById('dev-ml-state').innerText = `${this.ml.state}`;
+    document.getElementById('dev-ml-examples').innerText = `${this.ml.examples.length}`;
+    document.getElementById('dev-ml-predicted-p').innerText = `${(this.ml.lastPredictedP * 100).toFixed(1)}%`;
+    document.getElementById('dev-ml-actual').innerText = `${this.ml.lastActualLabel === 1 ? 'Clean' : 'Damage'}`;
+    document.getElementById('dev-ml-error').innerText = `${(this.ml.movingPredictionError).toFixed(3)}`;
+    document.getElementById('dev-ml-candidate').innerText = `${this.ml.currentCandidate}`;
+    document.getElementById('dev-track-seed').innerText = `${this.trackGen.seed}`;
+  }
+
+  hideAllScreens() {
+    const screens = [
+      'intro-overlay',
+      'main-menu',
+      'round-select-modal',
+      'how-to-play-modal',
+      'settings-modal',
+      'gameplay-hud',
+      'pause-modal',
+      'game-over-modal',
+      'round-complete-modal'
+    ];
+    screens.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+  }
+
+  // --- UI Wiring ---
+
+  initUI() {
+    // Main Menu Buttons
+    document.getElementById('btn-menu-play')?.addEventListener('click', () => {
+      const progress = window.GameStorage.getProgress();
+      this.startRound(progress.highestUnlockedRound || 1);
+    });
+
+    document.getElementById('btn-menu-rounds')?.addEventListener('click', () => {
+      this.showRoundSelect();
+    });
+
+    document.getElementById('btn-menu-how')?.addEventListener('click', () => {
+      document.getElementById('how-to-play-modal')?.classList.remove('hidden');
+    });
+
+    document.getElementById('btn-menu-settings')?.addEventListener('click', () => {
+      this.showSettings();
+    });
+
+    // Close Modals
+    document.getElementById('btn-close-how')?.addEventListener('click', () => {
+      document.getElementById('how-to-play-modal')?.classList.add('hidden');
+    });
+
+    document.getElementById('btn-close-rounds')?.addEventListener('click', () => {
+      document.getElementById('round-select-modal')?.classList.add('hidden');
+    });
+
+    document.getElementById('btn-close-settings')?.addEventListener('click', () => {
+      document.getElementById('settings-modal')?.classList.add('hidden');
+    });
+
+    // Pause & Resume
+    document.getElementById('btn-hud-pause')?.addEventListener('click', () => {
+      this.pause();
+    });
+
+    document.getElementById('btn-pause-resume')?.addEventListener('click', () => {
+      this.resume();
+    });
+
+    document.getElementById('btn-pause-restart')?.addEventListener('click', () => {
+      document.getElementById('pause-modal')?.classList.add('hidden');
+      this.startRound(this.currentRoundId, this.isEndless);
+    });
+
+    document.getElementById('btn-pause-menu')?.addEventListener('click', () => {
+      this.showMainMenu();
+    });
+
+    // Game Over Buttons
+    document.getElementById('btn-go-retry')?.addEventListener('click', () => {
+      this.startRound(this.currentRoundId, this.isEndless);
+    });
+
+    document.getElementById('btn-go-menu')?.addEventListener('click', () => {
+      this.showMainMenu();
+    });
+
+    // Round Complete Buttons
+    document.getElementById('btn-next-round')?.addEventListener('click', () => {
+      if (this.currentRoundId >= 16) {
+        this.startRound(16, true); // Endless
+      } else {
+        this.startRound(this.currentRoundId + 1);
+      }
+    });
+
+    document.getElementById('btn-rc-replay')?.addEventListener('click', () => {
+      this.startRound(this.currentRoundId);
+    });
+
+    document.getElementById('btn-rc-menu')?.addEventListener('click', () => {
+      this.showMainMenu();
+    });
+
+    // Developer Panel Toggle
+    document.getElementById('btn-dev-toggle')?.addEventListener('click', () => {
+      const dev = document.getElementById('dev-panel');
+      if (dev) {
+        dev.classList.toggle('hidden');
+        this.updateDevPanel();
+      }
+    });
+
+    this.wireSettingsForm();
+  }
+
+  showRoundSelect() {
+    const modal = document.getElementById('round-select-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const grid = document.getElementById('rounds-grid');
+    grid.innerHTML = '';
+
+    const progress = window.GameStorage.getProgress();
+    const highest = progress.highestUnlockedRound || 1;
+
+    window.ROUNDS_DATA.forEach(round => {
+      const isUnlocked = round.id <= highest;
+      const card = document.createElement('div');
+      card.className = `round-card ${isUnlocked ? 'unlocked' : 'locked'}`;
+
+      const stars = progress.stars[round.id] || 0;
+      const starsDisplay = isUnlocked ? '⭐'.repeat(stars) + '☆'.repeat(3 - stars) : '🔒';
+      const best = progress.bestScores[round.id] || 0;
+
+      card.innerHTML = `
+        <div class="rc-number">Round ${round.id}</div>
+        <div class="rc-title">${round.name}</div>
+        <div class="rc-meta">${round.length}m • ${round.baseSpeed} m/s</div>
+        <div class="rc-desc">${round.description}</div>
+        <div class="rc-stars">${starsDisplay}</div>
+        ${isUnlocked ? `<div class="rc-best">Best: ${best}</div>` : '<div class="rc-locked-msg">Locked</div>'}
+      `;
+
+      if (isUnlocked) {
+        card.addEventListener('click', () => {
+          modal.classList.add('hidden');
+          this.startRound(round.id);
+        });
+      }
+
+      grid.appendChild(card);
+    });
+  }
+
+  showSettings() {
+    const modal = document.getElementById('settings-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const s = window.GameStorage.getSettings();
+    document.getElementById('set-music').checked = s.music;
+    document.getElementById('set-sfx').checked = s.sfx;
+    document.getElementById('set-vibration').checked = s.vibration;
+    document.getElementById('set-sensitivity').value = s.steeringSensitivity;
+    document.getElementById('set-graphics').value = s.graphicsQuality;
+    document.getElementById('set-reduced-motion').checked = s.reducedMotion;
+    document.getElementById('set-adaptive').checked = s.adaptiveDifficulty;
+  }
+
+  wireSettingsForm() {
+    const saveAndApply = () => {
+      const s = {
+        music: document.getElementById('set-music').checked,
+        sfx: document.getElementById('set-sfx').checked,
+        vibration: document.getElementById('set-vibration').checked,
+        steeringSensitivity: parseFloat(document.getElementById('set-sensitivity').value),
+        graphicsQuality: document.getElementById('set-graphics').value,
+        reducedMotion: document.getElementById('set-reduced-motion').checked,
+        adaptiveDifficulty: document.getElementById('set-adaptive').checked
+      };
+      window.GameStorage.saveSettings(s);
+      this.input.updateSensitivity(s.steeringSensitivity);
+      this.applyGraphicsQuality(s.graphicsQuality);
+      if (window.GameAudio) window.GameAudio.updateVolumes();
+    };
+
+    ['set-music', 'set-sfx', 'set-vibration', 'set-sensitivity', 'set-graphics', 'set-reduced-motion', 'set-adaptive'].forEach(id => {
+      document.getElementById(id)?.addEventListener('change', saveAndApply);
+    });
+
+    document.getElementById('btn-reset-ml')?.addEventListener('click', () => {
+      this.ml.reset();
+      alert('Adaptive Machine Learning training weights have been reset.');
+      this.updateDevPanel();
+    });
+
+    document.getElementById('btn-reset-progress')?.addEventListener('click', () => {
+      if (confirm('Are you sure you want to reset all unlocked rounds and campaign progress?')) {
+        window.GameStorage.resetProgress();
+        alert('Campaign progress reset.');
+        this.updateStatsDisplay();
+      }
+    });
+  }
+};
