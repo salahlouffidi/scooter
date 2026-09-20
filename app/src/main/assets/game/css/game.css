@@ -622,3 +622,123 @@ html, body {
   color: #fff; background: rgba(22, 35, 64, .8); border-radius: 12px;
   padding: 7px 12px; font-size: 12px; font-weight: 700; pointer-events: none;
 }
+
+/* --- Professional Systems: Achievements, Leaderboard, Combo --- */
+
+/* Achievements Grid */
+#achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 20px 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.achievement-card {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  cursor: default;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.achievement-card.unlocked {
+  background: rgba(0, 255, 100, 0.15);
+  border-color: rgba(0, 255, 100, 0.4);
+  transform: scale(1.02);
+}
+
+.achievement-icon {
+  font-size: 2rem;
+  margin-bottom: 6px;
+  filter: grayscale(1);
+}
+
+.achievement-card.unlocked .achievement-icon {
+  filter: grayscale(0);
+  animation: achievementPop 0.4s ease-out;
+}
+
+.achievement-name {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #ffeb3b;
+}
+
+.achievement-desc {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 4px;
+}
+
+@keyframes achievementPop {
+  0% { transform: scale(0.5) rotate(-180deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* Leaderboard */
+#leaderboard-list {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  border-radius: 8px;
+  max-height: 350px;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  font-family: monospace;
+}
+
+.lb-entry {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+}
+
+.lb-entry:last-child {
+  border-bottom: none;
+}
+
+.lb-rank {
+  font-weight: 800;
+  color: #ffeb3b;
+  min-width: 25px;
+}
+
+.lb-rank.gold { color: #ffd700; }
+.lb-rank.silver { color: #c0c0c0; }
+.lb-rank.bronze { color: #cd7f32; }
+
+.lb-score {
+  font-weight: 800;
+  color: #81d4fa;
+}
+
+/* Combo Display */
+#combo-display {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 3rem;
+  font-weight: bold;
+  color: #ffeb3b;
+  text-shadow: 2px 2px 4px #000, 0 0 20px rgba(255, 235, 59, 0.6);
+  z-index: 100;
+  pointer-events: none;
+  animation: comboScale 0.3s ease-out;
+}
+
+@keyframes comboScale {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+  50% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
+}
+
+@keyframes comboFade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}

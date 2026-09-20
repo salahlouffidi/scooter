@@ -274,6 +274,41 @@
   <!-- Subtle Dev Button (bottom-left) -->
   <button id="btn-dev-toggle">DEV</button>
 
+  <!-- Achievements & Leaderboard Modal -->
+  <div id="achievements-modal" class="ui-layer hidden">
+    <div class="modal-box">
+      <div class="modal-title">🏆 ACHIEVEMENTS</div>
+      <div id="achievements-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 20px 0; max-height: 400px; overflow-y: auto;">
+        <!-- Achievements will be populated here -->
+      </div>
+      <div style="font-size: 0.95rem; margin: 12px 0; color: rgba(255,255,255,0.7);">
+        Unlocked: <strong id="achievements-count">0</strong> / <span id="achievements-total">10</span>
+      </div>
+      <button id="btn-close-achievements" class="btn-primary">BACK</button>
+    </div>
+  </div>
+
+  <!-- Leaderboard Modal -->
+  <div id="leaderboard-modal" class="ui-layer hidden">
+    <div class="modal-box">
+      <div class="modal-title">📊 LEADERBOARD</div>
+      <div style="margin: 16px 0; font-size: 0.9rem;">
+        <strong id="lb-player-rank">Your Rank: —</strong><br>
+        <span id="lb-total-score">Total Score: 0</span><br>
+        <span id="lb-total-coins">Total Coins: 0</span>
+      </div>
+      <div id="leaderboard-list" style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; max-height: 350px; overflow-y: auto; font-size: 0.85rem; font-family: monospace;">
+        <!-- Top scores will populate here -->
+      </div>
+      <button id="btn-close-leaderboard" class="btn-primary" style="margin-top: 16px;">BACK</button>
+    </div>
+  </div>
+
+  <!-- Combo Display (in-game) -->
+  <div id="combo-display" class="hidden" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 3rem; font-weight: bold; color: #ffeb3b; text-shadow: 2px 2px 4px #000; z-index: 100; animation: comboScale 0.3s ease-out;">
+    <!-- Combo text -->
+  </div>
+
   <!-- Scripts in dependency order -->
   <script src="lib/three.min.js"></script>
   <script src="js/visualKit.js"></script>
@@ -283,6 +318,8 @@
   <script src="js/audio.js"></script>
   <script src="js/rounds.js"></script>
   <script src="js/arcadeEffects.js"></script>
+  <script src="js/particleEffects.js"></script>
+  <script src="js/proSystems.js"></script>
   <script src="js/adaptiveML.js"></script>
   <script src="js/reachability.js"></script>
   <script src="js/assetFactory.js"></script>

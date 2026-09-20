@@ -18,6 +18,7 @@ window.SkyAtmosphere = class SkyAtmosphere {
     this.domeGroup.name = 'skyDome';
     this.cloudSprites = [];
     this.cloudMaterials = [];
+    this.horizonMaterials = [];
     this.distantItems = [];
     this.sunSprite = null;
     this.sunWorld = null;
@@ -87,17 +88,44 @@ window.SkyAtmosphere = class SkyAtmosphere {
       this.cloudMaterials.push(mat);
     }
 
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 14; i++) {
       const mat = this.cloudMaterials[i % this.cloudMaterials.length];
       const sprite = new T.Sprite(mat);
       sprite.userData = {
         z: Math.random() * 420,
-        lateral: (Math.random() < 0.5 ? -1 : 1) * (25 + Math.random() * 55),
-        height: 26 + Math.random() * 26,
+        lateral: (Math.random() < 0.5 ? -1 : 1) * (25 + Math.random() * 70),
+        height: 26 + Math.random() * 30,
         speed: 0.4 + Math.random() * 0.5,
         phase: Math.random() * Math.PI * 2,
-        scaleX: 32 + Math.random() * 20,
-        scaleY: 15 + Math.random() * 9
+        scaleX: 46 + Math.random() * 52,
+        scaleY: 20 + Math.random() * 18,
+        horizon: false
+      };
+      sprite.scale.set(sprite.userData.scaleX, sprite.userData.scaleY, 1);
+      this.scene.add(sprite);
+      this.cloudSprites.push(sprite);
+    }
+    // Distant horizon cloud bank: long, low, hazy cumulus rows.
+    for (let i = 0; i < 5; i++) {
+      const tex = this.makeCloudTexture(i);
+      const mat = new T.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false,
+        fog: true
+      });
+      this.horizonMaterials.push(mat);
+      const sprite = new T.Sprite(mat);
+      sprite.userData = {
+        z: i * 100 - 30,
+        lateral: (i % 2 ? 1 : -1) * (95 + i * 22),
+        height: 11 + i * 3,
+        speed: 0.15 + i * 0.04,
+        phase: i * 1.7,
+        scaleX: 120 + i * 22,
+        scaleY: 18 + i * 4,
+        horizon: true
       };
       sprite.scale.set(sprite.userData.scaleX, sprite.userData.scaleY, 1);
       this.scene.add(sprite);
@@ -181,6 +209,18 @@ window.SkyAtmosphere = class SkyAtmosphere {
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, 1024, 512);
 
+      // Warm painterly glow near the horizon for day/sunset worlds.
+      if (!this.isNight && theme !== 'storm') {
+        const warmTheme = theme === 'sunset' || theme === 'volcano' || theme === 'desert';
+        const warm = new T.Color(warmTheme ? 0xffb37a : 0xffd9a0);
+        const wr = Math.round(warm.r * 255), wg = Math.round(warm.g * 255), wb = Math.round(warm.b * 255);
+        const glow = ctx.createLinearGradient(0, 190, 0, 300);
+        glow.addColorStop(0, 'rgba(255,255,255,0)');
+        glow.addColorStop(1, `rgba(${wr},${wg},${wb},${warmTheme ? 0.34 : 0.26})`);
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 190, 1024, 110);
+      }
+
       if (this.isNight) this.drawStars(ctx);
 
       // Soft haze just above the horizon gives depth.
@@ -252,9 +292,9 @@ window.SkyAtmosphere = class SkyAtmosphere {
       this.sunSprite.scale.set(300, 300, 1);
       this.sunWorld = { lateral: 0, height: 42, distance: 520 };
     } else {
-      this.sunSprite.material.color.set(0xfff6d8);
+      this.sunSprite.material.color.set(0xffe9b8);
       this.sunSprite.material.opacity = 1.0;
-      this.sunSprite.scale.set(230, 230, 1);
+      this.sunSprite.scale.set(250, 250, 1);
       this.sunWorld = { lateral: 30, height: 105, distance: 450 };
     }
     this.sunSprite.visible = true;
@@ -289,12 +329,16 @@ window.SkyAtmosphere = class SkyAtmosphere {
       colors = [0xc8d2da, 0xb7c4cd, 0xd2dbe1];
       opacity = 0.92;
     } else {
-      colors = [0xffffff, 0xf4f9ff, 0xfff3e0];
-      opacity = 0.88;
+      colors = [0xffffff, 0xfff7ea, 0xffe9d0];
+      opacity = 0.9;
     }
     this.cloudMaterials.forEach((m, i) => {
       m.color.set(colors[i % colors.length]);
       m.opacity = opacity;
+    });
+    this.horizonMaterials.forEach((m, i) => {
+      m.color.set(colors[i % colors.length]);
+      m.opacity = Math.min(0.6, opacity * 0.6);
     });
   }
 
@@ -327,8 +371,12 @@ window.SkyAtmosphere = class SkyAtmosphere {
       const u = sprite.userData;
       if (u.z < playerPos.z - 70) {
         u.z += 440;
-        u.lateral = (Math.random() < 0.5 ? -1 : 1) * (25 + Math.random() * 55);
-        u.height = 26 + Math.random() * 26;
+        if (u.horizon) {
+          u.lateral = (Math.random() < 0.5 ? -1 : 1) * (95 + Math.random() * 60);
+        } else {
+          u.lateral = (Math.random() < 0.5 ? -1 : 1) * (25 + Math.random() * 70);
+          u.height = 26 + Math.random() * 30;
+        }
       }
       const roadX = this.trackGen.getTrackPoint(u.z).x;
       sprite.position.set(

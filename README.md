@@ -2,6 +2,10 @@
 
 Android WebView + offline Three.js scooter runner. This update adds a reference-inspired warm stone bridge, wooden rails, a rounded helmeted rider, blue scooter, floating islands, leafy trees, castle towers, clouds and waterfalls. It is original stylized geometry, not an exact reconstruction of the reference illustration.
 
+## Painterly summer pass
+
+Inspired by a cozy painterly delivery-game clip, the road now carries small-town summer details: white picket fence sections, flower tufts on the rails, black lamp posts with warm glowing heads, and broadleaf canopy trees that lean over the road and dapple it with shadow. The sky gained larger cumulus clouds, a hazy horizon cloud bank and a warm painterly glow near the horizon, with a slightly warmer sun. All charm props are instanced per segment and recycle with the track; the CPU and browser smoke tests still pass.
+
 ## Sixteen magical environments
 
 Every round now selects its own cached scenery geometry, nearby landmarks, distant skyline, road materials and rails. `js/biomeArt.js` builds original theme assets and merges static geometry by material before cloning them. The existing single GLB still supplies the rider, scooter and shared gameplay props.
