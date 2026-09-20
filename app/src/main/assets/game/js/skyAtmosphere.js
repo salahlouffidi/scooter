@@ -117,11 +117,24 @@ window.SkyAtmosphere = class SkyAtmosphere {
       { z: 330, lat: -175, y: -36, scale: 5.0, tower: false }
     ];
 
-    for (const cfg of configs) {
-      const island = this.trackGen.biomeArt.create(this.roundData || window.ROUNDS_DATA[0]);
+    for (let i = 0; i < configs.length; i++) {
+      const cfg = configs[i];
+      const round = this.roundData || window.ROUNDS_DATA[0];
+      const landmark = new this.THREE.Group();
+      landmark.name = `distant_landmark_${i}`;
+      const island = this.trackGen.biomeArt.create(round);
       island.scale.setScalar(cfg.scale * .65);
-      island.position.set(0, cfg.y, cfg.z);
-      island.userData = {
+      landmark.add(island);
+      // A few far islands carry a tiny settlement silhouette.  It adds depth
+      // behind the road without turning the horizon into a wall of objects.
+      if (i % 2 === 1 || cfg.scale >= 3.5) {
+        const cluster = this.trackGen.biomeArt.cluster(round, i % 3);
+        cluster.scale.setScalar(.38 + (cfg.scale >= 3.5 ? .1 : 0));
+        cluster.position.set(i % 2 ? -1.6 : 1.6, 1.2, .4);
+        landmark.add(cluster);
+      }
+      landmark.position.set(0, cfg.y, cfg.z);
+      landmark.userData = {
         z: cfg.z,
         lateral: cfg.lat,
         height: cfg.y,
@@ -129,15 +142,15 @@ window.SkyAtmosphere = class SkyAtmosphere {
         tower: cfg.tower,
         isFar: cfg.scale >= 3.5
       };
-      island.traverse(m => {
+      landmark.traverse(m => {
         if (m.isMesh) {
           m.castShadow = false;
           m.receiveShadow = false;
         }
       });
 
-      this.scene.add(island);
-      this.distantItems.push(island);
+      this.scene.add(landmark);
+      this.distantItems.push(landmark);
     }
   }
 

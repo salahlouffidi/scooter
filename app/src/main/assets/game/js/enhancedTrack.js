@@ -79,6 +79,17 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
       const at=s+10+this.rng()*8,offset=side*(w/2+9+this.rng()*5),p=this.frame(at,offset,-3-this.rng()*2);
       const island=this.biomeArt.create(this.roundData);island.position.set(p.x,p.y,p.z);
       island.scale.setScalar(.8+this.rng()*.35);island.rotation.y=side*.25;this.addScenery(island,s);
+      // Every other stretch gets a denser foreground landmark.  These modular
+      // terraces make the world feel connected instead of repeating empty islands.
+      if(s%48===0){
+        const variant=(Math.floor(s/48)+(side>0?1:0))%3;
+        const landmark=this.biomeArt.cluster(this.roundData,variant);
+        const lp=this.frame(s+12+(side>0?2:-2),side*(w/2+13.5),-1.25-this.rng()*.75);
+        landmark.position.set(lp.x,lp.y,lp.z);
+        landmark.scale.setScalar(.86+this.rng()*.1);
+        landmark.rotation.y=side*.08;
+        this.addScenery(landmark,s);
+      }
     }
   }
   addItem(m,s,laneX,y,extra){const p=this.frame(s,laneX,y);m.position.set(p.x,p.y,p.z);m.userData={...extra,s,laneX,collected:this.collectedIDs.has(extra.id),baseY:p.y};if(!m.userData.collected){this.scene.add(m);this.activeCollectibles.push(m);}}
