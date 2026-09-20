@@ -6,6 +6,11 @@ window.AssetFactory = class AssetFactory {
     this.materials = {};
     this.geometries = {};
     this.initSharedMaterials();
+    // Reuse geometry/materials for streamed items instead of allocating every spawn.
+    for(const name of ['createCoin','createGem','createPowerup','createObstacle']){
+      const build=this[name].bind(this),cache=new Map();
+      this[name]=(...args)=>{const key=JSON.stringify(args);if(!cache.has(key))cache.set(key,build(...args));return cache.get(key).clone(true);};
+    }
   }
 
   initSharedMaterials() {
@@ -91,6 +96,12 @@ window.AssetFactory = class AssetFactory {
 
   // Creates the iconic Adult Rider in Red Hoodie + Helmet with Scooter
   createRiderWithScooter() {
+    if (window.louffiKit) {
+      const root = window.louffiKit.getObjectByName('RiderScooter').clone(true);
+      root.userData = {};
+      ['scooter','rider','frontWheel','backWheel','headGroup','leftLeg','rightLeg'].forEach(name => root.userData[name] = root.getObjectByName(name));
+      return root;
+    }
     const THREE = this.THREE;
     const root = new THREE.Group();
     root.name = 'playerRoot';
@@ -330,6 +341,7 @@ window.AssetFactory = class AssetFactory {
 
   // Obstacle mesh
   createObstacle(type) {
+    if (type === 'crate' && window.louffiKit) return window.louffiKit.getObjectByName('Crate').clone(true);
     const THREE = this.THREE;
     const group = new THREE.Group();
     group.name = `obstacle_${type}`;
@@ -376,6 +388,7 @@ window.AssetFactory = class AssetFactory {
 
   // Castle Tower for scenery
   createCastleTower(colorHex) {
+    if (window.louffiKit) return window.louffiKit.getObjectByName('Castle').clone(true);
     const THREE = this.THREE;
     const group = new THREE.Group();
 
@@ -397,6 +410,10 @@ window.AssetFactory = class AssetFactory {
 
   // Floating Island for background scenery
   createFloatingIsland(grassColorHex, rockColorHex, radius = 6.0) {
+    if (window.louffiKit) {
+      const island=window.louffiKit.getObjectByName('Island').clone(true);
+      island.scale.setScalar(radius/5); return island;
+    }
     const THREE = this.THREE;
     const group = new THREE.Group();
 
@@ -420,6 +437,7 @@ window.AssetFactory = class AssetFactory {
 
   // Low-poly Tree
   createTree() {
+    if (window.louffiKit) return window.louffiKit.getObjectByName('Tree').clone(true);
     const THREE = this.THREE;
     const group = new THREE.Group();
 

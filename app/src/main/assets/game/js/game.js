@@ -103,19 +103,26 @@ window.SkyScooterGame = class SkyScooterGame {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.35;
     this.container.appendChild(this.renderer.domElement);
 
     // Lights
-    this.hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.85);
+    this.hemiLight = new THREE.HemisphereLight(0xc8eaff, 0xc4ad83, 2.0);
     this.scene.add(this.hemiLight);
 
-    this.dirLight = new THREE.DirectionalLight(0xffffff, 0.95);
+    this.dirLight = new THREE.DirectionalLight(0xfff0da, 2.5);
     this.dirLight.position.set(20, 40, 20);
     this.dirLight.castShadow = true;
     this.dirLight.shadow.mapSize.width = 1024;
     this.dirLight.shadow.mapSize.height = 1024;
     this.dirLight.shadow.camera.near = 0.5;
     this.dirLight.shadow.camera.far = 150;
+    Object.assign(this.dirLight.shadow.camera,{left:-25,right:25,top:35,bottom:-25});
+    this.dirLight.shadow.bias = -0.0004;
+    this.dirLight.shadow.normalBias = 0.04;
+    this.scene.add(this.dirLight.target);
     this.scene.add(this.dirLight);
 
     window.addEventListener('resize', () => this.onResize());
@@ -206,7 +213,7 @@ window.SkyScooterGame = class SkyScooterGame {
     // Apply Biome visual colors
     this.scene.background = new this.THREE.Color(roundData.skyColor);
     this.scene.fog.color = new this.THREE.Color(roundData.fogColor);
-    this.hemiLight.color = new this.THREE.Color(roundData.ambientLight);
+    this.hemiLight.color = new this.THREE.Color(0xc8eaff);
 
     // Build track with seeded randomness
     const seed = Date.now();
@@ -411,6 +418,10 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   triggerGameOver() {
+    if(this.mlWindowFeaturesSnapshot && this.mlWindowTimer>0){
+      this.ml.recordWindowOutcome(this.mlWindowFeaturesSnapshot,{speed:this.riderCtrl.forwardSpeed},false);
+      this.mlWindowTimer=0;
+    }
     this.state = 'GAME_OVER';
     this.notifyAndroidState('GAME_OVER');
     this.hideAllScreens();
@@ -445,7 +456,7 @@ window.SkyScooterGame = class SkyScooterGame {
     // Star 3: Collected >= 70% of spawned coins
     let starsEarned = 1;
     if (this.hearts >= 2) starsEarned++;
-    const collectionPercent = this.coinsCollectedThisRun / Math.max(1, this.totalSpawnedCoinsEstimate);
+    const collectionPercent = this.coinsCollectedThisRun / Math.max(1, this.trackGen.totalCoins);
     if (collectionPercent >= 0.7) starsEarned++;
 
     const isAdaptive = window.GameStorage.getSettings().adaptiveDifficulty;
@@ -503,7 +514,7 @@ window.SkyScooterGame = class SkyScooterGame {
       this.input.update(dt);
 
       const roundData = this.trackGen.roundData;
-      this.riderCtrl.update(dt, this.input, roundData.baseSpeed, roundData.roadWidth, (ev, p) => this.onGameplayEvent(ev, p));
+      this.riderCtrl.update(dt, this.input, roundData.baseSpeed * this.trackGen.speedMultiplierAt(this.riderCtrl.s), roundData.roadWidth, (ev, p) => this.onGameplayEvent(ev, p));
 
       // Distance score: 1 point per new forward meter
       const newDistance = Math.floor(this.riderCtrl.furthestS);
@@ -533,8 +544,17 @@ window.SkyScooterGame = class SkyScooterGame {
         this.mlWindowHadDamage = false;
 
         // Select candidate difficulty for future windows
-        const candidate = this.ml.selectCandidate(roundData, this.riderCtrl, this.validator);
-        this.mlWindowFeaturesSnapshot = this.ml.extractFeatures(this.riderCtrl, roundData.baseSpeed * candidate.speedMultiplier, candidate, roundData);
+        const riderState={...this.riderCtrl,hearts:this.hearts};
+        const candidate = this.ml.selectCandidate(roundData, riderState, this.validator);
+        this.trackGen.setDifficulty(candidate);
+        // Snapshot the section the rider is actually entering, not a future candidate 160m away.
+        const section=this.trackGen.activeSegments.find(g=>this.riderCtrl.s>=g.userData.sStart&&this.riderCtrl.s<g.userData.sEnd);
+        this.mlWindowFeaturesSnapshot = this.ml.extractFeatures(riderState, this.riderCtrl.forwardSpeed, {densityMult:section?.userData.densityMult||1,spacingMult:1}, roundData);
+        this.riderCtrl.recentDamageCount=0;
+        this.riderCtrl.jumpAttempts=0;
+        this.riderCtrl.jumpSuccesses=0;
+        this.riderCtrl.steerCorrections=0;
+        this.riderCtrl.coinsCollectedInWindow=0;
       }
 
       this.updateHUD();
@@ -553,6 +573,10 @@ window.SkyScooterGame = class SkyScooterGame {
     }
 
     // 3. Render 3D Scene
+    const lightS = this.riderCtrl ? this.riderCtrl.s : 0;
+    const lightP = this.trackGen.getTrackPoint(lightS);
+    this.dirLight.position.set(lightP.x-18,35,lightP.z-15);
+    this.dirLight.target.position.set(lightP.x,0,lightP.z+12);
     this.renderer.render(this.scene, this.camera);
   }
 

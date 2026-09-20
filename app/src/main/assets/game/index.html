@@ -273,6 +273,8 @@
 
   <!-- Scripts in dependency order -->
   <script src="lib/three.min.js"></script>
+  <script src="js/visualKit.js"></script>
+  <script src="js/kitLoader.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/audio.js"></script>
@@ -281,12 +283,14 @@
   <script src="js/reachability.js"></script>
   <script src="js/assetFactory.js"></script>
   <script src="js/trackGenerator.js"></script>
+  <script src="js/enhancedTrack.js"></script>
   <script src="js/input.js"></script>
   <script src="js/controller.js"></script>
   <script src="js/camera.js"></script>
   <script src="js/game.js"></script>
   <script>
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
+      await window.loadLouffiKit();
       window.gameInstance = new window.SkyScooterGame();
     });
   </script>

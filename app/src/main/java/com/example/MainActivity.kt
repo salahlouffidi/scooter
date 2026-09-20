@@ -31,6 +31,12 @@ class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
 
     class AndroidBridge(private val context: Context) {
+        // Fixed local asset only; no caller-controlled paths or network access.
+        @JavascriptInterface
+        fun readVisualKit(): String = context.assets.open("game/models/louffi-world.glb").use {
+            android.util.Base64.encodeToString(it.readBytes(), android.util.Base64.NO_WRAP)
+        }
+
         @JavascriptInterface
         fun vibrate(milliseconds: Long) {
             val clampedMs = milliseconds.coerceIn(10L, 500L)

@@ -11,6 +11,14 @@ window.ReachabilityValidator = class ReachabilityValidator {
   }
 
   // Validates if candidate difficulty parameters allow at least one safe navigable route
+  validateLayout(p) {
+    const flight=2*8.5/22;
+    if(p.gapWidth && p.gapWidth+1 > p.speed/1.35/1.1*.75*flight) return false;
+    if(Math.abs(p.safeLane-p.previousLane)/6.2+.4 > p.length/p.speed) return false;
+    if(Math.abs(p.safeLane)>p.roadWidth*.4) return false;
+    return p.hazards.every(h=>Math.abs(h.laneX-p.safeLane)>=1.8);
+  }
+
   validateWindow(speed, densityMult, spacingMult, roadWidth, features) {
     // 1. Check warning distance
     const reactionDistance = speed * this.MIN_REACTION_TIME;

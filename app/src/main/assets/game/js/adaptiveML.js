@@ -150,7 +150,7 @@ window.AdaptiveDifficultyML = class AdaptiveDifficultyML {
   // Runs reachability FIRST, then scores with model, targeting p ~ 0.80
   selectCandidate(baseParams, currentRiderState, reachabilityValidator) {
     const settings = window.GameStorage ? window.GameStorage.getSettings() : { adaptiveDifficulty: true };
-    if (!settings.adaptiveDifficulty || this.state === 'ADAPTIVE_OFF') {
+    if (!settings.adaptiveDifficulty || this.state !== 'LEARNING') {
       return {
         name: 'designer_fixed',
         speedMultiplier: 1.0,
@@ -167,7 +167,7 @@ window.AdaptiveDifficultyML = class AdaptiveDifficultyML {
       { name: 'spicy', speedMult: 1.05, densityMult: 1.15, spacingMult: 0.85 }
     ];
 
-    let bestCandidate = candidates[1]; // default balanced
+    let bestCandidate = {name:'safe_fallback',speedMultiplier:.95,obstacleDensityMultiplier:.8,spacingMultiplier:1.25,predictedP:null};
     let minDiffFromTarget = 999;
     const targetP = 0.80;
 
@@ -218,11 +218,11 @@ window.AdaptiveDifficultyML = class AdaptiveDifficultyML {
     // 3: normalized collection rate [0..1]
     f[3] = Math.min(1.0, (riderState.coinsCollectedInWindow || 0) / 12.0);
     // 4: current hearts [0..1]
-    f[4] = Math.max(0.0, Math.min(1.0, (riderState.hearts || 3) / 3.0));
+    f[4] = Math.max(0.0, Math.min(1.0, (riderState.hearts ?? 3) / 3.0));
     // 5: upcoming speed [0..1] (normalized from 6 to 16 m/s)
     f[5] = Math.max(0.0, Math.min(1.0, (candidateSpeed - 6) / 10.0));
     // 6: obstacle density [0..1]
-    f[6] = Math.max(0.0, Math.min(1.0, (candidate.densityMult || 1.0) * 0.5));
+    f[6] = Math.max(0.0, Math.min(1.0, (candidate.densityMult ?? candidate.obstacleDensityMultiplier ?? 1) * 0.5));
     // 7: minimum clearance [0..1]
     const clearance = (baseParams.roadWidth || 8.0) * (candidate.spacingMult || 1.0) / 10.0;
     f[7] = Math.max(0.0, Math.min(1.0, clearance));
@@ -241,6 +241,7 @@ window.AdaptiveDifficultyML = class AdaptiveDifficultyML {
         bias: this.bias,
         movingPredictionError: this.movingPredictionError,
         examplesCount: this.examples.length,
+        examples: this.examples,
         version: 1
       };
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
@@ -252,12 +253,14 @@ window.AdaptiveDifficultyML = class AdaptiveDifficultyML {
       const raw = localStorage.getItem(this.STORAGE_KEY);
       if (!raw) return;
       const data = JSON.parse(raw);
-      if (data.weights && data.weights.length === this.FEATURE_COUNT && Number.isFinite(data.bias)) {
+      if (data.version === 1 && data.weights && data.weights.length === this.FEATURE_COUNT && data.weights.every(Number.isFinite) && Number.isFinite(data.bias)) {
         for (let i = 0; i < this.FEATURE_COUNT; i++) {
           this.weights[i] = data.weights[i];
         }
         this.bias = data.bias;
         this.movingPredictionError = data.movingPredictionError || 0.25;
+        this.examples=(data.examples||[]).filter(e=>Array.isArray(e.features)&&e.features.length===10&&e.features.every(Number.isFinite)&&(e.label===0||e.label===1)).slice(-256);
+        if(this.examples.length>=30&&this.examples.some(e=>e.label===0)&&this.examples.some(e=>e.label===1))this.state='LEARNING';
       }
     } catch (e) {
       console.warn('Could not load ML model, using safe defaults:', e);

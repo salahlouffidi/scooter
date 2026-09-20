@@ -1,0 +1,28 @@
+# SKY SCOOTER — LOUFFI EDITION
+
+Android WebView + offline Three.js scooter runner. This update adds a reference-inspired warm stone bridge, wooden rails, a rounded helmeted rider, blue scooter, floating islands, leafy trees, castle towers, clouds and waterfalls. It is original stylized geometry, not an exact reconstruction of the reference illustration.
+
+## One reusable Blender-compatible asset file
+
+`app/src/main/assets/game/models/louffi-world.glb` is a real binary glTF 2.0 asset containing named RiderScooter, Island, Castle, Tree, Cloud, Waterfall and Crate groups. In Blender use **File → Import → glTF 2.0** to edit it. There are not sixteen duplicate level files. The game loads and clones these shared assets. This is a GLB, not a native `.blend` project.
+
+`node tools/build-visual-kit.cjs` rebuilds the asset deterministically from `visualKit.js` using the bundled Three.js, without downloading packages. `kitLoader.js` supports the uncompressed static mesh/material/TRS subset emitted by that builder; it is not a general-purpose glTF loader. Blender exports with textures, skins or compression require a full GLTFLoader integration. Android reads the single fixed bundled asset through the existing bridge; web previews use fetch. If loading fails the same original procedural kit is used and the console records that fallback.
+
+## Run and verify
+
+Serve `app/src/main/assets/game` with a local HTTP server, for example `python -m http.server 8765 --directory app/src/main/assets/game`. Open localhost:8765. Touch joystick steers; right buttons jump/brake. Desktop A/D or arrows, Space, S/down, Escape. Android requests landscape orientation.
+
+Run `node tools/verify-game.cjs`. It checks real GLB parsing and geometry, all sixteen round generators, bounded active objects, short-gap jump physics, applied difficulty parameters, ML weight changes, persistence and adaptive OFF. These CPU checks do not establish Android frame rate or visual quality on a device.
+
+Open the Android project in Android Studio to build/test on a device. This change does not include a signed release APK/AAB.
+
+## Gameplay corrections
+
+- Full-width gap hazards are 2.4m instead of the previous ~20m. Concrete lane layouts are checked before placing obstacles, using steering limits and actual jump constants. This is a conservative validator for the present static obstacles, not a proof for future moving hazards.
+- Difficulty selection changes the density of new, unseen segments. Their speed multiplier takes effect when the rider enters that segment; already visible obstacle positions do not move.
+- Model weights and the bounded example buffer persist. Cold start uses fixed designer difficulty until sufficient success/failure examples exist. Features use current segment parameters rather than treating an unplayed future candidate as the current experience. Personal-model efficacy still needs playtesting; the target probability is not a measured success guarantee.
+- Collection checks use lane coordinates consistently; stars count spawned coins. Checkpoint reconstruction remembers collected IDs.
+
+## Limits and follow-up
+
+The existing sixteen rounds remain configuration-driven. This update shares an improved fantasy art kit; it does not claim sixteen independently authored environments. The decorative waterfalls are static stylized meshes. Physics still uses the existing capped variable timestep. Moving hazards, richer animations, more biome-specific assets, broad device testing and statistical evaluation of adaptation remain future work. No cloud AI calls occur during gameplay.

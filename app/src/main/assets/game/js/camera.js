@@ -6,9 +6,9 @@ window.GameCamera = class GameCamera {
     this.THREE = THREE;
 
     // Default target offsets relative to rider
-    this.heightOffset = 3.6;
-    this.distanceBehind = 6.2;
-    this.lookAheadDistance = 14.0;
+    this.heightOffset = 3.2;
+    this.distanceBehind = 6.5;
+    this.lookAheadDistance = 10.0;
     this.lookUpOffset = 1.2;
 
     this.currentPosition = new THREE.Vector3();

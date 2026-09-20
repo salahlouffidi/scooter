@@ -80,10 +80,12 @@ window.RiderController = class RiderController {
 
     this.furthestS = s;
     this.lastCheckpointS = s;
+    this.recentDamageCount=0;this.jumpAttempts=0;this.jumpSuccesses=0;this.steerCorrections=0;this.coinsCollectedInWindow=0;
     this.updateMeshTransform();
   }
 
   respawnAtCheckpoint() {
+    this.trackGen.restoreCheckpoint?.(this.lastCheckpointS);
     this.s = this.lastCheckpointS;
     this.laneX = 0.0;
     this.y = 0.5;
@@ -147,7 +149,8 @@ window.RiderController = class RiderController {
     // 3. Lateral Steering
     const steerInput = input.horizontalSteer;
     if (Math.abs(steerInput) > 0.05) {
-      this.steerCorrections++;
+      if(Math.sign(steerInput)!==this.previousSteerSign)this.steerCorrections++;
+      this.previousSteerSign=Math.sign(steerInput);
       this.lateralVelocity += steerInput * this.LATERAL_ACCEL * dt;
       this.lateralVelocity = Math.max(-this.MAX_LATERAL_SPEED, Math.min(this.MAX_LATERAL_SPEED, this.lateralVelocity));
     } else {
@@ -212,7 +215,7 @@ window.RiderController = class RiderController {
     // 7. Check Gaps / Falling hazards
     // If inside a gap segment and player is on the ground (y <= 0.05), fall!
     const currentSeg = this.trackGen.activeSegments.find(
-      seg => seg.userData.isGap && this.s >= seg.userData.sStart + 2.0 && this.s <= seg.userData.sEnd - 2.0
+      seg => seg.userData.isGap && this.s >= seg.userData.gapStart && this.s <= seg.userData.gapEnd
     );
     if (currentSeg && this.y <= 0.1) {
       // Fell into gap!
@@ -246,7 +249,7 @@ window.RiderController = class RiderController {
 
       // Check distance to player
       const distToMesh = item.position.distanceTo(this.mesh.position.clone().add(new this.trackGen.THREE.Vector3(0, 1.0, 0)));
-      if (distToMesh < 1.4 || (itemS >= s0 && itemS <= s1 && Math.abs(this.laneX - (item.userData.x || 0)) < 1.3)) {
+      if (distToMesh < 1.0 || (itemS >= s0 && itemS <= s1 && Math.abs(this.laneX - item.userData.laneX) < .8 && Math.abs(this.y+1-item.position.y)<1.0)) {
         item.userData.collected = true;
         this.trackGen.scene.remove(item);
 
