@@ -6,6 +6,7 @@ window.BiomeArt = class BiomeArt {
     this.geometry = {
       box: new T.BoxGeometry(1, 1, 1), sphere: new T.SphereGeometry(1, 10, 7),
       cone: new T.ConeGeometry(1, 1, 8), cylinder: new T.CylinderGeometry(1, 1, 1, 10),
+      roof: new T.ConeGeometry(1, 1, 4),
       crystal: new T.OctahedronGeometry(1), ring: new T.TorusGeometry(1, .12, 6, 24),
       arch: new T.TorusGeometry(1, .1, 6, 24, Math.PI)
     };
@@ -139,6 +140,204 @@ window.BiomeArt = class BiomeArt {
         break;
     }
     return this.merge(g);
+  }
+  // A small, modular sky-neighborhood used to break up the repeated island rhythm.
+  // It is intentionally made from the same low-poly language as the authored biomes,
+  // but gives the camera believable foreground depth: homes, terraces, lamps, trees,
+  // bridges and a readable silhouette that changes every few road segments.
+  cluster(round, variant = 0) {
+    const T = this.T, theme = round.theme, v = ((variant % 3) + 3) % 3;
+    const key = `cluster_${theme}_${v}`;
+    if (this.cache.has(key)) return this.cache.get(key).clone(true);
+    const g = new T.Group(); g.name = `sky_neighborhood_${theme}_${v}`; g.userData.biome = theme;
+    const shade = (value, factor) => {
+      const c = new T.Color(value); c.multiplyScalar(factor); return c.getHex();
+    };
+    const decorByTheme = {
+      garden: 0xffa9d1, castle_bridge: 0xb28bea, waterfalls: 0x7de7f1,
+      forest: 0xffb98b, desert: 0xffdf83, crystal: 0xaedfff,
+      snow: 0xdff7ff, sunset: 0xff9ebd, neon: 0xff82ee,
+      workshop: 0xffd173, storm: 0xe3c8ff, volcano: 0xffa176,
+      moon: 0xb4c7ff, citadel: 0xffdc9a, rainbow: 0xffc4e8,
+      grand_run: 0xffd77c
+    };
+    const p = {
+      wall: shade(round.roadColor, 1.16), wallShade: shade(round.roadColor, .78),
+      roof: round.railColor, roofDark: shade(round.railColor, .66),
+      ground: round.islandGrassColor, rock: round.islandRockColor,
+      trunk: shade(round.islandRockColor, 1.18), leaf: shade(round.islandGrassColor, 1.18),
+      leafDark: shade(round.islandGrassColor, .72), decor: decorByTheme[theme] || round.railColor,
+      light: shade(round.ambientLight, .9), path: shade(round.roadColor, .93)
+    };
+    const part = (kind, color, x, y, z, sx, sy, sz, glow = false, rz = 0) => {
+      const m = new T.Mesh(this.geometry[kind], this.material(color, glow));
+      m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.rotation.z = rz; g.add(m); return m;
+    };
+    const box = (c, x, y, z, w, h, d, glow = false) => part('box', c, x, y, z, w, h, d, glow);
+    const orb = (c, x, y, z, r, glow = false) => part('sphere', c, x, y, z, r, r, r, glow);
+    const pillar = (c, x, y, z, r, h) => part('cylinder', c, x, y, z, r, h, r);
+    const addTree = (x, z, h = 4.8) => {
+      pillar(p.trunk, x, h * .24, z, .28, h * .72);
+      orb(p.leafDark, x, h * .63, z, 1.4);
+      orb(p.leaf, x - .58, h * .78, z + .18, 1.1);
+      orb(p.leaf, x + .58, h * .77, z - .2, 1.02);
+    };
+    const addLamp = (x, z, h = 3.3) => {
+      pillar(p.trunk, x, h * .45, z, .09, h);
+      box(p.light, x, h + .08, z, .34, .23, .34, true);
+      orb(p.decor, x, h + .08, z, .18, true);
+    };
+    const addHouse = (x, z, scale = 1) => {
+      box(p.wall, x, 1.05 * scale, z, 2.8 * scale, 2.1 * scale, 2.35 * scale);
+      const roof = part('roof', p.roof, x, 2.56 * scale, z, 2.02 * scale, 1.48 * scale, 1.72 * scale);
+      roof.rotation.y = Math.PI / 4;
+      box(p.wallShade, x, .68 * scale, z - 1.22 * scale, .62 * scale, .92 * scale, .08 * scale);
+      box(p.light, x - .72 * scale, 1.28 * scale, z - 1.21 * scale, .48 * scale, .58 * scale, .08 * scale, true);
+      box(p.light, x + .72 * scale, 1.28 * scale, z - 1.21 * scale, .48 * scale, .58 * scale, .08 * scale, true);
+      box(p.decor, x, 2.12 * scale, z - 1.25 * scale, 2.85 * scale, .12 * scale, .1 * scale, true);
+      box(p.roofDark, x + .78 * scale, 3.42 * scale, z, .25 * scale, .78 * scale, .25 * scale);
+    };
+    const addFence = (x, z, length = 4) => {
+      box(p.roofDark, x, .62, z, length, .14, .1);
+      box(p.roofDark, x, 1.02, z, length, .11, .1);
+      for (let i = -1; i <= 1; i++) box(p.trunk, x + i * (length / 2.2), .72, z, .12, 1.15, .14);
+    };
+    // Shared floating terrace: the platform gives silhouettes a believable place to sit.
+    part('cone', p.rock, 0, -2.7, 0, 5.35, 4.6, 4.3, false, Math.PI);
+    part('cylinder', p.ground, 0, -.52, 0, 5.05, .48, 4.05);
+    box(p.ground, 0, -.25, 0, 8.8, .22, 6.35);
+    box(p.path, 0, -.1, -2.6, 7.1, .12, .35);
+
+    if (v === 0) {
+      addHouse(-1.45, .75, .92); addHouse(2.0, 1.25, .7);
+      addTree(-3.1, -1.0, 4.8); addTree(3.45, -1.35, 3.9);
+      addFence(-.1, -1.62, 5.8); addLamp(-3.8, -2.25); addLamp(3.8, -2.25, 2.8);
+      box(p.decor, 0, .08, -2.6, 2.2, .08, .12, true);
+    } else if (v === 1) {
+      // A garden terrace reads as a little destination while the rider stays centered.
+      for (const x of [-3.1, 3.1]) { pillar(p.trunk, x, 1.75, .55, .16, 3.5); pillar(p.trunk, x, 1.75, 2.25, .16, 3.5); }
+      box(p.roof, 0, 3.48, 1.4, 6.55, .22, 2.35);
+      addTree(-3.5, -1.15, 4.2); addTree(3.35, -1.1, 4.7);
+      for (let i = 0; i < 7; i++) {
+        const x = -3.2 + i * 1.05;
+        pillar(p.leafDark, x, .28, -2.0, .07, .55);
+        orb(i % 2 ? p.decor : p.light, x, .72, -2.0, .25, true);
+      }
+      part('ring', p.decor, 0, .32, 1.1, 1.15, .35, 1.15, true);
+      orb(p.light, 0, .72, 1.1, .35, true);
+      addLamp(-4.0, -2.55, 3.0); addLamp(4.0, -2.55, 3.0);
+      box(p.path, 0, .02, 1.05, 1.15, .08, 3.4);
+    } else {
+      // Landmark terrace: an arch / bridge silhouette gives each stretch a visual target.
+      pillar(p.wallShade, -3.15, 1.42, .5, .58, 2.85); pillar(p.wallShade, 3.15, 1.42, .5, .58, 2.85);
+      const arch = part('arch', p.decor, 0, 2.05, .45, 3.5, 3.8, .72, true); arch.rotation.y = Math.PI;
+      box(p.path, 0, .1, -1.75, 6.8, .22, 1.7);
+      addTree(-3.75, -1.55, 3.8); addTree(3.8, -1.4, 4.2);
+      for (let i = 0; i < 4; i++) {
+        part(theme === 'waterfalls' ? 'box' : 'crystal', theme === 'waterfalls' ? p.decor : p.light,
+          -1.7 + i * 1.15, .45 + (i % 2) * .2, 1.95, .42, theme === 'waterfalls' ? 2.2 : 1.15, .42, true);
+      }
+      addLamp(-4.05, -2.45, 3.1); addLamp(4.05, -2.45, 3.1);
+      box(p.roofDark, 0, .82, 2.85, 6.9, .16, .12);
+    }
+    const merged = this.merge(g); this.cache.set(key, merged); return merged.clone(true);
+  }
+  // City/coastal roadside set dressing.  This is scenery only; gameplay
+  // obstacles are generated by AssetFactory so collision rules stay explicit.
+  cityBlock(round, variant = 0) {
+    const T = this.T, theme = round.theme, v = ((variant % 3) + 3) % 3;
+    const key = `city_${theme}_${v}`;
+    if (this.cache.has(key)) return this.cache.get(key).clone(true);
+    const g = new T.Group(); g.name = `city_block_${theme}_${v}`; g.userData.biome = theme;
+    const shade = (value, factor) => { const c = new T.Color(value); c.multiplyScalar(factor); return c.getHex(); };
+    const accentByTheme = {
+      garden: 0xffa9d1, castle_bridge: 0xb28bea, waterfalls: 0x7de7f1,
+      forest: 0xffb98b, desert: 0xffdf83, crystal: 0xaedfff,
+      snow: 0xdff7ff, sunset: 0xff9ebd, neon: 0xff82ee,
+      workshop: 0xffd173, storm: 0xe3c8ff, volcano: 0xffa176,
+      moon: 0xb4c7ff, citadel: 0xffdc9a, rainbow: 0xffc4e8,
+      grand_run: 0xffd77c
+    };
+    const p = {
+      wall: shade(round.roadColor, 1.2), wallDark: shade(round.roadColor, .72),
+      rail: round.railColor, railDark: shade(round.railColor, .55),
+      rock: round.islandRockColor, ground: round.islandGrassColor,
+      accent: accentByTheme[theme] || round.railColor,
+      light: shade(round.ambientLight, .9), stripe: 0xfff2cf
+    };
+    const part = (kind, color, x, y, z, sx, sy, sz, glow = false, rz = 0) => {
+      const m = new T.Mesh(this.geometry[kind], this.material(color, glow));
+      m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.rotation.z = rz; g.add(m); return m;
+    };
+    const box = (c, x, y, z, w, h, d, glow = false) => part('box', c, x, y, z, w, h, d, glow);
+    const pillar = (c, x, y, z, r, h) => part('cylinder', c, x, y, z, r, h, r);
+    const orb = (c, x, y, z, r, glow = false) => part('sphere', c, x, y, z, r, r, r, glow);
+    const lamp = (x, z, side = 1, h = 5.7) => {
+      pillar(p.railDark, x, h * .5, z, .1, h);
+      box(p.railDark, x + side * .55, h - .18, z, 1.05, .11, .11);
+      box(p.light, x + side * 1.02, h - .18, z, .34, .24, .38, true);
+      orb(p.accent, x + side * 1.02, h - .18, z, .15, true);
+    };
+    const guardrail = (x, z, length = 7) => {
+      box(p.railDark, x, 1.0, z, .14, 1.05, length);
+      box(p.rail, x, 1.35, z, .18, .18, length);
+      for (let i = -2; i <= 2; i++) pillar(p.railDark, x, .57, z + i * (length / 4.4), .1, 1.15);
+    };
+    const windows = (x, z, w, h, d) => {
+      for (let row = 0; row < Math.max(1, Math.floor(h / 1.2)); row++) {
+        for (let col = -1; col <= 1; col++) {
+          const wx = x + col * Math.min(.72, w * .23);
+          box(p.light, wx, 1.15 + row * 1.15, z - d / 2 - .04, .36, .48, .07, true);
+        }
+      }
+    };
+    const building = (x, z, w, h, d) => {
+      box(p.wall, x, h / 2, z, w, h, d);
+      box(p.accent, x, h + .1, z, w + .15, .12, d + .15, true);
+      windows(x, z, w, h, d);
+      box(p.wallDark, x, .58, z - d / 2 - .05, .6, 1.15, .1);
+    };
+    const utilityPylon = (x, z) => {
+      pillar(p.railDark, x, 3.4, z, .12, 6.8);
+      box(p.railDark, x, 5.4, z, 3.4, .12, .12);
+      box(p.railDark, x - 1.25, 4.25, z, 1.9, .1, .1);
+      box(p.railDark, x + 1.25, 4.25, z, 1.9, .1, .1);
+      box(p.railDark, x - 1.75, 3.25, z, 1.05, .09, .09);
+      box(p.railDark, x + 1.75, 3.25, z, 1.05, .09, .09);
+    };
+
+    // A shallow terrace keeps the city props grounded on a floating world.
+    part('cone', p.rock, 0, -2.6, 0, 5.2, 4.4, 4.2, false, Math.PI);
+    part('cylinder', p.ground, 0, -.48, 0, 4.9, .42, 3.9);
+    box(p.ground, 0, -.22, 0, 8.6, .2, 6.1);
+
+    if (v === 0) {
+      // Coastal bend: lamps + guardrails + pylon silhouette, matching the reference.
+      guardrail(-3.9, -1.1, 6.4); guardrail(3.9, -.4, 5.5);
+      lamp(-3.0, -1.9, 1); lamp(2.85, -.3, -1); lamp(-1.1, 2.0, 1);
+      utilityPylon(3.15, 2.4);
+      building(-.8, .8, 2.9, 3.6, 2.2);
+      box(p.accent, -.8, 3.95, -.35, 1.2, .16, .16, true);
+    } else if (v === 1) {
+      // Small city frontage: stacked apartments, lamps and a billboard.
+      building(-2.0, .7, 2.6, 4.6, 2.5); building(1.55, 1.1, 2.2, 3.3, 2.2);
+      lamp(-3.85, -1.8, 1); lamp(3.75, -1.25, -1);
+      box(p.railDark, 0, .34, -2.4, 7.4, .16, .18);
+      pillar(p.railDark, 2.9, 1.4, -2.35, .1, 2.8);
+      box(p.accent, 2.9, 2.85, -2.35, 1.55, .95, .1, true);
+      box(p.stripe, 2.9, 2.85, -2.42, 1.1, .12, .05, true);
+    } else {
+      // Construction edge: warehouse, warning lamps and scaffold silhouette.
+      building(1.1, .9, 3.5, 2.8, 2.8);
+      for (const x of [-3.3, -1.8]) { pillar(p.railDark, x, 2.4, .8, .1, 4.8); box(p.railDark, x, 4.75, .8, 1.7, .1, .1); }
+      for (let i = 0; i < 5; i++) {
+        const x = -3.8 + i * 1.7;
+        pillar(p.accent, x, .4, -2.0, .09, .8);
+        box(i % 2 ? p.stripe : p.accent, x, .85, -2.0, .75, .14, .18, true);
+      }
+      lamp(3.75, -2.1, -1, 4.6); utilityPylon(-3.25, 2.3);
+    }
+    const merged = this.merge(g); this.cache.set(key, merged); return merged.clone(true);
   }
   merge(source) {
     // Bake transforms and merge by material, preserving shared cached geometry.

@@ -10,7 +10,8 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     this.pavers=[0xe3d0ad,0xdbc4a1,0xd1b997].map(color=>new T.MeshStandardMaterial({color,roughness:.94}));
     this.validator=new window.ReachabilityValidator();this.difficulty={speedMultiplier:1,obstacleDensityMultiplier:1};
     this.totalCoins=0;this.lastSafeLane=0;this.collectedIDs=new Set();
-    // Roadside charm geometry/materials (inspired by cozy summer streets).
+    // Roadside charm geometry: a light summer-city layer that complements the
+    // larger biome landmarks without adding runtime assets.
     this.picketGeo=new T.BoxGeometry(1,1,1);
     this.picketMat=new T.MeshStandardMaterial({color:0xf7efe2,roughness:.85});
     this.flowerGeo=new T.SphereGeometry(1,6,5);
@@ -49,7 +50,6 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
   getTrackGrade(s){return -4.5*Math.PI/95*Math.sin(s*Math.PI/95);}
   frame(s,lateral=0,y=0){const p=this.getTrackPoint(s),t=this.getTrackTangent(s);return {x:p.x-t.z*lateral,y:p.y+y,z:p.z+t.x*lateral};}
   addBox(g,mat,s,lateral,y,w,h,len){const p=this.frame(s,lateral,y),m=new this.THREE.Mesh(this.boxGeometry,mat);m.position.set(p.x,p.y,p.z);m.rotation.y=Math.atan2(this.getTrackTangent(s).x,this.getTrackTangent(s).z);m.rotation.order="YXZ";m.rotation.x=-Math.atan(this.getTrackGrade(s));m.scale.set(w,h,len);m.receiveShadow=true;m.castShadow=true;g.add(m);return m;}
-  // Shared instanced-mesh helper for roadside charm props (proper geometry, not unit cubes).
   addInstanced(g,geo,mat,items){
     const T=this.THREE,im=new T.InstancedMesh(geo,mat,items.length);
     const m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),pos=new T.Vector3(),sc=new T.Vector3();
@@ -57,15 +57,10 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
       const p=this.frame(it.s,it.lateral,it.y);
       pos.set(p.x,p.y,p.z);
       e.set(it.pitch||0,Math.atan2(this.getTrackTangent(it.s).x,this.getTrackTangent(it.s).z),0);
-      q.setFromEuler(e);
-      sc.set(it.sx,it.sy,it.sz);
-      m4.compose(pos,q,sc);
-      im.setMatrixAt(i,m4);
+      q.setFromEuler(e);sc.set(it.sx,it.sy,it.sz);m4.compose(pos,q,sc);im.setMatrixAt(i,m4);
     });
     im.castShadow=true;im.receiveShadow=true;g.add(im);return im;
   }
-  // Cozy summer-street details: picket fences, flower tufts, lamp posts and
-  // broadleaf canopy trees whose shadows dapple the road (tweet-inspired).
   addCharm(g,s,w,gap){
     if(gap)return;
     const theme=this.roundData.theme;
@@ -86,8 +81,7 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
   addFlowers(g,s,w,side){
     const a=[],b=[];
     for(let i=0;i<5;i++){const at=s+4+i*4,it={s:at,lateral:side*(w/2-.17),y:.92,sx:.16,sy:.14,sz:.16};(i%2?b:a).push(it);}
-    this.addInstanced(g,this.flowerGeo,this.flowerA,a);
-    this.addInstanced(g,this.flowerGeo,this.flowerB,b);
+    this.addInstanced(g,this.flowerGeo,this.flowerA,a);this.addInstanced(g,this.flowerGeo,this.flowerB,b);
   }
   addLamp(g,s,w,side){
     this.addInstanced(g,this.lampPoleGeo,this.lampPoleMat,[{s:s+2,lateral:side*(w/2+.95),y:1.7,sx:.09,sy:3.4,sz:.09}]);
@@ -140,20 +134,61 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     const safe=s<this.roundData.firstSafeDistance||s>=this.roundData.length,lanes=[-w*.28,0,w*.28];
     const possible=[0,1,2].filter(i=>Math.abs(lanes[i]-this.lastSafeLane)<=4.5);
     const safeIndex=possible[Math.floor(this.rng()*possible.length)],safeLane=lanes[safeIndex],hazards=[];
-    if(!safe&&!gap)for(let i=0;i<3;i++)if(i!==safeIndex&&this.rng()<.65*this.difficulty.obstacleDensityMultiplier)hazards.push({laneX:lanes[i],type:this.roundData.features.hasJumps&&this.rng()<.45?'barrier':'crate'});
+    const urbanThemes=['castle_bridge','waterfalls','sunset','neon','workshop','storm','citadel','grand_run'];
+    const cityPool=urbanThemes.includes(this.roundData.theme)
+      ? ['van','bus','bollard','construction_barrier','roadroller']
+      : ['traffic_cone','barrel','bollard','construction_barrier'];
+    if(!safe&&!gap)for(let i=0;i<3;i++)if(i!==safeIndex&&this.rng()<.65*this.difficulty.obstacleDensityMultiplier){
+      const cityChance=urbanThemes.includes(this.roundData.theme)?.72:.34;
+      const useCity=this.rng()<cityChance;
+      const type=useCity
+        ? cityPool[Math.floor(this.rng()*cityPool.length)]
+        : (this.roundData.features.hasJumps&&this.rng()<.45?'barrier':'crate');
+      hazards.push({laneX:lanes[i],type});
+    }
     const plan={roadWidth:w,speed:window.ScooterTuning.maxSpeed,minSpeed:this.roundData.baseSpeed*.9*window.ScooterTuning.cruiseMultiplier*window.ScooterTuning.brakeFactor,length:24,previousLane:this.lastSafeLane,safeLane,hazards,gapWidth:gap?2.4:0};
     if(!this.validator.validateLayout(plan))hazards.length=0;this.lastSafeLane=safeLane;
-    for(const h of hazards){const m=this.factory.createObstacle(h.type),at=s+18,p=this.frame(at,h.laneX);m.position.set(p.x,p.y,p.z);m.rotation.y=Math.atan2(this.getTrackTangent(at).x,this.getTrackTangent(at).z);m.userData={id:`obs_${at}_${h.laneX}`,s:at,laneX:h.laneX,type:h.type,hit:false,isJumpable:h.type==='barrier'};m.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});this.scene.add(m);this.activeObstacles.push(m);}
+    for(const h of hazards){
+      const m=this.factory.createObstacle(h.type),at=s+18,p=this.frame(at,h.laneX);
+      m.position.set(p.x,p.y,p.z);m.rotation.y=Math.atan2(this.getTrackTangent(at).x,this.getTrackTangent(at).z);
+      m.userData={id:`obs_${at}_${h.laneX}`,s:at,laneX:h.laneX,type:h.type,hit:false,
+        isJumpable:['barrier','traffic_cone','construction_barrier'].includes(h.type),isCityObstacle:!['barrier','crate'].includes(h.type)};
+      m.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});this.scene.add(m);this.activeObstacles.push(m);
+    }
     if(s<this.roundData.length){
       for(let i=0;i<5;i++){const at=s+3+i*4;if(gap&&at>s+9&&at<s+15)continue;this.addItem(this.factory.createCoin(),at,safeLane,1.05,{id:`coin_${at}`});this.totalCoins++;}
       if(!gap&&s%96===24){this.addItem(this.factory.createPowerup('overdrive'),s+7,safeLane,1.25,{id:`boost_${s}`,isPowerup:true,type:'overdrive'});}
       else if(!gap&&!safe&&this.rng()<.25){const type=['shield','magnet','double','heart','overdrive'][Math.floor(this.rng()*5)];this.addItem(this.factory.createPowerup(type),s+7,safeLane,1.25,{id:`power_${s}`,isPowerup:true,type});}
       if(!gap&&this.rng()<.16)this.addItem(this.factory.createGem(),s+9,safeLane,1.15,{id:`gem_${s}`,isGem:true});
     }
+    const citySide=s%96===48?((Math.floor(s/96)%2)?1:-1):0;
     for(const side of [-1,1]){
       const at=s+10+this.rng()*8,offset=side*(w/2+9+this.rng()*5),p=this.frame(at,offset,-3-this.rng()*2);
-      const island=this.biomeArt.create(this.roundData);island.position.set(p.x,p.y,p.z);
-      island.scale.setScalar(.8+this.rng()*.35);island.rotation.y=side*.25;this.addScenery(island,s);
+      // On a city stretch the roadside district replaces that side's island,
+      // keeping the pylon/buildings readable instead of hiding them behind trees.
+      if(citySide!==side){
+        const island=this.biomeArt.create(this.roundData);island.position.set(p.x,p.y,p.z);
+        island.scale.setScalar(.8+this.rng()*.35);island.rotation.y=side*.25;this.addScenery(island,s);
+      }
+      // Every other stretch gets a denser foreground landmark.  These modular
+      // terraces make the world feel connected instead of repeating empty islands.
+      if(s%48===0){
+        const variant=(Math.floor(s/48)+(side>0?1:0))%3;
+        const landmark=this.biomeArt.cluster(this.roundData,variant);
+        const lp=this.frame(s+12+(side>0?2:-2),side*(w/2+13.5),-1.25-this.rng()*.75);
+        landmark.position.set(lp.x,lp.y,lp.z);
+        landmark.scale.setScalar(.86+this.rng()*.1);
+        landmark.rotation.y=side*.08;
+        this.addScenery(landmark,s);
+      }
+      // A larger city/coastal landmark arrives less often so it reads as a
+      // destination: utility pylon, lamps, guardrails and small buildings.
+      if(citySide===side){
+        const city=this.biomeArt.cityBlock(this.roundData,Math.floor(s/96)%3);
+        const cp=this.frame(s+12,side*(w/2+11.5),-1.05-this.rng()*.4);
+        city.position.set(cp.x,cp.y,cp.z);city.scale.setScalar(.88+this.rng()*.08);city.rotation.y=side*.06;
+        this.addScenery(city,s);
+      }
     }
   }
   addItem(m,s,laneX,y,extra){const p=this.frame(s,laneX,y);m.position.set(p.x,p.y,p.z);m.userData={...extra,s,laneX,collected:this.collectedIDs.has(extra.id),baseY:p.y};if(!m.userData.collected){this.scene.add(m);this.activeCollectibles.push(m);}}

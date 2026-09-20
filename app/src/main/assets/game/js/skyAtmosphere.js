@@ -105,31 +105,18 @@ window.SkyAtmosphere = class SkyAtmosphere {
       this.scene.add(sprite);
       this.cloudSprites.push(sprite);
     }
-    // Distant horizon cloud bank: long, low, hazy cumulus rows.
+    // Long, hazy horizon cloud banks create the layered depth seen on a coastal road.
     for (let i = 0; i < 5; i++) {
       const tex = this.makeCloudTexture(i);
-      const mat = new T.SpriteMaterial({
-        map: tex,
-        transparent: true,
-        opacity: 0.5,
-        depthWrite: false,
-        fog: true
-      });
+      const mat = new T.SpriteMaterial({map:tex,transparent:true,opacity:.5,depthWrite:false,fog:true});
       this.horizonMaterials.push(mat);
       const sprite = new T.Sprite(mat);
       sprite.userData = {
-        z: i * 100 - 30,
-        lateral: (i % 2 ? 1 : -1) * (95 + i * 22),
-        height: 11 + i * 3,
-        speed: 0.15 + i * 0.04,
-        phase: i * 1.7,
-        scaleX: 120 + i * 22,
-        scaleY: 18 + i * 4,
-        horizon: true
+        z:i*100-30,lateral:(i%2?1:-1)*(95+i*22),height:11+i*3,
+        speed:.15+i*.04,phase:i*1.7,scaleX:120+i*22,scaleY:18+i*4,horizon:true
       };
-      sprite.scale.set(sprite.userData.scaleX, sprite.userData.scaleY, 1);
-      this.scene.add(sprite);
-      this.cloudSprites.push(sprite);
+      sprite.scale.set(sprite.userData.scaleX,sprite.userData.scaleY,1);
+      this.scene.add(sprite);this.cloudSprites.push(sprite);
     }
   }
 
@@ -145,11 +132,24 @@ window.SkyAtmosphere = class SkyAtmosphere {
       { z: 330, lat: -175, y: -36, scale: 5.0, tower: false }
     ];
 
-    for (const cfg of configs) {
-      const island = this.trackGen.biomeArt.create(this.roundData || window.ROUNDS_DATA[0]);
+    for (let i = 0; i < configs.length; i++) {
+      const cfg = configs[i];
+      const round = this.roundData || window.ROUNDS_DATA[0];
+      const landmark = new this.THREE.Group();
+      landmark.name = `distant_landmark_${i}`;
+      const island = this.trackGen.biomeArt.create(round);
       island.scale.setScalar(cfg.scale * .65);
-      island.position.set(0, cfg.y, cfg.z);
-      island.userData = {
+      landmark.add(island);
+      // A few far islands carry a tiny settlement silhouette.  It adds depth
+      // behind the road without turning the horizon into a wall of objects.
+      if (i % 2 === 1 || cfg.scale >= 3.5) {
+        const cluster = this.trackGen.biomeArt.cluster(round, i % 3);
+        cluster.scale.setScalar(.38 + (cfg.scale >= 3.5 ? .1 : 0));
+        cluster.position.set(i % 2 ? -1.6 : 1.6, 1.2, .4);
+        landmark.add(cluster);
+      }
+      landmark.position.set(0, cfg.y, cfg.z);
+      landmark.userData = {
         z: cfg.z,
         lateral: cfg.lat,
         height: cfg.y,
@@ -157,15 +157,15 @@ window.SkyAtmosphere = class SkyAtmosphere {
         tower: cfg.tower,
         isFar: cfg.scale >= 3.5
       };
-      island.traverse(m => {
+      landmark.traverse(m => {
         if (m.isMesh) {
           m.castShadow = false;
           m.receiveShadow = false;
         }
       });
 
-      this.scene.add(island);
-      this.distantItems.push(island);
+      this.scene.add(landmark);
+      this.distantItems.push(landmark);
     }
   }
 
@@ -213,12 +213,11 @@ window.SkyAtmosphere = class SkyAtmosphere {
       if (!this.isNight && theme !== 'storm') {
         const warmTheme = theme === 'sunset' || theme === 'volcano' || theme === 'desert';
         const warm = new T.Color(warmTheme ? 0xffb37a : 0xffd9a0);
-        const wr = Math.round(warm.r * 255), wg = Math.round(warm.g * 255), wb = Math.round(warm.b * 255);
-        const glow = ctx.createLinearGradient(0, 190, 0, 300);
-        glow.addColorStop(0, 'rgba(255,255,255,0)');
-        glow.addColorStop(1, `rgba(${wr},${wg},${wb},${warmTheme ? 0.34 : 0.26})`);
-        ctx.fillStyle = glow;
-        ctx.fillRect(0, 190, 1024, 110);
+        const wr=Math.round(warm.r*255),wg=Math.round(warm.g*255),wb=Math.round(warm.b*255);
+        const glow=ctx.createLinearGradient(0,190,0,300);
+        glow.addColorStop(0,'rgba(255,255,255,0)');
+        glow.addColorStop(1,`rgba(${wr},${wg},${wb},${warmTheme?.34:.26})`);
+        ctx.fillStyle=glow;ctx.fillRect(0,190,1024,110);
       }
 
       if (this.isNight) this.drawStars(ctx);
@@ -336,10 +335,7 @@ window.SkyAtmosphere = class SkyAtmosphere {
       m.color.set(colors[i % colors.length]);
       m.opacity = opacity;
     });
-    this.horizonMaterials.forEach((m, i) => {
-      m.color.set(colors[i % colors.length]);
-      m.opacity = Math.min(0.6, opacity * 0.6);
-    });
+    this.horizonMaterials.forEach((m,i)=>{m.color.set(colors[i%colors.length]);m.opacity=Math.min(.6,opacity*.6);});
   }
 
   setQuality(quality) {
@@ -371,12 +367,8 @@ window.SkyAtmosphere = class SkyAtmosphere {
       const u = sprite.userData;
       if (u.z < playerPos.z - 70) {
         u.z += 440;
-        if (u.horizon) {
-          u.lateral = (Math.random() < 0.5 ? -1 : 1) * (95 + Math.random() * 60);
-        } else {
-          u.lateral = (Math.random() < 0.5 ? -1 : 1) * (25 + Math.random() * 70);
-          u.height = 26 + Math.random() * 30;
-        }
+        if(u.horizon){u.lateral=(Math.random()<.5?-1:1)*(95+Math.random()*60);}
+        else {u.lateral=(Math.random()<.5?-1:1)*(25+Math.random()*70);u.height=26+Math.random()*30;}
       }
       const roadX = this.trackGen.getTrackPoint(u.z).x;
       sprite.position.set(

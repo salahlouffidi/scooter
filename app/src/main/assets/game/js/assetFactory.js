@@ -44,6 +44,15 @@ window.AssetFactory = class AssetFactory {
     this.materials.stone = new THREE.MeshLambertMaterial({ color: 0x90a4ae });
     this.materials.stoneDark = new THREE.MeshLambertMaterial({ color: 0x546e7a });
     this.materials.wood = new THREE.MeshLambertMaterial({ color: 0x6d4c41 });
+    this.materials.vehicleYellow = new THREE.MeshStandardMaterial({ color: 0xf4c542, roughness: .62, metalness: .08 });
+    this.materials.vehicleBlue = new THREE.MeshStandardMaterial({ color: 0x315e9b, roughness: .58, metalness: .12 });
+    this.materials.vehicleWhite = new THREE.MeshStandardMaterial({ color: 0xe8eef2, roughness: .68, metalness: .05 });
+    this.materials.vehicleGlass = new THREE.MeshStandardMaterial({ color: 0x17354f, roughness: .2, metalness: .35, emissive: 0x081522, emissiveIntensity: .35 });
+    this.materials.vehicleTire = new THREE.MeshLambertMaterial({ color: 0x20252b });
+    this.materials.warningOrange = new THREE.MeshStandardMaterial({ color: 0xf07832, roughness: .7 });
+    this.materials.warningWhite = new THREE.MeshStandardMaterial({ color: 0xfff1d0, roughness: .8 });
+    this.materials.warningRed = new THREE.MeshStandardMaterial({ color: 0xc93b42, roughness: .72 });
+    this.materials.streetMetal = new THREE.MeshStandardMaterial({ color: 0x68747d, roughness: .5, metalness: .48 });
 
     this.materials.shieldPowerup = new THREE.MeshStandardMaterial({
       color: 0x00e5ff,
@@ -364,6 +373,67 @@ window.AssetFactory = class AssetFactory {
       const stripeMesh = new THREE.Mesh(stripeGeo, stripeMat);
       stripeMesh.position.y = 0.55;
       group.add(stripeMesh);
+    } else if (type === 'bollard') {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(.22, .27, .95, 10), this.materials.streetMetal);
+      post.position.y = .475; group.add(post);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(.235, .235, .13, 10), this.materials.warningRed);
+      band.position.y = .68; group.add(band);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(.19, .19, .08, 10), this.materials.warningWhite);
+      cap.position.y = .97; group.add(cap);
+    } else if (type === 'traffic_cone') {
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(.38, .42, .12, 10), this.materials.warningWhite);
+      base.position.y = .06; group.add(base);
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(.29, .68, 10), this.materials.warningOrange);
+      cone.position.y = .42; group.add(cone);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(.22, .25, .1, 10), this.materials.warningWhite);
+      band.position.y = .51; group.add(band);
+    } else if (type === 'construction_barrier') {
+      const base = new THREE.Mesh(new THREE.BoxGeometry(2.5, .22, .45), this.materials.warningOrange);
+      base.position.y = .11; group.add(base);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(2.35, .72, .18), this.materials.warningOrange);
+      rail.position.y = .58; group.add(rail);
+      for (let i = -1; i <= 1; i++) {
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(.34, .64, .2), i % 2 ? this.materials.warningWhite : this.materials.warningRed);
+        stripe.position.set(i * .7, .58, -.11); stripe.rotation.z = i ? (i > 0 ? -.35 : .35) : 0; group.add(stripe);
+      }
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(.12, 8, 6), this.materials.warningRed);
+      lamp.position.set(0, .98, 0); group.add(lamp);
+    } else if (type === 'barrel') {
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(.45, .5, .85, 12), this.materials.warningOrange);
+      barrel.position.y = .43; group.add(barrel);
+      for (const y of [.24, .64]) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(.46, .055, 6, 16), this.materials.warningWhite);
+        ring.rotation.x = Math.PI / 2; ring.position.y = y; group.add(ring);
+      }
+    } else if (type === 'van' || type === 'bus') {
+      const bus = type === 'bus';
+      const bodyMat = bus ? this.materials.vehicleBlue : this.materials.vehicleYellow;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(bus ? 2.45 : 2.15, bus ? 1.5 : 1.22, bus ? 4.15 : 3.25), bodyMat);
+      body.position.y = bus ? .82 : .7; group.add(body);
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(bus ? 2.25 : 1.95, .32, bus ? 3.55 : 2.25), this.materials.vehicleWhite);
+      roof.position.y = bus ? 1.67 : 1.45; group.add(roof);
+      const frontGlass = new THREE.Mesh(new THREE.BoxGeometry(bus ? 1.9 : 1.55, .42, .06), this.materials.vehicleGlass);
+      frontGlass.position.set(0, bus ? 1.29 : 1.1, bus ? 2.08 : 1.66); group.add(frontGlass);
+      const rearGlass = frontGlass.clone(); rearGlass.position.z = bus ? -2.08 : -1.66; group.add(rearGlass);
+      for (const side of [-1, 1]) {
+        const window = new THREE.Mesh(new THREE.BoxGeometry(.055, bus ? .52 : .42, bus ? 2.5 : 1.65), this.materials.vehicleGlass);
+        window.position.set(side * (bus ? 1.25 : 1.1), bus ? 1.22 : 1.08, 0); group.add(window);
+      }
+      const wheelGeo = new THREE.CylinderGeometry(bus ? .38 : .32, bus ? .38 : .32, .2, 12); wheelGeo.rotateZ(Math.PI / 2);
+      for (const x of [-1, 1]) for (const z of [bus ? -1.35 : -.95, bus ? 1.35 : .95]) {
+        const wheel = new THREE.Mesh(wheelGeo, this.materials.vehicleTire); wheel.position.set(x * (bus ? 1.23 : 1.08), .35, z); group.add(wheel);
+      }
+      const headlightMat = new THREE.MeshStandardMaterial({color:0xfff1b0,emissive:0xffc34e,emissiveIntensity:.8});
+      for (const x of [-.62, .62]) { const light = new THREE.Mesh(new THREE.BoxGeometry(.24,.16,.06), headlightMat); light.position.set(x,bus? .7:.68,bus?2.1:1.67); group.add(light); }
+    } else if (type === 'roadroller') {
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(1.9, .85, 2.1), this.materials.warningOrange);
+      frame.position.y = .85; group.add(frame);
+      const cab = new THREE.Mesh(new THREE.BoxGeometry(1.35, 1.0, 1.0), this.materials.vehicleGlass);
+      cab.position.set(0, 1.7, -.35); group.add(cab);
+      const drum = new THREE.Mesh(new THREE.CylinderGeometry(.78, .78, 2.0, 14), this.materials.streetMetal);
+      drum.rotation.z = Math.PI / 2; drum.position.set(0, .72, 1.0); group.add(drum);
+      const rearGeo = new THREE.CylinderGeometry(.4, .4, .65, 12); rearGeo.rotateZ(Math.PI / 2);
+      for (const x of [-.72, .72]) { const wheel = new THREE.Mesh(rearGeo, this.materials.vehicleTire); wheel.position.set(x,.48,-.82); group.add(wheel); }
     } else if (type === 'gate') {
       // Tall barrier that must be dodged left/right
       const postGeo = new THREE.CylinderGeometry(0.15, 0.15, 2.5, 8);
@@ -493,4 +563,3 @@ window.AssetFactory = class AssetFactory {
     return group;
   }
 };
-
