@@ -12,7 +12,8 @@ window.InputManager = class InputManager {
     this.joystickPointerId = null;
     this.joystickStartX = 0;
     this.joystickCurrentX = 0;
-    this.joystickRadius = 55; // Pixels radius
+    this.joystickRadius = 46; // Maximum horizontal travel in pixels
+    this.joystickOriginOffset = 0;
     this.joystickDeadZone = 0.12;
     this.steeringSensitivity = 1.0;
 
@@ -35,46 +36,48 @@ window.InputManager = class InputManager {
 
     if (!joystickArea) return;
 
-    // 1. Horizontal Joystick (Left Thumb Area)
+    // 1. ArmaSnake-style left-thumb analog stick.  The pad is visually round,
+    // but only its horizontal axis drives the scooter; vertical finger motion
+    // is deliberately ignored so the rider never receives accidental speed or
+    // camera input.
     const onJoystickStart = (e) => {
       e.preventDefault();
       if (this.joystickPointerId !== null) return;
       this.joystickPointerId = e.pointerId;
       joystickArea.setPointerCapture(e.pointerId);
       const rect = joystickArea.getBoundingClientRect();
+      this.joystickRadius = Math.max(36, Math.min(52, rect.width * 0.5 - 24));
       this.joystickStartX = e.clientX;
       this.joystickCurrentX = e.clientX;
+      this.joystickOriginOffset = Math.max(-this.joystickRadius, Math.min(this.joystickRadius,
+        e.clientX - (rect.left + rect.width * 0.5)));
+      const initialOffset = this.joystickOriginOffset;
+      joystickArea.classList.add('active');
       if (joystickThumb) {
-        joystickThumb.style.transform = 'translate(-50%, -50%)';
+        joystickThumb.style.transform = `translate(calc(-50% + ${initialOffset}px), -50%)`;
       }
+      this.setJoystickValue(initialOffset);
     };
 
     const onJoystickMove = (e) => {
       if (e.pointerId !== this.joystickPointerId) return;
       e.preventDefault();
       this.joystickCurrentX = e.clientX;
-      const deltaX = this.joystickCurrentX - this.joystickStartX;
+      const deltaX = this.joystickCurrentX - this.joystickStartX + this.joystickOriginOffset;
       const clampedDeltaX = Math.max(-this.joystickRadius, Math.min(this.joystickRadius, deltaX));
 
       if (joystickThumb) {
         joystickThumb.style.transform = `translate(calc(-50% + ${clampedDeltaX}px), -50%)`;
       }
-
-      // Normalized steer [-1.0, 1.0] with deadzone
-      const rawNormalized = clampedDeltaX / this.joystickRadius;
-      if (Math.abs(rawNormalized) < this.joystickDeadZone) {
-        this.horizontalSteer = 0.0;
-      } else {
-        const sign = Math.sign(rawNormalized);
-        const scaled = (Math.abs(rawNormalized) - this.joystickDeadZone) / (1.0 - this.joystickDeadZone);
-        this.horizontalSteer = sign * Math.min(1.0, scaled * this.steeringSensitivity);
-      }
+      this.setJoystickValue(clampedDeltaX);
     };
 
     const onJoystickEnd = (e) => {
-      if (e.pointerId !== this.joystickPointerId) return;
+      if (e.type !== 'lostpointercapture' && e.pointerId !== this.joystickPointerId) return;
       this.joystickPointerId = null;
       this.horizontalSteer = 0.0;
+      this.joystickOriginOffset = 0;
+      joystickArea.classList.remove('active');
       if (joystickThumb) {
         joystickThumb.style.transform = 'translate(-50%, -50%)';
       }
@@ -84,6 +87,7 @@ window.InputManager = class InputManager {
     window.addEventListener('pointermove', onJoystickMove);
     window.addEventListener('pointerup', onJoystickEnd);
     window.addEventListener('pointercancel', onJoystickEnd);
+    window.addEventListener('lostpointercapture', onJoystickEnd);
 
     // 2. Jump Button (Independent Pointer)
     if (btnJump) {
@@ -116,6 +120,19 @@ window.InputManager = class InputManager {
 
     // Window lost focus reset
     window.addEventListener('blur', () => this.resetAll());
+  }
+
+  setJoystickValue(offset) {
+    // Normalized steer [-1.0, 1.0] with a small center dead zone.  The
+    // dead-zone is scaled out so fine thumb movements still feel responsive.
+    const rawNormalized = offset / Math.max(1, this.joystickRadius);
+    if (Math.abs(rawNormalized) < this.joystickDeadZone) {
+      this.horizontalSteer = 0.0;
+      return;
+    }
+    const sign = Math.sign(rawNormalized);
+    const scaled = (Math.abs(rawNormalized) - this.joystickDeadZone) / (1.0 - this.joystickDeadZone);
+    this.horizontalSteer = sign * Math.min(1.0, scaled * this.steeringSensitivity);
   }
 
   triggerJump() {
@@ -177,11 +194,14 @@ window.InputManager = class InputManager {
   resetAll() {
     this.joystickPointerId = null;
     this.horizontalSteer = 0.0;
+    this.joystickOriginOffset = 0;
     this.isBraking = false;
     this.isJumpPressed = false;
     this.jumpBufferTimer = 0.0;
     this.keys = {};
     const joystickThumb = document.getElementById('joystick-thumb');
+    const joystickArea = document.getElementById('joystick-zone');
+    if (joystickArea) joystickArea.classList.remove('active');
     if (joystickThumb) {
       joystickThumb.style.transform = 'translate(-50%, -50%)';
     }

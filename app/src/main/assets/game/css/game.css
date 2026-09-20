@@ -334,45 +334,86 @@ html, body {
   pointer-events: none;
 }
 
-/* Horizontal Joystick (Left thumb area) */
+/* ArmaSnake-style circular left-thumb stick.  It is a visual 2D pad, while
+   the input manager intentionally consumes only horizontal movement. */
 #joystick-zone {
   position: absolute;
-  bottom: 20px;
+  bottom: 18px;
   left: 24px;
-  width: 130px;
-  height: 70px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  border-radius: 35px;
+  width: 136px;
+  height: 136px;
+  background: radial-gradient(circle at 50% 45%, rgba(90, 125, 155, 0.48), rgba(10, 28, 45, 0.78) 68%);
+  border: 3px solid rgba(255, 255, 255, 0.42);
+  border-radius: 50%;
   pointer-events: auto;
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: none;
+  user-select: none;
+  box-shadow: inset 0 0 0 8px rgba(0, 0, 0, 0.14), 0 8px 22px rgba(0, 0, 0, 0.32);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+#joystick-zone::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  top: 50%;
+  height: 42px;
+  transform: translateY(-50%);
+  border-top: 2px solid rgba(255, 255, 255, 0.17);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.17);
+  border-radius: 22px;
+  pointer-events: none;
+}
+
+#joystick-zone::after {
+  content: '◀     ▶';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.25rem;
+  text-align: center;
+  pointer-events: none;
+}
+
+#joystick-zone.active {
+  border-color: rgba(255, 214, 74, 0.9);
+  box-shadow: inset 0 0 0 8px rgba(255, 193, 7, 0.12), 0 8px 26px rgba(255, 193, 7, 0.22);
 }
 
 #joystick-thumb {
   position: absolute;
-  width: 50px;
-  height: 50px;
-  background: radial-gradient(circle, #ffca28 0%, #ff8f00 100%);
-  border: 2px solid #ffffff;
+  width: 58px;
+  height: 58px;
+  background: radial-gradient(circle at 35% 30%, #ffe082 0%, #ffca28 30%, #ef8500 100%);
+  border: 3px solid #ffffff;
   border-radius: 50%;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.45);
+  transition: transform 0.08s ease-out;
 }
 
 .joystick-label {
   position: absolute;
-  bottom: -18px;
+  bottom: -19px;
   left: 0;
   right: 0;
   text-align: center;
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.7);
-  letter-spacing: 1px;
+  font-size: 0.62rem;
+  color: rgba(255, 255, 255, 0.82);
+  letter-spacing: 0.09rem;
+  font-weight: 800;
 }
 
 /* Jump & Brake Buttons (Right thumb area) */
