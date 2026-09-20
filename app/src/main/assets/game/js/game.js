@@ -61,6 +61,7 @@ window.SkyScooterGame = class SkyScooterGame {
     this.initThree();
     this.factory = new window.AssetFactory(this.THREE);
     this.trackGen = new window.TrackGenerator(this.scene, this.factory, this.THREE);
+    this.worldMagic = new window.WorldMagic(this.scene, this.THREE);
     this.sky = new window.SkyAtmosphere(this.scene, this.THREE, this.factory, this.trackGen);
     this.input = new window.InputManager();
     this.ml = new window.AdaptiveDifficultyML();
@@ -159,7 +160,7 @@ window.SkyScooterGame = class SkyScooterGame {
     const fog = new THREE.Color(roundData.fogColor);
     const hsl = {};
     sky.getHSL(hsl);
-    const isNight = hsl.l < 0.38;
+    const isNight = ['neon', 'moon'].includes(roundData.theme);
     const theme = roundData.theme || '';
     const isWarm = theme === 'sunset' || theme === 'volcano' || theme === 'desert';
     const isStorm = theme === 'storm';
@@ -177,9 +178,9 @@ window.SkyScooterGame = class SkyScooterGame {
     let dirColor, dirIntensity, hemiIntensity, exposure;
     if (isNight) {
       dirColor = new THREE.Color(0xaecbff);
-      dirIntensity = 0.9;
-      hemiIntensity = 0.55;
-      exposure = 1.05;
+      dirIntensity = 1.5;
+      hemiIntensity = 1.45;
+      exposure = 1.2;
     } else if (isStorm) {
       dirColor = new THREE.Color(0xe8f4ff);
       dirIntensity = 1.2;
@@ -265,6 +266,7 @@ window.SkyScooterGame = class SkyScooterGame {
       : window.ROUNDS_DATA.find(r => r.id === roundId) || window.ROUNDS_DATA[0];
 
     // Reset scoring & health
+    document.getElementById('hud-world').textContent = `${roundData.id === 99 ? '∞' : roundData.id} · ${roundData.name}`;
     this.hearts = 3;
     this.score = 0;
     this.distanceScore = 0;
@@ -640,6 +642,8 @@ window.SkyScooterGame = class SkyScooterGame {
     }
 
     this.arcadeEffects.update(dt, this.riderCtrl, this.trackGen, settings, this.state === 'PLAYING');
+    const sceneryS=(this.state==='MENU'||this.state==='ROUND_SELECT')?this.camera.position.z:this.riderCtrl.s;
+    this.worldMagic.update(this.state==='PAUSED'?0:dt,sceneryS,this.trackGen,settings);
 
     // Sky atmosphere follows the camera focus (menu camera or rider)
     if (this.sky) {

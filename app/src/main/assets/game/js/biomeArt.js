@@ -1,0 +1,184 @@
+// Original, reusable scenery for each world. Static meshes are merged by material
+// once per theme, then cloned; road hazards and collision rules stay independent.
+window.BiomeArt = class BiomeArt {
+  constructor(T) {
+    this.T = T; this.cache = new Map(); this.materials = new Map();
+    this.geometry = {
+      box: new T.BoxGeometry(1, 1, 1), sphere: new T.SphereGeometry(1, 10, 7),
+      cone: new T.ConeGeometry(1, 1, 8), cylinder: new T.CylinderGeometry(1, 1, 1, 10),
+      crystal: new T.OctahedronGeometry(1), ring: new T.TorusGeometry(1, .12, 6, 24),
+      arch: new T.TorusGeometry(1, .1, 6, 24, Math.PI)
+    };
+  }
+  material(color, glow = false) {
+    const key = `${color}/${glow}`;
+    if (!this.materials.has(key)) this.materials.set(key, new this.T.MeshStandardMaterial({
+      color, roughness: .8, emissive: glow ? color : 0x000000, emissiveIntensity: glow ? .65 : 0
+    }));
+    return this.materials.get(key);
+  }
+  create(round) {
+    const theme = round.theme;
+    if (!this.cache.has(theme)) this.cache.set(theme, this.build(round));
+    return this.cache.get(theme).clone(true);
+  }
+  portal(round) {
+    const key=`portal_${round.theme}`,T=this.T;
+    if(!this.cache.has(key)){
+      const g=new T.Group(), rainbow=round.theme==='rainbow';
+      const colors=rainbow?[0xff8fba,0xffbd79,0xffe796,0x9ae1a9,0x8acffe,0xb7a5f7]:[round.railColor];
+      colors.forEach((color,i)=>{
+        const m=new T.Mesh(this.geometry.arch,this.material(color,true));
+        const radius=round.roadWidth/2+1.5+i*.3;
+        m.scale.set(radius,radius,1);m.position.y=1;g.add(m);
+      });
+      g.name=`portal_${round.theme}`;this.cache.set(key,this.merge(g));
+    }
+    return this.cache.get(key).clone(true);
+  }
+  build(round) {
+    const T = this.T, g = new T.Group(), theme = round.theme;
+    g.name = `world_${theme}`; g.userData.biome = theme;
+    const part = (kind, color, x, y, z, sx, sy, sz, glow = false, rz = 0) => {
+      const m = new T.Mesh(this.geometry[kind], this.material(color, glow));
+      m.position.set(x,y,z); m.scale.set(sx,sy,sz); m.rotation.z=rz; g.add(m); return m;
+    };
+    const box = (c,x,y,z,w,h,d,glow=false) => part('box',c,x,y,z,w,h,d,glow);
+    const orb = (c,x,y,z,r,glow=false) => part('sphere',c,x,y,z,r,r,r,glow);
+    const pillar = (c,x,y,z,r,h) => part('cylinder',c,x,y,z,r,h,r);
+    const tree = (x,z,h=6,snow=false) => {
+      pillar(0x805236,x,h*.45,z,.45,h*.9);
+      for(let k=0;k<3;k++) part('cone',snow?0xe9faff:0x237b55,x,h*.55+k*1.4,z,2.5-k*.5,3.5,2.5-k*.5);
+    };
+    const tower = (x,z,h,c=0xcac4e6,roof=0x8864d7) => {
+      pillar(c,x,h/2,z,1.5,h);part('cone',roof,x,h+1.3,z,2,2.6,2);
+      box(0xffe69c,x,h*.65,z-1.5,.5,1.3,.12,true);
+    };
+    // Theme-colored floating land: no green grass baked into every world.
+    const tops={desert:0xeab875,crystal:0x6658a1,snow:0xf2fbff,sunset:0xbd8768,neon:0x20234c,
+      workshop:0x628694,storm:0x829bc9,volcano:0x524066,moon:0x555d9c,citadel:0x789080,rainbow:0xe9bdf3,grand_run:0xffedba};
+    const top=tops[theme]??round.islandGrassColor;
+    part('cone',round.islandRockColor,0,-3,0,6,6,5,false,Math.PI);
+    part('cylinder',top,0,.1,0,6,.7,5);
+    switch(theme) {
+      case 'garden':
+        for(const [x,z] of [[-2,-1],[2,2]]){pillar(0x8a6448,x,2,z,.45,4);orb(0x6ac76a,x,4.7,z,2.2);orb(0xa1e677,x+1,5.1,z,1.3);}
+        part('arch',0xffa9d1,0,1,0,3,4,1); 
+        for(let i=0;i<9;i++){const a=i*2.4,x=Math.cos(a)*4,z=Math.sin(a)*3;pillar(0x4e9b60,x,.6,z,.08,1);orb(i%2?0xffbcdf:0xffe07f,x,1.2,z,.45);}
+        break;
+      case 'castle_bridge':
+        tower(-3,0,7);tower(3,0,9);box(0xcac4e6,0,2,0,5,3,2);
+        part('arch',0xf5e4c4,0,3,-1.2,2,2,1);
+        for(let i=-2;i<=2;i++)box(0xcac4e6,i,4,0,.65,1,2);
+        break;
+      case 'waterfalls':
+        box(0x4c8294,0,3,1,8,6,5);box(0x86dcb4,0,6,1,8,.5,5);
+        for(let i=0;i<4;i++){box(i%2?0x97f3ff:0x4bcde9,-3+i*2,-2,-1.6,1.4,16,.25,true);box(0xd1ffff,-3+i*2,-9.8,-1.6,1.8,.25,1);}
+        part('arch',0x8cdae1,0,6,1,3,3,1);orb(0xd5faff,0,-9,-1,1.1);
+        break;
+      case 'forest':
+        pillar(0x72513b,0,7,0,1.1,14);
+        for(let i=0;i<5;i++){const a=i*1.26;orb(i%2?0x64b47c:0x368568,Math.cos(a)*3,12+i%2,Math.sin(a)*3,3.3);}
+        for(const x of [-3,3]){pillar(0xffe8c1,x,1,0,.25,2);part('sphere',0xff99b6,x,2.3,0,1.4,.65,1.4);orb(0xfff2ba,x,2.8,-.3,.25,true);}
+        break;
+      case 'desert':
+        part('cone',0xf5ce8b,0,3,1,4.7,6,4.7);
+        for(const x of [-4,4]){pillar(0xeac494,x,2,-2,.7,4);orb(0x72d5b0,x,4.5,-2,.65,true);}
+        box(0xf9db9e,0,4.3,-2,9,.7,1.1);part('ring',0xffdd74,0,6,-2,1.1,1.1,1.1,true);
+        break;
+      case 'crystal':
+        for(let i=0;i<7;i++){const a=i*2.4;part('crystal',i%2?0x78f2ff:0xda9eff,Math.cos(a)*3,2+i%3,Math.sin(a)*3,1,3+i%3,1,true,i*.14);}
+        part('arch',0x574c8c,0,0,2,5.5,9,3);orb(0xf3baff,0,7,0,.75,true);
+        break;
+      case 'snow':
+        part('cone',0x84acd2,0,5,1,5,10,4);part('cone',0xf4fbff,0,8.2,1,2.2,3.8,1.8);
+        tree(-3,-2,5,true);tree(3,-1,4,true);
+        orb(0xffffff,0,1,-3,.8);orb(0xffffff,0,2.1,-3,.55);part('cone',0xffaf71,0,2.1,-3.6,.15,.5,.15,false,Math.PI/2);
+        break;
+      case 'sunset':
+        box(0x785576,0,1,0,8,1.6,3);pillar(0xf6d89c,0,5,0,.15,8);
+        part('cone',0xffe5ae,1.4,5,0,2.8,5,.12);box(0xf39ec0,-2.4,4,0,2,3,.15);
+        tower(4,2,7,0xfdf1df,0xf49ba7);orb(0xffe090,4,7,2,.65,true);
+        break;
+      case 'neon':
+        for(let i=-1;i<=1;i++){const h=9+(i+1)*3;box(0x283558,i*3,h/2,0,2.4,h,3);for(let j=1;j<h;j+=2)box(i%2?0xff8ade:0x6bf1ed,i*3,j,-1.55,1.8,.3,.12,true);}
+        part('ring',0xfe9bdf,0,15,-2,2.5,2.5,1,true);
+        break;
+      case 'workshop':
+        for(const x of [-2.5,2.5]){pillar(0x5c819a,x,3,1,1.1,6);part('ring',0xffd173,x,4,-.4,2,2,1);for(let i=0;i<8;i++){const a=i*Math.PI/4;const tooth=box(0xffd173,x+Math.cos(a)*2,4+Math.sin(a)*2,-.4,.8,.8,.6);tooth.rotation.z=a;}}
+        box(0x83d7cb,0,8,1,9,.8,.8);pillar(0xffd173,-4,4,1,.3,8);orb(0xf7c0de,3,9,1,1.2);
+        break;
+      case 'storm':
+        for(let i=0;i<5;i++)part('sphere',i%2?0xaaaee2:0xc6ceee,(i-2)*1.9,6+i%2,0,2.4,1.5,2);
+        for(const x of [-2,2]){part('box',0xffe897,x,3.6,-1,.35,2,.3,true,-.4);part('box',0xffe897,x+.5,2,-1,.35,2,.3,true,.4);}
+        for(let i=0;i<7;i++)part('crystal',0x93e7ff,(i-3)*1.1,1.5+i%2,-2,.12,.6,.12,true);
+        break;
+      case 'volcano':
+        part('cone',0x705678,0,4,0,5,8,5);part('cylinder',0xffa776,0,7.3,0,1.2,.25,1.2,true);
+        for(let i=0;i<4;i++){const a=i*Math.PI/2;part('box',0xffbb73,Math.cos(a)*1.9,4.8,Math.sin(a)*1.9,.45,5,.4,true,.24);}
+        for(let i=0;i<4;i++)orb(0xffd3ac,Math.sin(i*2)*1.1,9+i*1.1,0,.5+i*.15,true);
+        break;
+      case 'moon':
+        part('ring',0xfff2b8,0,7,0,2.6,2.6,1,true);orb(0x8ba6eb,-3,2,1,1.4);
+        for(let i=0;i<5;i++){const a=i*2.4,x=Math.cos(a)*3,z=Math.sin(a)*3;pillar(0xb4bbef,x,1.2,z,.13,2.4);part('sphere',0x9cf3e9,x,2.5,z,1,.4,1,true);}
+        part('ring',0xb9b9e4,2,.6,-2,1.4,.4,1.4);
+        break;
+      case 'citadel':
+        box(0x6d88a3,0,3,1,9,6,3);tower(-4,1,10,0x7793ad,0x6298ab);tower(4,1,10,0x7793ad,0x6298ab);
+        for(const x of [-2,0,2]){pillar(0xd9deb9,x,3,-1,.3,6);box(0xb79add,x,4,-1.4,.8,2.5,.12);}
+        part('arch',0xffdc8a,0,6,0,3,3,1,true);
+        break;
+      case 'rainbow':
+        [0xff8fba,0xffbd79,0xffe796,0x9ae1a9,0x8acffe,0xb7a5f7].forEach((c,i)=>part('arch',c,0,.5,0,5.5-i*.45,6-i*.45,1,true));
+        for(const x of [-4,4]){orb(0xffedf8,x,1.4,0,1.5);orb(0xffedf8,x+1,1,0,1.2);}
+        break;
+      case 'grand_run':
+        box(0xffedc6,0,3,1,7,6,4);tower(-3,0,9,0xffedc6,0xffce68);tower(3,0,9,0xffedc6,0xffce68);tower(0,2,13,0xffedc6,0xffce68);
+        part('ring',0xffdb79,0,10,-1,2,2,1,true);
+        for(const x of [-5,5]){pillar(0xffe18e,x,4,-1,.12,8);box(0xf3a1c6,x+.7,7,-1,1.5,1.1,.12);}
+        break;
+    }
+    return this.merge(g);
+  }
+  merge(source) {
+    // Bake transforms and merge by material, preserving shared cached geometry.
+    source.updateMatrixWorld(true);
+    const batches = new Map(), out = new this.T.Group();
+    out.name=source.name;out.userData={...source.userData};
+    source.traverse(m=>{
+      if(!m.isMesh)return;
+      const geo=(m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone());geo.applyMatrix4(m.matrixWorld);
+      if(!batches.has(m.material))batches.set(m.material,{positions:[],normals:[]});
+      const b=batches.get(m.material);b.positions.push(...geo.attributes.position.array);b.normals.push(...geo.attributes.normal.array);geo.dispose();
+    });
+    for(const [material,b] of batches){
+      const geo=new this.T.BufferGeometry();geo.setAttribute('position',new this.T.Float32BufferAttribute(b.positions,3));geo.setAttribute('normal',new this.T.Float32BufferAttribute(b.normals,3));geo.computeBoundingSphere();
+      const m=new this.T.Mesh(geo,material);m.castShadow=true;m.receiveShadow=true;out.add(m);
+    }
+    return out;
+  }
+};
+
+// Gentle floating lights / snow crystals. One draw call; no flashing lightning.
+window.WorldMagic = class WorldMagic {
+  constructor(scene,T){
+    this.T=T;this.time=0;this.dummy=new T.Object3D();
+    this.mesh=new T.InstancedMesh(new T.OctahedronGeometry(.13),new T.MeshBasicMaterial({color:0xffffff}),40);
+    this.mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);this.mesh.frustumCulled=false;scene.add(this.mesh);
+  }
+  update(dt,s,track,settings){
+    if(!track.roundData)return;
+    if(!settings.reducedMotion)this.time+=dt;
+    const theme=track.roundData.theme;
+    const colors=theme==='snow'?[0xffffff,0xc9f7ff]:theme==='volcano'?[0xffcc8a,0xff94ad]:theme==='forest'?[0xffe99a,0xb2ffb8]:theme==='moon'?[0xc1b8ff,0xb0ffff]:[0xffe5a1,0xb8fff1,0xffbde8];
+    this.mesh.count=settings.graphicsQuality==='low'?12:40;
+    const c=new this.T.Color();
+    for(let i=0;i<this.mesh.count;i++){
+      const at=s-8+(i*7.37)%95,side=i%2?1:-1;
+      const p=track.frame(at,side*(track.roundData.roadWidth/2+1.5+(i%4)*1.5),2+(i%5)*1.2+Math.sin(this.time+i)*.6);
+      this.dummy.position.set(p.x,p.y,p.z);this.dummy.rotation.set(this.time*.2,i+this.time*.3,0);this.dummy.updateMatrix();
+      this.mesh.setMatrixAt(i,this.dummy.matrix);this.mesh.setColorAt(i,c.set(colors[i%colors.length]));
+    }
+    this.mesh.instanceMatrix.needsUpdate=true;this.mesh.instanceColor.needsUpdate=true;
+  }
+};

@@ -617,3 +617,8 @@ html, body {
 }
 #hud-speed.turbo { color: #fff2a3; border-color: #ffd43b; background: rgba(65, 38, 8, .85); }
 @media (max-height: 480px) { #hud-speed { top: 90px; font-size: 10px; padding: 5px 12px; } }
+#hud-world {
+  position: absolute; right: 16px; top: 68px; max-width: 48%;
+  color: #fff; background: rgba(22, 35, 64, .8); border-radius: 12px;
+  padding: 7px 12px; font-size: 12px; font-weight: 700; pointer-events: none;
+}

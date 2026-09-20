@@ -117,11 +117,9 @@ window.SkyAtmosphere = class SkyAtmosphere {
       { z: 330, lat: -175, y: -36, scale: 5.0, tower: false }
     ];
 
-    const grass = this.roundData ? this.roundData.islandGrassColor : null;
-    const rock = this.roundData ? this.roundData.islandRockColor : null;
-
     for (const cfg of configs) {
-      const island = this.factory.createFloatingIsland(grass, rock, 5.5 * cfg.scale);
+      const island = this.trackGen.biomeArt.create(this.roundData || window.ROUNDS_DATA[0]);
+      island.scale.setScalar(cfg.scale * .65);
       island.position.set(0, cfg.y, cfg.z);
       island.userData = {
         z: cfg.z,
@@ -137,21 +135,6 @@ window.SkyAtmosphere = class SkyAtmosphere {
           m.receiveShadow = false;
         }
       });
-
-      if (cfg.tower) {
-        const tower = this.factory.createCastleTower(rock || 0x78909c);
-        tower.scale.setScalar(0.55 + Math.random() * 0.25);
-        tower.position.set(0, cfg.y + 1.2, cfg.z);
-        tower.userData = {...island.userData, height: cfg.y + 1.2};
-        tower.traverse(m => {
-          if (m.isMesh) {
-            m.castShadow = false;
-            m.receiveShadow = false;
-          }
-        });
-        this.scene.add(tower);
-        this.distantItems.push(tower);
-      }
 
       this.scene.add(island);
       this.distantItems.push(island);
@@ -172,7 +155,7 @@ window.SkyAtmosphere = class SkyAtmosphere {
     const fog = new T.Color(roundData.fogColor);
     const hsl = {};
     sky.getHSL(hsl);
-    this.isNight = hsl.l < 0.38;
+    this.isNight = ['neon', 'moon'].includes(roundData.theme);
     const theme = roundData.theme || '';
 
     // Rebuild the dome gradient with round colors.

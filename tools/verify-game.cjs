@@ -4,7 +4,7 @@ global.window=global;global.THREE=require('../app/src/main/assets/game/lib/three
 global.localStorage={data:{},getItem(k){return this.data[k]||null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};
 const base=path.resolve(__dirname,'../app/src/main/assets/game');
 global.fetch=async()=>({ok:true,arrayBuffer:async()=>{const b=fs.readFileSync(base+'/models/louffi-world.glb');return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);}});
-['visualKit','kitLoader','storage','rounds','arcadeEffects','reachability','adaptiveML','assetFactory','trackGenerator','enhancedTrack','controller'].forEach(n=>require(base+'/js/'+n+'.js'));
+['visualKit','kitLoader','storage','rounds','arcadeEffects','reachability','adaptiveML','assetFactory','trackGenerator','biomeArt','enhancedTrack','controller'].forEach(n=>require(base+'/js/'+n+'.js'));
 (async()=>{
  await loadLouffiKit();assert.equal(louffiAssetStatus,'GLB loaded');
  for(const n of ['RiderScooter','Island','Castle','Tree','Cloud','Waterfall','Crate'])assert(louffiKit.getObjectByName(n),n);
@@ -13,12 +13,19 @@ global.fetch=async()=>({ok:true,arrayBuffer:async()=>{const b=fs.readFileSync(ba
  const validator=new ReachabilityValidator();
  assert(!validator.validateLayout({gapWidth:20,speed:14.85,length:24,roadWidth:8,previousLane:0,safeLane:0,hazards:[]}));
  let gapCount=0;
+ const signatures=new Set();
  for(const round of ROUNDS_DATA){
   track.buildRound(round,123);
+  const art=track.biomeArt.create(round),hash=require('node:crypto').createHash('sha256');
+  art.traverse(m=>{if(m.isMesh){assert(m.geometry.attributes.position.array.every(Number.isFinite));hash.update(Buffer.from(m.geometry.attributes.position.array.buffer));}});
+  signatures.add(hash.digest('hex'));
+  assert.equal(track.stone.color.getHex(),round.roadColor);
+  assert(track.sceneryObjects.filter(o=>o.name.startsWith('world_')).every(o=>o.userData.biome===round.theme));
   track.setDifficulty({speedMultiplier:1.05,obstacleDensityMultiplier:1.15});
   for(let s=0;s<round.length;s+=24){track.update(s);for(const seg of track.activeSegments){if(seg.userData.isGap){assert.equal(Math.round((seg.userData.gapEnd-seg.userData.gapStart)*10),24);gapCount++;}}}
   assert(track.activeSegments.length<14);assert(track.sceneryObjects.length<100);assert(track.totalCoins>0);
  }
+ assert.equal(signatures.size,16,'all 16 biomes have distinct geometry, not just colors');
  track.buildRound(ROUNDS_DATA[2],55);track.setDifficulty({speedMultiplier:1.05,obstacleDensityMultiplier:1.15});track.update(240);
  assert(track.activeSegments.some(s=>s.userData.speedMultiplier===1.05));
  const rider=new RiderController(factory.createRiderWithScooter(),track);

@@ -2,6 +2,33 @@
 
 Android WebView + offline Three.js scooter runner. This update adds a reference-inspired warm stone bridge, wooden rails, a rounded helmeted rider, blue scooter, floating islands, leafy trees, castle towers, clouds and waterfalls. It is original stylized geometry, not an exact reconstruction of the reference illustration.
 
+## Sixteen magical environments
+
+Every round now selects its own cached scenery geometry, nearby landmarks, distant skyline, road materials and rails. `js/biomeArt.js` builds original theme assets and merges static geometry by material before cloning them. The existing single GLB still supplies the rider, scooter and shared gameplay props.
+
+| Round | World scenery |
+| --- | --- |
+| 1 | Flower gardens, pink arches and round trees |
+| 2 | Lavender-roofed castles and stone battlements |
+| 3 | Turquoise waterfalls and tall floating mesas |
+| 4 | Giant forest trees, pink mushrooms and fireflies |
+| 5 | Sandstone pyramids and glowing oasis ruins |
+| 6 | Lavender/cyan crystals and cave arches |
+| 7 | Snowy peaks, frosted pines and snowmen |
+| 8 | Floating sailboats and sunset lighthouses |
+| 9 | Pastel neon towers, glowing windows and rings |
+| 10 | Golden gears, mint cranes and toy factories |
+| 11 | Lilac clouds and steady lightning sculptures |
+| 12 | Peach-glowing volcanoes and gentle magic embers |
+| 13 | Moon rings and luminous mushroom gardens |
+| 14 | Blue citadels, lavender banners and columns |
+| 15 | Layered rainbow arches and pink cloud islands |
+| 16 | Golden palaces, pink flags and sky portals |
+
+Floating light crystals move gently beside the road; Reduced Motion freezes their animation. Only Moon Garden and Neon Skyline use night lighting, with enough fill light to keep the roadway readable. No flashing lightning is used. The How to Play panel is unchanged.
+
+Run `node tools/biome-preview.cjs` with Playwright and Chromium to render all 16 worlds, check theme resets and low-quality visibility, and regenerate `docs/worlds-overview.png`. These are actual game screenshots. The CPU test checks that all 16 worlds have distinct geometry and matching road colors. Browser smoke also verifies the existing controls and round access. Android device performance has not been measured.
+
 ## Arcade test update
 
 All 16 campaign rounds are selectable immediately, including on existing saves. Scores, stars and normal campaign progress are preserved; test access is controlled by `ScooterTuning.testAllRounds` in `js/arcadeEffects.js`. The Play button still starts your current campaign round.
@@ -43,5 +70,5 @@ Open the Android project in Android Studio to build/test on a device. This chang
 
 ## Limits and follow-up
 
-The existing sixteen rounds remain configuration-driven. This update shares an improved fantasy art kit; it does not claim sixteen independently authored environments. The decorative waterfalls are static stylized meshes. Physics still uses the existing capped variable timestep. Moving hazards, richer animations, more biome-specific assets, broad device testing and statistical evaluation of adaptation remain future work. No cloud AI calls occur during gameplay.
+The existing sixteen rounds remain configuration-driven. Each round now has its own scenery geometry and palette while sharing the runner mechanics. The decorative waterfalls are static stylized meshes. Physics still uses the existing capped variable timestep. Moving hazards, richer animations, more biome-specific assets, broad device testing and statistical evaluation of adaptation remain future work. No cloud AI calls occur during gameplay.
 

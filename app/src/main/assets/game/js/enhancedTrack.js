@@ -2,6 +2,7 @@
 window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
   constructor(...args){
     super(...args);const T=this.THREE;
+    this.biomeArt = new window.BiomeArt(T);
     this.boxGeometry=new T.BoxGeometry(1,1,1);
     this.stone=new T.MeshStandardMaterial({color:0xd9c6a5,roughness:.93});
     this.wood=new T.MeshStandardMaterial({color:0xa56e36,roughness:.8});
@@ -11,6 +12,12 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     this.totalCoins=0;this.lastSafeLane=0;this.collectedIDs=new Set();
   }
   buildRound(round,seed=Date.now()){
+    this.stone.color.set(round.roadColor);
+    this.wood.color.set(round.railColor);
+    this.darkWood.color.set(round.railColor).multiplyScalar(.6);
+    this.pavers.forEach((m,i)=>{m.color.set(round.roadColor).multiplyScalar(.9+i*.07);});
+    const luminous=['crystal','neon','moon','rainbow','grand_run'].includes(round.theme);
+    this.wood.emissive.set(luminous?round.railColor:0);this.wood.emissiveIntensity=luminous?.45:0;
     this.difficulty={speedMultiplier:1,obstacleDensityMultiplier:1};this.totalCoins=0;this.lastSafeLane=0;this.collectedIDs.clear();
     super.buildRound(round,seed);
   }
@@ -31,7 +38,9 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
       const transforms=[];
       for(let row=0;row<16;row++)for(let col=0;col<4;col++){
         if((row+col)%3!==shade)continue;const at=s+row*1.5+.75;if(gap&&at>s+10&&at<s+14)continue;
-        const p=this.frame(at,(col-1.5)*(w/4),.015),o=new T.Object3D();o.position.set(p.x,p.y,p.z);o.rotation.y=Math.atan2(this.getTrackTangent(at).x,this.getTrackTangent(at).z);o.rotation.order="YXZ";o.rotation.x=-Math.atan(this.getTrackGrade(at));o.scale.set(w/4-.06,.06,1.43);o.updateMatrix();transforms.push(o.matrix);
+        const planks=['forest','sunset','workshop'].includes(this.roundData.theme);
+        if(planks&&col!==0)continue;
+        const p=this.frame(at,planks?0:(col-1.5)*(w/4),.015),o=new T.Object3D();o.position.set(p.x,p.y,p.z);o.rotation.y=Math.atan2(this.getTrackTangent(at).x,this.getTrackTangent(at).z);o.rotation.order="YXZ";o.rotation.x=-Math.atan(this.getTrackGrade(at));o.scale.set(planks?w-.15:w/4-.06,.06,1.43);o.updateMatrix();transforms.push(o.matrix);
       }
       const tiles=new T.InstancedMesh(this.boxGeometry,this.pavers[shade],transforms.length);transforms.forEach((m,i)=>tiles.setMatrixAt(i,m));tiles.receiveShadow=true;g.add(tiles);
     }
@@ -41,6 +50,10 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     }
     if(gap)this.addBox(g,this.wood,s+9.9,0,.07,w,.05,.7);
     this.populateSegment(s,s+24,gap,w,g);
+    if(s%72===24&&['garden','crystal','moon','rainbow','grand_run'].includes(this.roundData.theme)){
+      const portal=this.biomeArt.portal(this.roundData),p=this.frame(s+12);
+      portal.position.set(p.x,p.y,p.z);portal.rotation.y=Math.atan2(this.getTrackTangent(s+12).x,this.getTrackTangent(s+12).z);this.addScenery(portal,s);
+    }
     // Batch bridge blocks/rails by material (shared cube geometry).
     const batches=new Map();
     for(const m of [...g.children])if(m.isMesh&&!m.isInstancedMesh){m.updateMatrix();const list=batches.get(m.material)||[];list.push(m.matrix.clone());batches.set(m.material,list);g.remove(m);}
@@ -64,12 +77,8 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     }
     for(const side of [-1,1]){
       const at=s+10+this.rng()*8,offset=side*(w/2+9+this.rng()*5),p=this.frame(at,offset,-3-this.rng()*2);
-      const island=this.factory.createFloatingIsland(null,null,5.5+this.rng()*2);island.position.set(p.x,p.y,p.z);this.addScenery(island,s);
-      if((Math.floor(s/24)+(side>0?1:0))%3===0){const castle=this.factory.createCastleTower();castle.scale.setScalar(.7);castle.position.set(p.x,p.y+1,p.z);this.addScenery(castle,s);}
-      if(window.louffiKit){
-        const fall=window.louffiKit.getObjectByName('Waterfall').clone(true);fall.position.set(p.x-side*4.5,p.y+.3,p.z-1);fall.rotation.y=Math.PI/2;this.addScenery(fall,s);
-        const cloud=window.louffiKit.getObjectByName('Cloud').clone(true);cloud.position.set(p.x+side*24,12+this.rng()*9,p.z+20);cloud.scale.setScalar(.9+this.rng()*.6);this.addScenery(cloud,s);
-      }
+      const island=this.biomeArt.create(this.roundData);island.position.set(p.x,p.y,p.z);
+      island.scale.setScalar(.8+this.rng()*.35);island.rotation.y=side*.25;this.addScenery(island,s);
     }
   }
   addItem(m,s,laneX,y,extra){const p=this.frame(s,laneX,y);m.position.set(p.x,p.y,p.z);m.userData={...extra,s,laneX,collected:this.collectedIDs.has(extra.id),baseY:p.y};if(!m.userData.collected){this.scene.add(m);this.activeCollectibles.push(m);}}

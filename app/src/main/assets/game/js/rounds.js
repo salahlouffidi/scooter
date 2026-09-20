@@ -15,7 +15,7 @@ window.ROUNDS_DATA = [
     islandRockColor: 0x795548,
     ambientLight: 0xffffff,
     roadWidth: 9.0, // extra wide protected road
-    description: 'Sunny floating gardens, wide protected road, gentle steering, coin trails, isolated blocks.',
+    description: 'Flower islands, pink garden arches and round treetops under a bright blue sky.',
     firstSafeDistance: 120, // first 120m contain no damage hazards
     features: {
       hasJumps: true,
@@ -39,7 +39,7 @@ window.ROUNDS_DATA = [
     islandRockColor: 0x546e7a,
     ambientLight: 0xfff9c4,
     roadWidth: 8.5,
-    description: 'Castle bridges, alternating crates, generous passing spaces, basic jump barriers.',
+    description: 'Lavender-roofed castle towers, crenellated walls and cool stone bridges.',
     firstSafeDistance: 60,
     features: {
       hasJumps: true,
@@ -63,7 +63,7 @@ window.ROUNDS_DATA = [
     islandRockColor: 0x455a64,
     ambientLight: 0xe0f7fa,
     roadWidth: 8.0,
-    description: 'Waterfalls, mist outside the driving corridor, gentle curves, clearly marked short gaps.',
+    description: 'Tall turquoise waterfalls, cliff-top pools and misty floating mesas.',
     firstSafeDistance: 60,
     features: {
       hasJumps: true,
@@ -87,7 +87,7 @@ window.ROUNDS_DATA = [
     islandRockColor: 0x3e2723,
     ambientLight: 0xe8f5e9,
     roadWidth: 8.0,
-    description: 'Giant trees, wooden paths, fallen logs, moving branches with early warnings.',
+    description: 'Giant treetops, pink mushrooms and golden fireflies beside a wooden path.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -105,13 +105,13 @@ window.ROUNDS_DATA = [
     theme: 'desert',
     skyColor: 0xffb74d,
     fogColor: 0xffe0b2,
-    roadColor: 0xd7ccc8,
-    railColor: 0xa1887f,
+    roadColor: 0xe8c28e,
+    railColor: 0xc89354,
     islandGrassColor: 0xdce775,
     islandRockColor: 0x8d6e63,
     ambientLight: 0xfff3e0,
     roadWidth: 8.0,
-    description: 'Sandstone arches, warm light, spaced pillars, optional gem routes that rejoin the road.',
+    description: 'Golden sandstone pyramids, ancient arches and glowing oasis orbs.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -135,7 +135,7 @@ window.ROUNDS_DATA = [
     islandRockColor: 0x4a148c,
     ambientLight: 0xf3e5f5,
     roadWidth: 8.0,
-    description: 'Crystal formations, colored light pools, sweeping obstacle timing.',
+    description: 'Luminous lavender and turquoise crystals, cave arches and glowing rails.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -159,7 +159,7 @@ window.ROUNDS_DATA = [
     islandRockColor: 0x607d8b,
     ambientLight: 0xffffff,
     roadWidth: 8.0,
-    description: 'Snowy bridges and ice patches with slight steering inertia.',
+    description: 'Snowy mountain peaks, frosted pine trees and little island snowmen.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -183,7 +183,7 @@ window.ROUNDS_DATA = [
     islandRockColor: 0x4e342e,
     ambientLight: 0xfbe9e7,
     roadWidth: 8.0,
-    description: 'Floating docks and warm sea atmosphere, gently moving platforms, broad landing zones.',
+    description: 'Floating sailboats, cozy lighthouses and warm sunset wooden docks.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -199,15 +199,15 @@ window.ROUNDS_DATA = [
     length: 1120,
     baseSpeed: 12,
     theme: 'neon',
-    skyColor: 0x1a237e,
+    skyColor: 0x373072,
     fogColor: 0x283593,
-    roadColor: 0x212121,
+    roadColor: 0x545585,
     railColor: 0x00e676,
     islandGrassColor: 0x1e88e5,
     islandRockColor: 0x0d47a1,
     ambientLight: 0x00e5ff,
     roadWidth: 8.0,
-    description: 'Night city platforms, emissive markings, alternating gates with predictable timing.',
+    description: 'Playful neon towers, glowing window stripes and pink sky rings.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -223,7 +223,7 @@ window.ROUNDS_DATA = [
     length: 1160,
     baseSpeed: 12,
     theme: 'workshop',
-    skyColor: 0x78909c,
+    skyColor: 0x89bdcf,
     fogColor: 0xb0bec5,
     roadColor: 0x616161,
     railColor: 0xffb300,
@@ -231,7 +231,7 @@ window.ROUNDS_DATA = [
     islandRockColor: 0x424242,
     ambientLight: 0xffecb3,
     roadWidth: 8.0,
-    description: 'Gears, mechanical bridges, telegraphed piston obstacles, clear side routes.',
+    description: 'Oversized golden gears, mint-colored cranes and toy-like factory islands.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -255,7 +255,7 @@ window.ROUNDS_DATA = [
     islandRockColor: 0x37474f,
     ambientLight: 0xe0f7fa,
     roadWidth: 8.0,
-    description: 'Cloud islands, visible wind cues, mild bounded lateral gusts; cosmetic lightning.',
+    description: 'Soft lilac storm clouds, suspended raindrop crystals and steady golden lightning sculptures.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -271,15 +271,15 @@ window.ROUNDS_DATA = [
     length: 1240,
     baseSpeed: 13,
     theme: 'volcano',
-    skyColor: 0xd84315,
-    fogColor: 0xff8a65,
-    roadColor: 0x212121,
-    railColor: 0xff3d00,
+    skyColor: 0xf4a7a1,
+    fogColor: 0xffd6b8,
+    roadColor: 0x675272,
+    railColor: 0xffad70,
     islandGrassColor: 0x3e2723,
     islandRockColor: 0xbf360c,
     ambientLight: 0xffe0b2,
     roadWidth: 7.8,
-    description: 'Basalt and lava below, marked vent cycles, safe jump combinations.',
+    description: 'Warm glowing volcanoes, peach-colored magic embers and basalt islands.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -295,15 +295,15 @@ window.ROUNDS_DATA = [
     length: 1280,
     baseSpeed: 13,
     theme: 'moon',
-    skyColor: 0x121826,
-    fogColor: 0x1f2937,
-    roadColor: 0x374151,
+    skyColor: 0x343c70,
+    fogColor: 0x6677aa,
+    roadColor: 0x7376a8,
     railColor: 0x818cf8,
     islandGrassColor: 0x312e81,
     islandRockColor: 0x1e1b4b,
     ambientLight: 0xc7d2fe,
     roadWidth: 7.8,
-    description: 'Moonlit floating gardens with normal gravity, tighter curves, mixed decisions.',
+    description: 'Luminous moon rings, turquoise mushroom gardens and floating starlight.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -319,7 +319,7 @@ window.ROUNDS_DATA = [
     length: 1320,
     baseSpeed: 13,
     theme: 'citadel',
-    skyColor: 0x455a64,
+    skyColor: 0x8d9fc5,
     fogColor: 0x78909c,
     roadColor: 0x9e9e9e,
     railColor: 0xfbc02d,
@@ -327,7 +327,7 @@ window.ROUNDS_DATA = [
     islandRockColor: 0x263238,
     ambientLight: 0xfff9c4,
     roadWidth: 7.8,
-    description: 'Castle courtyards, swinging gates, mixed timing challenges, recovery sections.',
+    description: 'Tall blue citadels, lavender banners, columned walls and golden arches.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -351,7 +351,7 @@ window.ROUNDS_DATA = [
     islandRockColor: 0x7c4dff,
     ambientLight: 0xffffff,
     roadWidth: 7.5,
-    description: 'High bright bridges, combinations of known mechanics, safe optional overdrive routes.',
+    description: 'Layered rainbow arches, pink cloud islands and glowing pastel pathways.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -375,7 +375,7 @@ window.ROUNDS_DATA = [
     islandRockColor: 0x4e342e,
     ambientLight: 0xfffde7,
     roadWidth: 7.5,
-    description: 'A coherent finale combining earlier biomes, no unseen unfair mechanics, celebratory final castle gate & fireworks!',
+    description: 'A golden palace celebration with tall spires, pink flags and shining sky portals.',
     firstSafeDistance: 60,
     features: {
       hasJumps: true,
@@ -386,3 +386,4 @@ window.ROUNDS_DATA = [
     }
   }
 ];
+
