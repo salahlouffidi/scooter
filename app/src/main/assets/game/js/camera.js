@@ -10,6 +10,10 @@ window.GameCamera = class GameCamera {
     this.distanceBehind = 6.5;
     this.lookAheadDistance = 10.0;
     this.lookUpOffset = 1.2;
+    // Keep the bridge visually anchored. The rider may travel to the edge of
+    // the road, while the camera follows only a small fraction sideways.
+    this.lateralFollow = 0.16;
+    this.lookLateralFollow = 0.08;
 
     this.currentPosition = new THREE.Vector3();
     this.currentLookAt = new THREE.Vector3();
@@ -21,16 +25,20 @@ window.GameCamera = class GameCamera {
   reset(riderMesh, trackGen) {
     const p = riderMesh.position;
     const tan = trackGen.getTrackTangent(riderMesh.position.z);
+    const center = trackGen.getTrackPoint(riderMesh.position.z);
+    const normal = {x: -tan.z, z: tan.x};
+    const anchorX = center.x + (p.x - center.x) * this.lateralFollow;
+    const anchorZ = center.z + (p.z - center.z) * this.lateralFollow;
 
     this.currentPosition.set(
-      p.x - tan.x * this.distanceBehind,
+      anchorX - tan.x * this.distanceBehind,
       p.y + this.heightOffset,
-      p.z - tan.z * this.distanceBehind
+      anchorZ - tan.z * this.distanceBehind
     );
     this.currentLookAt.set(
-      p.x + tan.x * this.lookAheadDistance,
+      center.x + normal.x * (p.x - center.x) * this.lookLateralFollow + tan.x * this.lookAheadDistance,
       trackGen.getTrackPoint(riderMesh.position.z + this.lookAheadDistance).y + this.lookUpOffset,
-      p.z + tan.z * this.lookAheadDistance
+      center.z + normal.z * (p.z - center.z) * this.lookLateralFollow + tan.z * this.lookAheadDistance
     );
 
     this.camera.position.copy(this.currentPosition);
@@ -43,17 +51,21 @@ window.GameCamera = class GameCamera {
   update(dt, riderMesh, trackGen, isOverdrive, settings) {
     const p = riderMesh.position;
     const tan = trackGen.getTrackTangent(riderMesh.position.z);
+    const center = trackGen.getTrackPoint(riderMesh.position.z);
+    const normal = {x: -tan.z, z: tan.x};
+    const anchorX = center.x + (p.x - center.x) * this.lateralFollow;
+    const anchorZ = center.z + (p.z - center.z) * this.lateralFollow;
 
     const targetPos = new this.THREE.Vector3(
-      p.x - tan.x * this.distanceBehind,
+      anchorX - tan.x * this.distanceBehind,
       p.y + this.heightOffset,
-      p.z - tan.z * this.distanceBehind
+      anchorZ - tan.z * this.distanceBehind
     );
 
     const targetLookAt = new this.THREE.Vector3(
-      p.x + tan.x * this.lookAheadDistance,
+      center.x + normal.x * (p.x - center.x) * this.lookLateralFollow + tan.x * this.lookAheadDistance,
       trackGen.getTrackPoint(riderMesh.position.z + this.lookAheadDistance).y + this.lookUpOffset,
-      p.z + tan.z * this.lookAheadDistance
+      center.z + normal.z * (p.z - center.z) * this.lookLateralFollow + tan.z * this.lookAheadDistance
     );
 
     if (!this.isInitialized) {
