@@ -161,10 +161,15 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
       else if(!gap&&!safe&&this.rng()<.25){const type=['shield','magnet','double','heart','overdrive'][Math.floor(this.rng()*5)];this.addItem(this.factory.createPowerup(type),s+7,safeLane,1.25,{id:`power_${s}`,isPowerup:true,type});}
       if(!gap&&this.rng()<.16)this.addItem(this.factory.createGem(),s+9,safeLane,1.15,{id:`gem_${s}`,isGem:true});
     }
+    const citySide=s%96===48?((Math.floor(s/96)%2)?1:-1):0;
     for(const side of [-1,1]){
       const at=s+10+this.rng()*8,offset=side*(w/2+9+this.rng()*5),p=this.frame(at,offset,-3-this.rng()*2);
-      const island=this.biomeArt.create(this.roundData);island.position.set(p.x,p.y,p.z);
-      island.scale.setScalar(.8+this.rng()*.35);island.rotation.y=side*.25;this.addScenery(island,s);
+      // On a city stretch the roadside district replaces that side's island,
+      // keeping the pylon/buildings readable instead of hiding them behind trees.
+      if(citySide!==side){
+        const island=this.biomeArt.create(this.roundData);island.position.set(p.x,p.y,p.z);
+        island.scale.setScalar(.8+this.rng()*.35);island.rotation.y=side*.25;this.addScenery(island,s);
+      }
       // Every other stretch gets a denser foreground landmark.  These modular
       // terraces make the world feel connected instead of repeating empty islands.
       if(s%48===0){
@@ -178,10 +183,10 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
       }
       // A larger city/coastal landmark arrives less often so it reads as a
       // destination: utility pylon, lamps, guardrails and small buildings.
-      if(s%96===48&&side===((Math.floor(s/96)%2)?1:-1)){
+      if(citySide===side){
         const city=this.biomeArt.cityBlock(this.roundData,Math.floor(s/96)%3);
-        const cp=this.frame(s+12,side*(w/2+16.0),-1.35-this.rng()*.55);
-        city.position.set(cp.x,cp.y,cp.z);city.scale.setScalar(.78+this.rng()*.08);city.rotation.y=side*.06;
+        const cp=this.frame(s+12,side*(w/2+11.5),-1.05-this.rng()*.4);
+        city.position.set(cp.x,cp.y,cp.z);city.scale.setScalar(.88+this.rng()*.08);city.rotation.y=side*.06;
         this.addScenery(city,s);
       }
     }
