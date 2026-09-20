@@ -46,10 +46,10 @@ window.ArcadeEffects = class ArcadeEffects {
     if (!playing) return;
     this.time += dt;
     const T = this.T, tan = track.getTrackTangent(rider.s), pos = rider.mesh.position;
-    const rush = Math.max(rider.activeOverdrive ? 1 : 0, rider.downhillIntensity || 0);
+    const rush = Math.max(rider.activeOverdrive ? 1 : 0, rider.activeSkyFlight ? 2 : 0, rider.downhillIntensity || 0);
     const count = settings.reducedMotion ? 0 : (settings.graphicsQuality === 'low' ? 16 : 48);
     this.wind.material.opacity = .12 + rush * .65;
-    this.wind.material.color.set(rider.activeOverdrive ? 0xffe9a0 : 0xc5f7ff);
+    this.wind.material.color.set(rider.activeSkyFlight ? 0x70f4ff : rider.activeOverdrive ? 0xffe9a0 : 0xc5f7ff);
     for (let i = 0; i < count; i++) {
       const cycle = (this.time * (1.4 + rush) + i * .618) % 1;
       const behind = .5 + cycle * (6 + rush * 5), angle = i * 2.39996;

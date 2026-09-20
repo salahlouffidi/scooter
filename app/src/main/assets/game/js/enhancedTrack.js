@@ -17,7 +17,7 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     this.cityRailDark=new T.MeshStandardMaterial({color:0x202d38,roughness:.72,metalness:.4});
     this.cityMark=new T.MeshStandardMaterial({color:0xf5cf68,roughness:.7,emissive:0x6b4f16,emissiveIntensity:.12});
     this.cityPavers=[0x56616c,0x606b76,0x4f5a65].map(color=>new T.MeshStandardMaterial({color,roughness:.93}));
-    this.validator=new window.ReachabilityValidator();this.difficulty={speedMultiplier:1,obstacleDensityMultiplier:1};
+    this.validator=new window.ReachabilityValidator();this.difficulty={speedMultiplier:1,obstacleDensityMultiplier:1,movingTrafficChance:.42,magicPickupChance:.12,propulsorChance:.08};
     this.totalCoins=0;this.lastSafeLane=0;this.collectedIDs=new Set();
     // Roadside charm geometry: a light summer-city layer that complements the
     // larger biome landmarks without adding runtime assets.
@@ -64,10 +64,16 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     this.cityMark.emissive.set(['neon','crystal','moon'].includes(round.theme)?0x0b6a7b:0x6b4f16);
     this.cityMark.emissiveIntensity=['neon','crystal','moon'].includes(round.theme)?.34:.12;
     this.cityPavers.forEach((m,i)=>m.color.set(this.cityRoad.color).multiplyScalar(.91+i*.045));
-    this.difficulty={speedMultiplier:1,obstacleDensityMultiplier:1};this.totalCoins=0;this.lastSafeLane=0;this.collectedIDs.clear();
+    this.difficulty={speedMultiplier:1,obstacleDensityMultiplier:1,movingTrafficChance:.42,magicPickupChance:.12,propulsorChance:.08};this.totalCoins=0;this.lastSafeLane=0;this.collectedIDs.clear();
     super.buildRound(round,seed);
   }
-  setDifficulty(c){this.difficulty={speedMultiplier:Math.max(.9,Math.min(1.1,c.speedMultiplier||1)),obstacleDensityMultiplier:Math.max(.65,Math.min(1.15,c.obstacleDensityMultiplier||1))};}
+  setDifficulty(c){this.difficulty={
+    speedMultiplier:Math.max(.9,Math.min(1.1,c.speedMultiplier||1)),
+    obstacleDensityMultiplier:Math.max(.65,Math.min(1.15,c.obstacleDensityMultiplier||1)),
+    movingTrafficChance:Math.max(.18,Math.min(.72,c.movingTrafficChance??this.difficulty.movingTrafficChance??.42)),
+    magicPickupChance:Math.max(.06,Math.min(.24,c.magicPickupChance??this.difficulty.magicPickupChance??.12)),
+    propulsorChance:Math.max(.04,Math.min(.18,c.propulsorChance??this.difficulty.propulsorChance??.08))
+  };}
   speedMultiplierAt(s){return this.activeSegments.find(g=>s>=g.userData.sStart&&s<g.userData.sEnd)?.userData.speedMultiplier||1;}
   getTrackPoint(s){const p=super.getTrackPoint(s);p.y=4.5*(Math.cos(s*Math.PI/95)-1);return p;}
   getTrackGrade(s){return -4.5*Math.PI/95*Math.sin(s*Math.PI/95);}
@@ -173,7 +179,7 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     const urbanThemes=['castle_bridge','waterfalls','sunset','neon','workshop','storm','citadel','grand_run'];
     const cityRound=!!this.roundData.city;
     const cityPool=(cityRound||urbanThemes.includes(this.roundData.theme))
-      ? ['van','bus','bollard','construction_barrier','roadroller']
+      ? ['car','taxi','van','bus','bollard','construction_barrier','roadroller']
       : ['traffic_cone','barrel','bollard','construction_barrier'];
     if(!safe&&!gap)for(let i=0;i<3;i++)if(i!==safeIndex&&this.rng()<.65*this.difficulty.obstacleDensityMultiplier){
       const cityChance=(cityRound||urbanThemes.includes(this.roundData.theme))?.72:.34;
@@ -188,7 +194,7 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     for(const h of hazards){
       const m=this.factory.createObstacle(h.type),at=s+18,p=this.frame(at,h.laneX);
       m.position.set(p.x,p.y,p.z);m.rotation.y=Math.atan2(this.getTrackTangent(at).x,this.getTrackTangent(at).z);
-      const movingTraffic=!!this.roundData.city&&['van','bus','roadroller'].includes(h.type);
+      const movingTraffic=!!this.roundData.city&&['car','taxi','van','bus','roadroller'].includes(h.type)&&this.rng()<this.difficulty.movingTrafficChance;
       m.userData={id:`obs_${at}_${h.laneX}`,s:at,laneX:h.laneX,type:h.type,hit:false,
         isJumpable:['barrier','traffic_cone','construction_barrier'].includes(h.type),isCityObstacle:!['barrier','crate'].includes(h.type),
         isMoving:movingTraffic,baseLaneX:h.laneX,motionPhase:this.rng()*Math.PI*2,motionRate:.65+this.rng()*.35,motionAmplitude:movingTraffic?.38:0};
@@ -197,18 +203,22 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     if(s<this.roundData.length){
       for(let i=0;i<5;i++){const at=s+3+i*4;if(gap&&at>s+9&&at<s+15)continue;this.addItem(this.factory.createCoin(),at,safeLane,1.05,{id:`coin_${at}`});this.totalCoins++;}
       if(!gap&&s%96===24){this.addItem(this.factory.createPowerup('overdrive'),s+7,safeLane,1.25,{id:`boost_${s}`,isPowerup:true,type:'overdrive'});}
-      else if(!gap&&!safe&&this.rng()<.25){const type=['shield','magnet','double','heart','overdrive'][Math.floor(this.rng()*5)];this.addItem(this.factory.createPowerup(type),s+7,safeLane,1.25,{id:`power_${s}`,isPowerup:true,type});}
+      else if(!gap&&!safe&&this.rng()<.25){const type=['shield','magnet','double','heart','overdrive','magic_fruit','propulsor'][Math.floor(this.rng()*7)];this.addItem(this.factory.createPowerup(type),s+7,safeLane,1.25,{id:`power_${s}`,isPowerup:true,type});}
+      if(!gap&&!safe&&this.rng()<this.difficulty.magicPickupChance)this.addItem(this.factory.createPowerup('magic_fruit'),s+11,safeLane,1.25,{id:`fruit_${s}`,isPowerup:true,type:'magic_fruit'});
+      if(!gap&&!safe&&this.rng()<this.difficulty.propulsorChance)this.addItem(this.factory.createPowerup('propulsor'),s+15,safeLane,1.35,{id:`lift_${s}`,isPowerup:true,type:'propulsor'});
       if(!gap&&this.rng()<.16)this.addItem(this.factory.createGem(),s+9,safeLane,1.15,{id:`gem_${s}`,isGem:true});
     }
     // Put a city district in the opening view, then alternate the side every
     // 48 metres. This makes the setting obvious immediately while preserving
     // the floating-island reveal between districts.
     const citySide=(s%96===0||s%96===48)?((Math.floor(s/48)%2)?1:-1):0;
+    const cityStretch=s%96===0||s%96===48;
     for(const side of [-1,1]){
       const at=s+10+this.rng()*8,offset=side*(w/2+9+this.rng()*5),p=this.frame(at,offset,-3-this.rng()*2);
+      const showCity=citySide===side||(cityStretch&&s%96===0);
       // On a city stretch the roadside district replaces that side's island,
       // keeping the pylon/buildings readable instead of hiding them behind trees.
-      if(citySide!==side){
+      if(citySide!==side&&!showCity){
         const island=this.biomeArt.create(this.roundData);island.position.set(p.x,p.y,p.z);
         island.scale.setScalar(.8+this.rng()*.35);island.rotation.y=side*.25;this.addScenery(island,s);
       }
@@ -225,10 +235,10 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
       }
       // A larger city/coastal landmark arrives less often so it reads as a
       // destination: utility pylon, lamps, guardrails and small buildings.
-      if(citySide===side){
+      if(showCity){
         const city=this.biomeArt.cityBlock(this.roundData,Math.floor(s/96)%3);
-        const cp=this.frame(s+12,side*(w/2+11.5),-1.05-this.rng()*.4);
-        city.position.set(cp.x,cp.y,cp.z);city.scale.setScalar(.88+this.rng()*.08);city.rotation.y=side*.06;
+        const cp=this.frame(s+12,side*(w/2+9.5),-.9-this.rng()*.35);
+        city.position.set(cp.x,cp.y,cp.z);city.scale.setScalar(.98+this.rng()*.1);city.rotation.y=side*.06;
         city.userData.dynamicCity=true;city.userData.baseY=cp.y;city.userData.baseRotationY=city.rotation.y;city.userData.motionPhase=this.rng()*Math.PI*2;
         this.addScenery(city,s);
       }

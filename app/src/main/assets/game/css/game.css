@@ -323,6 +323,8 @@ html, body {
 .powerup-badge.magnet { background: #ff5252; color: #fff; }
 .powerup-badge.double { background: #ffd700; }
 .powerup-badge.overdrive { background: #ffeb3b; }
+.powerup-badge.magic { background: #ff65d4; color: #2b0b2b; }
+.powerup-badge.sky-lift { background: #67efff; color: #053348; }
 
 /* --- Touch Controls (Landscape-first, responsive portrait fallback) --- */
 #touch-controls {

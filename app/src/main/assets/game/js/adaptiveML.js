@@ -156,6 +156,9 @@ window.AdaptiveDifficultyML = class AdaptiveDifficultyML {
         speedMultiplier: 1.0,
         obstacleDensityMultiplier: 1.0,
         spacingMultiplier: 1.0,
+        movingTrafficChance: 0.42,
+        magicPickupChance: 0.12,
+        propulsorChance: 0.08,
         predictedP: 0.80
       };
     }
@@ -167,7 +170,7 @@ window.AdaptiveDifficultyML = class AdaptiveDifficultyML {
       { name: 'spicy', speedMult: 1.05, densityMult: 1.15, spacingMult: 0.85 }
     ];
 
-    let bestCandidate = {name:'safe_fallback',speedMultiplier:.95,obstacleDensityMultiplier:.8,spacingMultiplier:1.25,predictedP:null};
+    let bestCandidate = {name:'safe_fallback',speedMultiplier:.95,obstacleDensityMultiplier:.8,spacingMultiplier:1.25,movingTrafficChance:.28,magicPickupChance:.16,propulsorChance:.12,predictedP:null};
     let minDiffFromTarget = 999;
     const targetP = 0.80;
 
@@ -193,11 +196,20 @@ window.AdaptiveDifficultyML = class AdaptiveDifficultyML {
 
       if (diff < minDiffFromTarget) {
         minDiffFromTarget = diff;
+        // Let the learned clearance probability shape the visual traffic mix:
+        // confident riders see more moving cars; struggling riders receive
+        // more magical recovery items and calmer traffic.
+        const movingTrafficChance = predictedP < .68 ? .24 : predictedP > .86 ? .62 : .42;
+        const magicPickupChance = predictedP < .68 ? .18 : predictedP > .86 ? .09 : .12;
+        const propulsorChance = predictedP < .68 ? .13 : predictedP > .86 ? .06 : .08;
         bestCandidate = {
           name: cand.name,
           speedMultiplier: cand.speedMult,
           obstacleDensityMultiplier: cand.densityMult,
           spacingMultiplier: cand.spacingMult,
+          movingTrafficChance,
+          magicPickupChance,
+          propulsorChance,
           predictedP: predictedP
         };
       }

@@ -83,6 +83,22 @@ window.AssetFactory = class AssetFactory {
       roughness: 0.1
     });
 
+    this.materials.magicFruitPowerup = new THREE.MeshStandardMaterial({
+      color: 0xff5fc8,
+      emissive: 0xff1e9a,
+      emissiveIntensity: .65,
+      metalness: .2,
+      roughness: .22
+    });
+
+    this.materials.propulsorPowerup = new THREE.MeshStandardMaterial({
+      color: 0x65efff,
+      emissive: 0x0aa8ff,
+      emissiveIntensity: .85,
+      metalness: .55,
+      roughness: .16
+    });
+
     this.materials.heartPowerup = new THREE.MeshLambertMaterial({
       color: 0xff1744,
       emissive: 0x550011
@@ -328,6 +344,24 @@ window.AssetFactory = class AssetFactory {
       material.side = THREE.DoubleSide;
       const mesh = new THREE.Mesh(geo, material);
       group.add(mesh);
+    } else if (type === 'magic_fruit') {
+      // A glowing fruit grants speed and two protected faults.
+      const fruit = new THREE.Mesh(new THREE.SphereGeometry(.48, 10, 8), this.materials.magicFruitPowerup);
+      fruit.scale.set(.9, 1.12, .9); group.add(fruit);
+      const leaf = new THREE.Mesh(new THREE.ConeGeometry(.16, .42, 6), this.materials.overdrivePowerup);
+      leaf.position.set(.12, .5, 0); leaf.rotation.z = -.45; group.add(leaf);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(.7, .045, 8, 24), this.materials.magicFruitPowerup);
+      ring.rotation.x = Math.PI / 2; group.add(ring);
+    } else if (type === 'propulsor') {
+      // A sky-lift ring with a bright core and three flame petals.
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(.68, .12, 8, 24), this.materials.propulsorPowerup);
+      ring.rotation.x = Math.PI / 2; group.add(ring);
+      const core = new THREE.Mesh(new THREE.OctahedronGeometry(.38, 0), this.materials.propulsorPowerup);
+      group.add(core);
+      for (let i = 0; i < 3; i++) {
+        const flame = new THREE.Mesh(new THREE.ConeGeometry(.12, .55, 6), this.materials.warningWhite);
+        const a = i * Math.PI * 2 / 3; flame.position.set(Math.cos(a) * .4, -.52, Math.sin(a) * .4); flame.rotation.x = Math.PI; group.add(flame);
+      }
     } else if (type === 'heart') {
       // Heart shape with spheres + cone
       const hGroup = new THREE.Group();
@@ -405,26 +439,28 @@ window.AssetFactory = class AssetFactory {
         const ring = new THREE.Mesh(new THREE.TorusGeometry(.46, .055, 6, 16), this.materials.warningWhite);
         ring.rotation.x = Math.PI / 2; ring.position.y = y; group.add(ring);
       }
-    } else if (type === 'van' || type === 'bus') {
-      const bus = type === 'bus';
-      const bodyMat = bus ? this.materials.vehicleBlue : this.materials.vehicleYellow;
-      const body = new THREE.Mesh(new THREE.BoxGeometry(bus ? 2.45 : 2.15, bus ? 1.5 : 1.22, bus ? 4.15 : 3.25), bodyMat);
-      body.position.y = bus ? .82 : .7; group.add(body);
-      const roof = new THREE.Mesh(new THREE.BoxGeometry(bus ? 2.25 : 1.95, .32, bus ? 3.55 : 2.25), this.materials.vehicleWhite);
-      roof.position.y = bus ? 1.67 : 1.45; group.add(roof);
-      const frontGlass = new THREE.Mesh(new THREE.BoxGeometry(bus ? 1.9 : 1.55, .42, .06), this.materials.vehicleGlass);
-      frontGlass.position.set(0, bus ? 1.29 : 1.1, bus ? 2.08 : 1.66); group.add(frontGlass);
-      const rearGlass = frontGlass.clone(); rearGlass.position.z = bus ? -2.08 : -1.66; group.add(rearGlass);
+    } else if (type === 'car' || type === 'taxi' || type === 'van' || type === 'bus') {
+      const bus = type === 'bus', compact = type === 'car' || type === 'taxi';
+      const bodyMat = bus ? this.materials.vehicleBlue : (type === 'taxi' ? this.materials.vehicleYellow : compact ? this.materials.vehicleWhite : this.materials.vehicleYellow);
+      const width = bus ? 2.45 : compact ? 1.85 : 2.15, height = bus ? 1.5 : compact ? 1.0 : 1.22, length = bus ? 4.15 : compact ? 2.65 : 3.25;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, length), bodyMat);
+      body.position.y = bus ? .82 : compact ? .58 : .7; group.add(body);
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(width - .2, .32, length - (bus ? .6 : .55)), type === 'taxi' ? this.materials.warningWhite : this.materials.vehicleWhite);
+      roof.position.y = bus ? 1.67 : compact ? 1.18 : 1.45; group.add(roof);
+      const frontGlass = new THREE.Mesh(new THREE.BoxGeometry(bus ? 1.9 : compact ? 1.35 : 1.55, bus ? .42 : compact ? .32 : .42, .06), this.materials.vehicleGlass);
+      frontGlass.position.set(0, bus ? 1.29 : compact ? .91 : 1.1, bus ? 2.08 : compact ? 1.36 : 1.66); group.add(frontGlass);
+      const rearGlass = frontGlass.clone(); rearGlass.position.z = bus ? -2.08 : compact ? -1.36 : -1.66; group.add(rearGlass);
       for (const side of [-1, 1]) {
-        const window = new THREE.Mesh(new THREE.BoxGeometry(.055, bus ? .52 : .42, bus ? 2.5 : 1.65), this.materials.vehicleGlass);
-        window.position.set(side * (bus ? 1.25 : 1.1), bus ? 1.22 : 1.08, 0); group.add(window);
+        const window = new THREE.Mesh(new THREE.BoxGeometry(.055, bus ? .52 : compact ? .34 : .42, bus ? 2.5 : compact ? 1.55 : 1.65), this.materials.vehicleGlass);
+        window.position.set(side * (bus ? 1.25 : compact ? .94 : 1.1), bus ? 1.22 : compact ? .9 : 1.08, 0); group.add(window);
       }
-      const wheelGeo = new THREE.CylinderGeometry(bus ? .38 : .32, bus ? .38 : .32, .2, 12); wheelGeo.rotateZ(Math.PI / 2);
-      for (const x of [-1, 1]) for (const z of [bus ? -1.35 : -.95, bus ? 1.35 : .95]) {
-        const wheel = new THREE.Mesh(wheelGeo, this.materials.vehicleTire); wheel.position.set(x * (bus ? 1.23 : 1.08), .35, z); group.add(wheel);
+      const wheelRadius = bus ? .38 : compact ? .28 : .32, wheelHalf = bus ? 1.23 : compact ? .94 : 1.08, wheelZ = bus ? 1.35 : compact ? .78 : .95;
+      const wheelGeo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, .2, 12); wheelGeo.rotateZ(Math.PI / 2);
+      for (const x of [-1, 1]) for (const z of [-wheelZ, wheelZ]) {
+        const wheel = new THREE.Mesh(wheelGeo, this.materials.vehicleTire); wheel.position.set(x * wheelHalf, .28, z); group.add(wheel);
       }
       const headlightMat = new THREE.MeshStandardMaterial({color:0xfff1b0,emissive:0xffc34e,emissiveIntensity:.8});
-      for (const x of [-.62, .62]) { const light = new THREE.Mesh(new THREE.BoxGeometry(.24,.16,.06), headlightMat); light.position.set(x,bus? .7:.68,bus?2.1:1.67); group.add(light); }
+      for (const x of [-.62, .62]) { const light = new THREE.Mesh(new THREE.BoxGeometry(.24,.16,.06), headlightMat); light.position.set(x,bus? .7:compact ? .54:.68,bus?2.1:compact ? 1.4:1.67); group.add(light); }
     } else if (type === 'roadroller') {
       const frame = new THREE.Mesh(new THREE.BoxGeometry(1.9, .85, 2.1), this.materials.warningOrange);
       frame.position.y = .85; group.add(frame);

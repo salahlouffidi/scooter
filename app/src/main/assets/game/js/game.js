@@ -427,6 +427,25 @@ window.SkyScooterGame = class SkyScooterGame {
       this.showFloatingLabel(`${name}!`, this.riderCtrl.mesh.position, '#ffeb3b');
       if (window.GameAudio) window.GameAudio.playPowerup();
       this.vibrate(35);
+    } else if (eventType === 'magic_fruit') {
+      this.arcadeEffects.burst(this.riderCtrl.mesh.position, settings.reducedMotion ? 8 : 56);
+      this.showFloatingLabel('MAGIC FRUIT · 2 FAULT GUARDS!', this.riderCtrl.mesh.position, '#ff65d4');
+      if (window.GameAudio) window.GameAudio.playPowerup();
+      this.vibrate(70);
+    } else if (eventType === 'magic_fault_guard') {
+      this.showFloatingLabel(`MAGIC GUARD · ${param}/2 LEFT`, this.riderCtrl.mesh.position, '#ff8ce7');
+      this.arcadeEffects.burst(this.riderCtrl.mesh.position, settings.reducedMotion ? 3 : 18);
+      if (window.GameAudio) window.GameAudio.playShield();
+      this.vibrate(55);
+    } else if (eventType === 'sky_launch') {
+      this.arcadeEffects.burst(this.riderCtrl.mesh.position, settings.reducedMotion ? 8 : 64);
+      this.showFloatingLabel('SKY LAUNCH!', this.riderCtrl.mesh.position, '#72f5ff');
+      if (window.GameAudio) window.GameAudio.playJump();
+      this.vibrate(90);
+    } else if (eventType === 'sky_return') {
+      this.showFloatingLabel('CITY RETURN!', this.riderCtrl.mesh.position, '#72f5ff');
+      if (window.GameAudio) window.GameAudio.playFinish();
+      this.vibrate(35);
     } else if (eventType === 'checkpoint') {
       this.showFloatingLabel('CHECKPOINT REACHED!', this.riderCtrl.mesh.position, '#00e676');
       if (window.GameAudio) window.GameAudio.playFinish();
@@ -708,6 +727,12 @@ window.SkyScooterGame = class SkyScooterGame {
       }
       if (this.riderCtrl.activeOverdrive) {
         html += `<span class="powerup-badge overdrive">OVERDRIVE ${Math.ceil(this.riderCtrl.overdriveTimer)}s</span>`;
+      }
+      if (this.riderCtrl.activeMagicRush) {
+        html += `<span class="powerup-badge magic">MAGIC GUARD ${this.riderCtrl.faultGuardCharges}/2</span>`;
+      }
+      if (this.riderCtrl.activeSkyFlight) {
+        html += `<span class="powerup-badge sky-lift">SKY LIFT ${this.riderCtrl.skyFlightTimer.toFixed(1)}s</span>`;
       }
       powBar.innerHTML = html;
     }

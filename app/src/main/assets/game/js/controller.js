@@ -39,6 +39,12 @@ window.RiderController = class RiderController {
     this.doubleTimer = 0.0;
     this.activeOverdrive = false;
     this.overdriveTimer = 0.0;
+    this.activeMagicRush = false;
+    this.magicRushTimer = 0.0;
+    this.faultGuardCharges = 0;
+    this.activeSkyFlight = false;
+    this.skyFlightTimer = 0.0;
+    this.skyFlightDuration = 3.6;
 
     // Checkpoint & stats tracking
     this.furthestS = 0.0;
@@ -80,6 +86,11 @@ window.RiderController = class RiderController {
     this.magnetTimer = 0;
     this.doubleTimer = 0;
     this.overdriveTimer = 0;
+    this.activeMagicRush = false;
+    this.magicRushTimer = 0;
+    this.faultGuardCharges = 0;
+    this.activeSkyFlight = false;
+    this.skyFlightTimer = 0;
 
     this.furthestS = s;
     this.lastCheckpointS = s;
@@ -138,6 +149,17 @@ window.RiderController = class RiderController {
       this.overdriveTimer -= dt;
       this.activeOverdrive = this.overdriveTimer > 0;
     }
+    if (this.magicRushTimer > 0) {
+      this.magicRushTimer -= dt;
+      if (this.magicRushTimer <= 0) {
+        this.magicRushTimer = 0;
+        this.activeMagicRush = false;
+        this.faultGuardCharges = 0;
+      }
+    }
+    if (this.activeSkyFlight) {
+      this.skyFlightTimer = Math.max(0, this.skyFlightTimer - dt);
+    }
 
     // 2. Forward speed calculation (with overdrive, joystick up acceleration,
     // and joystick down/back braking). Down never reverses the scooter: it
@@ -187,7 +209,8 @@ window.RiderController = class RiderController {
       this.coyoteTimer -= dt;
     }
 
-    if (input.consumeJump()) {
+    const jumpPressed = input.consumeJump();
+    if (jumpPressed && !this.activeSkyFlight) {
       this.jumpAttempts++;
       if (this.isGrounded || this.coyoteTimer > 0) {
         this.verticalVelocity = this.JUMP_VELOCITY;
@@ -198,7 +221,21 @@ window.RiderController = class RiderController {
       }
     }
 
-    if (!this.isGrounded) {
+    if (this.activeSkyFlight) {
+      const progress = 1 - this.skyFlightTimer / Math.max(.1, this.skyFlightDuration);
+      if (this.skyFlightTimer <= 0) {
+        this.activeSkyFlight = false;
+        this.y = 1.25;
+        this.verticalVelocity = -4.5;
+        this.isGrounded = false;
+        if (onEvent) onEvent('sky_return');
+      } else {
+        // Hold a graceful arc above traffic, then descend back to the city.
+        this.y = 3.1 + Math.sin(Math.min(1, progress) * Math.PI) * 2.1;
+        this.verticalVelocity = 0;
+        this.isGrounded = false;
+      }
+    } else if (!this.isGrounded) {
       this.verticalVelocity -= this.GRAVITY * dt;
       this.y += this.verticalVelocity * dt;
 
@@ -236,6 +273,10 @@ window.RiderController = class RiderController {
     if (currentSeg && this.y <= 0.1) {
       // Fell into gap!
       this.recentDamageCount++;
+      if (this.consumeFaultGuard(onEvent)) {
+        this.respawnAtCheckpoint();
+        return;
+      }
       if (onEvent) onEvent('fall');
       this.respawnAtCheckpoint();
       return;
@@ -305,12 +346,15 @@ window.RiderController = class RiderController {
           obs.userData.hit = true;
           this.recentDamageCount++;
 
-          if (this.activeShield) {
+      if (this.activeShield) {
             // Shield absorbs damage!
             this.activeShield = false;
             this.shieldTimer = 0;
             this.grantInvulnerability(1.2);
             if (onEvent) onEvent('shield_absorbed');
+          } else if (this.consumeFaultGuard(onEvent)) {
+            // The magic fruit absorbs exactly two faults before the normal
+            // heart/loss rules return.
           } else {
             // Lose heart and slow briefly
             this.forwardSpeed *= 0.6;
@@ -335,11 +379,37 @@ window.RiderController = class RiderController {
       this.doubleTimer = 8.0;
     } else if (type === 'overdrive') {
       this.activeOverdrive = true;
-      this.overdriveTimer = 5.0;
+      this.overdriveTimer = Math.max(this.overdriveTimer, 5.0);
+    } else if (type === 'magic_fruit') {
+      this.activeMagicRush = true;
+      this.magicRushTimer = 10.0;
+      this.faultGuardCharges = 2;
+      this.activeOverdrive = true;
+      this.overdriveTimer = Math.max(this.overdriveTimer, 10.0);
+      if (onEvent) onEvent('magic_fruit');
+    } else if (type === 'propulsor') {
+      this.activeSkyFlight = true;
+      this.skyFlightDuration = 3.6;
+      this.skyFlightTimer = this.skyFlightDuration;
+      this.y = 1.0;
+      this.verticalVelocity = 0;
+      this.isGrounded = false;
+      this.activeOverdrive = true;
+      this.overdriveTimer = Math.max(this.overdriveTimer, this.skyFlightDuration);
+      this.grantInvulnerability(this.skyFlightDuration);
+      if (onEvent) onEvent('sky_launch');
     } else if (type === 'heart') {
       if (onEvent) onEvent('heart_pickup');
     }
     if (onEvent) onEvent('powerup', type);
+  }
+
+  consumeFaultGuard(onEvent) {
+    if (this.faultGuardCharges <= 0) return false;
+    this.faultGuardCharges--;
+    this.grantInvulnerability(.9);
+    if (onEvent) onEvent('magic_fault_guard', this.faultGuardCharges);
+    return true;
   }
 
   updateProceduralAnimations(dt) {
