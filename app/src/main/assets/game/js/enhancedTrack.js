@@ -171,11 +171,12 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     const possible=[0,1,2].filter(i=>Math.abs(lanes[i]-this.lastSafeLane)<=4.5);
     const safeIndex=possible[Math.floor(this.rng()*possible.length)],safeLane=lanes[safeIndex],hazards=[];
     const urbanThemes=['castle_bridge','waterfalls','sunset','neon','workshop','storm','citadel','grand_run'];
-    const cityPool=urbanThemes.includes(this.roundData.theme)
+    const cityRound=!!this.roundData.city;
+    const cityPool=(cityRound||urbanThemes.includes(this.roundData.theme))
       ? ['van','bus','bollard','construction_barrier','roadroller']
       : ['traffic_cone','barrel','bollard','construction_barrier'];
     if(!safe&&!gap)for(let i=0;i<3;i++)if(i!==safeIndex&&this.rng()<.65*this.difficulty.obstacleDensityMultiplier){
-      const cityChance=urbanThemes.includes(this.roundData.theme)?.72:.34;
+      const cityChance=(cityRound||urbanThemes.includes(this.roundData.theme))?.72:.34;
       const useCity=this.rng()<cityChance;
       const type=useCity
         ? cityPool[Math.floor(this.rng()*cityPool.length)]
@@ -187,8 +188,10 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     for(const h of hazards){
       const m=this.factory.createObstacle(h.type),at=s+18,p=this.frame(at,h.laneX);
       m.position.set(p.x,p.y,p.z);m.rotation.y=Math.atan2(this.getTrackTangent(at).x,this.getTrackTangent(at).z);
+      const movingTraffic=!!this.roundData.city&&['van','bus','roadroller'].includes(h.type);
       m.userData={id:`obs_${at}_${h.laneX}`,s:at,laneX:h.laneX,type:h.type,hit:false,
-        isJumpable:['barrier','traffic_cone','construction_barrier'].includes(h.type),isCityObstacle:!['barrier','crate'].includes(h.type)};
+        isJumpable:['barrier','traffic_cone','construction_barrier'].includes(h.type),isCityObstacle:!['barrier','crate'].includes(h.type),
+        isMoving:movingTraffic,baseLaneX:h.laneX,motionPhase:this.rng()*Math.PI*2,motionRate:.65+this.rng()*.35,motionAmplitude:movingTraffic?.38:0};
       m.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});this.scene.add(m);this.activeObstacles.push(m);
     }
     if(s<this.roundData.length){
@@ -226,6 +229,7 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
         const city=this.biomeArt.cityBlock(this.roundData,Math.floor(s/96)%3);
         const cp=this.frame(s+12,side*(w/2+11.5),-1.05-this.rng()*.4);
         city.position.set(cp.x,cp.y,cp.z);city.scale.setScalar(.88+this.rng()*.08);city.rotation.y=side*.06;
+        city.userData.dynamicCity=true;city.userData.baseY=cp.y;city.userData.baseRotationY=city.rotation.y;city.userData.motionPhase=this.rng()*Math.PI*2;
         this.addScenery(city,s);
       }
     }
@@ -247,6 +251,20 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     super.update(s);
     const t=performance.now()*.001;
     this.activeCollectibles.forEach(m=>{m.rotation.y=t*1.7;m.position.y=m.userData.baseY+Math.sin(t*2+m.userData.s)*.1;});
+    // Traffic breathes and drifts within its own lane, creating a moving city
+    // without invalidating the validator's guaranteed safe lane.
+    for(const obs of this.activeObstacles){
+      if(!obs.userData.isMoving)continue;
+      const lane=obs.userData.baseLaneX+Math.sin(t*obs.userData.motionRate+obs.userData.motionPhase)*obs.userData.motionAmplitude;
+      const p=this.frame(obs.userData.s,lane,0);
+      obs.position.set(p.x,p.y,p.z);obs.rotation.y=Math.atan2(this.getTrackTangent(obs.userData.s).x,this.getTrackTangent(obs.userData.s).z);
+      obs.userData.laneX=lane;
+    }
+    for(const city of this.sceneryObjects){
+      if(!city.userData.dynamicCity)continue;
+      city.position.y=city.userData.baseY+Math.sin(t*.75+city.userData.motionPhase)*.1;
+      city.rotation.y=city.userData.baseRotationY+Math.sin(t*.42+city.userData.motionPhase)*.012;
+    }
   }
   clearAll(){this.activeSegments.forEach(g=>g.traverse(m=>{if(m.isInstancedMesh)m.dispose();}));super.clearAll();}
 };

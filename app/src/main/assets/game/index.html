@@ -82,9 +82,15 @@
     <!-- Touch Controls -->
     <div id="touch-controls">
       <!-- Left Thumb Horizontal Joystick -->
-      <div id="joystick-zone" aria-label="Horizontal steering joystick">
+      <div id="joystick-zone" aria-label="Four-direction movement joystick">
+        <div class="joystick-arrows" aria-hidden="true">
+          <span class="joystick-arrow arrow-up">▲</span>
+          <span class="joystick-arrow arrow-left">◀</span>
+          <span class="joystick-arrow arrow-right">▶</span>
+          <span class="joystick-arrow arrow-down">▼</span>
+        </div>
         <div id="joystick-thumb"></div>
-        <div class="joystick-label">DRAG TO STEER</div>
+        <div class="joystick-label">DRAG TO MOVE</div>
       </div>
 
       <!-- Right Thumb Jump & Brake -->
@@ -113,14 +119,14 @@
     <div class="modal-box">
       <div class="modal-title">HOW TO PLAY</div>
       <div style="text-align: left; line-height: 1.6; margin-bottom: 20px; font-size: 0.95rem;">
-        <p>🛴 <strong>STEERING:</strong> Drag the joystick on the bottom-left to steer across the bridge.</p>
+        <p>🛴 <strong>MOVE:</strong> Drag the four-way joystick: left/right steer, up accelerates, and down/back brakes.</p>
         <p style="margin-top: 8px;">🚀 <strong>JUMP:</strong> Tap the green JUMP button to leap over crates, jump barriers, and gaps.</p>
         <p style="margin-top: 8px;">🛑 <strong>BRAKE:</strong> Tap the red BRAKE button to reduce forward speed by up to 25% for tight maneuvers.</p>
         <p style="margin-top: 8px;">🟡 <strong>COINS & MULTIPLIER:</strong> Collect gold coins! Every 10 consecutive coins increases your multiplier (up to x5).</p>
         <p style="margin-top: 8px;">💎 <strong>GEMS:</strong> Purple crystals award +100 bonus points each!</p>
         <p style="margin-top: 8px;">⚡ <strong>POWER-UPS:</strong> Shield (absorbs 1 hit), Magnet (pulls coins), 2X Coins, Heart (+1 heart), Overdrive (speed surge)!</p>
         <p style="margin-top: 8px;">🏆 <strong>CAMPAIGN:</strong> Beat all 16 rounds to unlock Endless Mode!</p>
-        <p style="margin-top: 8px;">⌨️ <strong>DESKTOP:</strong> A/D or Left/Right to steer, Space to jump, S to brake, Esc to pause.</p>
+        <p style="margin-top: 8px;">⌨️ <strong>DESKTOP:</strong> A/D or Left/Right steer, W/Up accelerates, Space jumps, S/Down brakes, Esc pauses.</p>
       </div>
       <button id="btn-close-how" class="btn-primary">GOT IT!</button>
     </div>

@@ -139,7 +139,9 @@ window.RiderController = class RiderController {
       this.activeOverdrive = this.overdriveTimer > 0;
     }
 
-    // 2. Forward speed calculation (with overdrive boost & brake)
+    // 2. Forward speed calculation (with overdrive, joystick up acceleration,
+    // and joystick down/back braking). Down never reverses the scooter: it
+    // simply reduces forward speed so the runner remains safe and readable.
     const tuning = window.ScooterTuning;
     const grade = this.trackGen.getTrackGrade(this.s);
     this.downhillIntensity = Math.min(1, Math.max(0, -grade / .14));
@@ -147,9 +149,19 @@ window.RiderController = class RiderController {
     if (this.activeOverdrive) {
       targetSpeed *= tuning.boostMultiplier;
     }
+    const verticalInput = Math.max(-1, Math.min(1, Number(input.verticalSteer) || 0));
+    if (verticalInput > 0) {
+      // A forward stick push gives a compact, controllable acceleration burst.
+      targetSpeed += verticalInput * Math.max(2.5, tuning.maxSpeed * .2);
+    }
     targetSpeed = Math.min(tuning.maxSpeed, targetSpeed);
-    if (input.isBraking) targetSpeed *= tuning.brakeFactor;
-    this.forwardSpeed += (targetSpeed - this.forwardSpeed) * (1 - Math.exp(-dt * (input.isBraking ? 14 : 8)));
+    const brakeInput = Math.max(0, -verticalInput);
+    const brakeActive = !!input.isBraking || brakeInput > .05;
+    if (brakeActive) {
+      const brakeAmount = input.isBraking && brakeInput < .05 ? 1 : Math.max(.18, brakeInput);
+      targetSpeed *= 1 - (1 - tuning.brakeFactor) * brakeAmount;
+    }
+    this.forwardSpeed += (targetSpeed - this.forwardSpeed) * (1 - Math.exp(-dt * (brakeActive ? 14 : verticalInput > .05 ? 12 : 8)));
 
     // 3. Lateral Steering
     const steerInput = Math.max(-1, Math.min(1, input.horizontalSteer));
