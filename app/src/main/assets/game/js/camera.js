@@ -1,4 +1,4 @@
-// SKY SCOOTER — LOUFFI EDITION
+// LOUFFI CITY RUSH — LOUFFI EDITION
 // Smooth Third-Person Follow Camera with Accessibility & Reduced Motion Support
 window.GameCamera = class GameCamera {
   constructor(camera, THREE) {
@@ -6,8 +6,8 @@ window.GameCamera = class GameCamera {
     this.THREE = THREE;
 
     // Default target offsets relative to rider
-    this.heightOffset = 3.2;
-    this.distanceBehind = 6.5;
+    this.heightOffset = 2.8;
+    this.distanceBehind = 6.1;
     this.lookAheadDistance = 10.0;
     this.lookUpOffset = 1.2;
     // Keep the bridge visually anchored. The rider may travel to the edge of
@@ -82,7 +82,7 @@ window.GameCamera = class GameCamera {
     this.camera.lookAt(this.currentLookAt);
 
     // FOV dynamics during Overdrive (disabled in reduced-motion mode)
-    const targetFov = (isOverdrive && !settings.reducedMotion) ? 72 : this.baseFov;
+    const targetFov = (isOverdrive && !settings.reducedMotion) ? 66 : this.baseFov;
     if (Math.abs(this.camera.fov - targetFov) > 0.1) {
       this.camera.fov += (targetFov - this.camera.fov) * Math.min(1.0, dt * 5.0);
       this.camera.updateProjectionMatrix();

@@ -1,4 +1,4 @@
-// SKY SCOOTER — LOUFFI EDITION
+// LOUFFI CITY RUSH — LOUFFI EDITION
 // Dynamic sky atmosphere: gradient dome, sun/moon glow, stars,
 // drifting low-poly cloud sprites and distant floating islands.
 window.SkyAtmosphere = class SkyAtmosphere {

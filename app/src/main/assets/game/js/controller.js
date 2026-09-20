@@ -1,4 +1,4 @@
-// SKY SCOOTER — LOUFFI EDITION
+// LOUFFI CITY RUSH — LOUFFI EDITION
 // Kinematic Rider Controller, Physics, Procedural Animation & Swept Collisions
 window.RiderController = class RiderController {
   constructor(riderMesh, trackGenerator) {
@@ -16,8 +16,9 @@ window.RiderController = class RiderController {
     this.verticalVelocity = 0.0;
 
     // Physics constants
-    this.GRAVITY = 22.0;
-    this.JUMP_VELOCITY = 8.5;
+    this.GRAVITY = window.ScooterTuning.gravity;
+    this.JUMP_VELOCITY = window.ScooterTuning.jumpVelocity;
+    this.supportId = null;
     this.MAX_LATERAL_SPEED = window.ScooterTuning.lateralSpeed;
     this.LATERAL_ACCEL = 24.0;
     this.LATERAL_DRAG = 16.0;
@@ -77,6 +78,7 @@ window.RiderController = class RiderController {
     this.leanAngle = 0.0;
     this.downhillIntensity = 0;
     this.previousSteerSign = 0;
+    this.supportId = null;
 
     this.activeShield = false;
     this.activeMagnet = false;
@@ -99,10 +101,11 @@ window.RiderController = class RiderController {
   }
 
   respawnAtCheckpoint() {
+    this.supportId = null;
     this.trackGen.restoreCheckpoint?.(this.lastCheckpointS);
     this.s = this.lastCheckpointS;
     this.laneX = 0.0;
-    this.y = 0.5;
+    this.y = 0;
     this.verticalVelocity = 0.0;
     this.lateralVelocity = 0.0;
     this.isGrounded = true;
@@ -117,12 +120,26 @@ window.RiderController = class RiderController {
   }
 
   update(dt, input, baseSpeed, roadWidth, onEvent) {
+    // Small physics steps keep roof landings and solid fronts reliable at turbo speed.
+    const steps=Math.max(1,Math.ceil(Math.min(dt,.06)*120));
+    for(let i=0;i<steps;i++) this.step(Math.min(dt,.06)/steps,input,baseSpeed,roadWidth,onEvent);
+  }
+
+  step(dt, input, baseSpeed, roadWidth, onEvent) {
+    const previous={s:this.s,laneX:this.laneX,y:this.y};
+    if(this.supportId && this.isGrounded){
+      const support=this.trackGen.activeObstacles.find(o=>o.userData.id===this.supportId);
+      const c=support?.userData.collision;
+      if(!c || Math.abs(this.s-support.userData.s)>c.halfLength+.15 || Math.abs(this.laneX-support.userData.laneX)>c.halfWidth+.15){
+        this.supportId=null;this.isGrounded=false;this.verticalVelocity=0;
+      } else this.y=this.trackGen.getTrackPoint(support.userData.s).y+c.top-this.trackGen.getTrackPoint(this.s).y;
+    }
     // 1. Update timers
     if (this.invulnerableTimer > 0) {
       this.invulnerableTimer -= dt;
       this.isInvulnerable = this.invulnerableTimer > 0;
       // Visual blink effect when invulnerable
-      this.mesh.visible = Math.floor(this.invulnerableTimer * 12) % 2 === 0;
+      this.mesh.visible = this.activeSkyFlight || Math.floor(this.invulnerableTimer * 12) % 2 === 0;
     } else {
       this.mesh.visible = true;
       this.isInvulnerable = false;
@@ -215,6 +232,7 @@ window.RiderController = class RiderController {
       if (this.isGrounded || this.coyoteTimer > 0) {
         this.verticalVelocity = this.JUMP_VELOCITY;
         this.isGrounded = false;
+        this.supportId = null;
         this.coyoteTimer = 0;
         this.jumpSuccesses++;
         if (onEvent) onEvent('jump');
@@ -249,9 +267,6 @@ window.RiderController = class RiderController {
     // 5. Advance Forward Distance (Swept simulation substep)
     const prevS = this.s;
     this.s += this.forwardSpeed * dt;
-    if (this.s > this.furthestS) {
-      this.furthestS = this.s;
-    }
 
     // 6. Check Checkpoints (at ~1/3 and 2/3 of round length)
     const roundLen = this.trackGen.roundData.length;
@@ -283,7 +298,8 @@ window.RiderController = class RiderController {
     }
 
     // 8. Swept Collisions: Collectibles & Obstacles
-    this.checkCollisions(prevS, this.s, onEvent);
+    this.checkCollisions(prevS, this.s, onEvent, previous);
+    this.furthestS=Math.max(this.furthestS,this.s);
 
     // 9. Procedural 3D Mesh Animations
     this.updateProceduralAnimations(dt);
@@ -292,7 +308,9 @@ window.RiderController = class RiderController {
     this.updateMeshTransform();
   }
 
-  checkCollisions(s0, s1, onEvent) {
+  checkCollisions(s0, s1, onEvent, previous = {s:s0,laneX:this.laneX,y:this.y}) {
+    this.resolveSolids(previous,onEvent);
+    s1=this.s;
     // 1. Collectibles (Coins, Gems, Powerups)
     for (const item of this.trackGen.activeCollectibles) {
       if (item.userData.collected) continue;
@@ -322,49 +340,63 @@ window.RiderController = class RiderController {
       }
     }
 
-    // 2. Obstacles
-    if (this.isInvulnerable) return; // Invulnerability prevents multi-hits
+  }
 
-    for (const obs of this.trackGen.activeObstacles) {
-      if (obs.userData.hit) continue;
-      const obsS = obs.userData.s;
-
-      // Swept forward check
-      if (obsS >= s0 - 0.5 && obsS <= s1 + 0.5) {
-        // Lateral check
-        const deltaX = Math.abs(this.laneX - obs.userData.laneX);
-        if (deltaX < 1.3) {
-          // If jumpable barrier and player is high enough in jump, clear it!
-          if (obs.userData.isJumpable && this.y > 0.8) {
-            // Cleared barrier successfully!
-            obs.userData.hit = true;
-            if (onEvent) onEvent('jump_challenge');
-            continue;
-          }
-
-          // Hit obstacle!
-          obs.userData.hit = true;
-          this.recentDamageCount++;
-
-      if (this.activeShield) {
-            // Shield absorbs damage!
-            this.activeShield = false;
-            this.shieldTimer = 0;
-            this.grantInvulnerability(1.2);
-            if (onEvent) onEvent('shield_absorbed');
-          } else if (this.consumeFaultGuard(onEvent)) {
-            // The magic fruit absorbs exactly two faults before the normal
-            // heart/loss rules return.
-          } else {
-            // Lose heart and slow briefly
-            this.forwardSpeed *= 0.6;
-            this.grantInvulnerability(1.5);
-            if (onEvent) onEvent('hit_obstacle');
-          }
-          break;
+  resolveSolids(previous,onEvent){
+    let support=null;
+    for(const obs of this.trackGen.activeObstacles){
+      const d=obs.userData,c=d.collision;
+      if(!c)continue;
+      const halfS=c.halfLength+.4,halfX=c.halfWidth+.32;
+      const minS=d.s-halfS,maxS=d.s+halfS,minX=d.laneX-halfX,maxX=d.laneX+halfX;
+      const ds=this.s-previous.s,dx=this.laneX-previous.laneX;
+      const slab=(p,v,min,max)=>Math.abs(v)<1e-9?(p>=min&&p<=max?[-Infinity,Infinity]:[Infinity,-Infinity]):
+        [Math.min((min-p)/v,(max-p)/v),Math.max((min-p)/v,(max-p)/v)];
+      const zs=slab(previous.s,ds,minS,maxS),xs=slab(previous.laneX,dx,minX,maxX);
+      const enter=Math.max(0,zs[0],xs[0]),leave=Math.min(1,zs[1],xs[1]);
+      if(enter>leave)continue;
+      const top=this.trackGen.getTrackPoint(d.s).y+c.top;
+      const foot0=this.trackGen.getTrackPoint(previous.s).y+previous.y;
+      const foot1=this.trackGen.getTrackPoint(this.s).y+this.y;
+      const footEntry=foot0+(foot1-foot0)*enter;
+      const onFootprint=this.s>=minS&&this.s<=maxS&&this.laneX>=minX&&this.laneX<=maxX;
+      if(this.activeSkyFlight || footEntry>=top-.035){
+        if(onFootprint && foot1<=top+.04 && (this.verticalVelocity<=0 || this.supportId===d.id)){
+          this.y=top-this.trackGen.getTrackPoint(this.s).y;this.verticalVelocity=0;this.isGrounded=true;support=d.id;
+          if(!d.roofAwarded){d.roofAwarded=true;if(onEvent)onEvent('roof_landing');}
+        } else if(!d.roofAwarded && this.s>d.s+c.halfLength){
+          d.roofAwarded=true;if(onEvent)onEvent('jump_challenge');
         }
+        continue;
+      }
+      // A shield prevents damage, never solidity. Resolve the contact outside
+      // the body so the scooter cannot disappear through an invulnerable car.
+      if(zs[0]>=xs[0])this.s=ds>=0?minS-.015:maxS+.015;
+      else {this.laneX=dx>=0?minX-.015:maxX+.015;this.lateralVelocity=0;}
+      if(!d.hit && !this.isInvulnerable){
+        d.hit=true;this.recentDamageCount++;
+        if(this.activeShield){this.activeShield=false;this.shieldTimer=0;this.grantInvulnerability(1.2);if(onEvent)onEvent('shield_absorbed');}
+        else if(!this.consumeFaultGuard(onEvent)){this.forwardSpeed*=.4;this.grantInvulnerability(1.5);if(onEvent)onEvent('hit_obstacle');}
       }
     }
+    if(this.supportId && !support && this.isGrounded){this.isGrounded=false;this.verticalVelocity=0;}
+    this.supportId=support;
+  }
+
+  captureState(){
+    const saved={supportId:this.supportId};
+    for(const key of ['s','laneX','y','forwardSpeed','lateralVelocity','verticalVelocity','isGrounded','coyoteTimer',
+      'invulnerableTimer','isInvulnerable','wobbleTimer','activeShield','shieldTimer','activeMagnet','magnetTimer',
+      'activeDouble','doubleTimer','activeOverdrive','overdriveTimer','activeMagicRush','magicRushTimer','faultGuardCharges',
+      'activeSkyFlight','skyFlightTimer','skyFlightDuration','furthestS','lastCheckpointS','recentDamageCount',
+      'jumpAttempts','jumpSuccesses','steerCorrections','coinsCollectedInWindow','leanAngle','downhillIntensity','wheelRotation','idleTime']) saved[key]=this[key];
+    return saved;
+  }
+  restoreState(saved){
+    this.reset();
+    for(const key of Object.keys(this.captureState()))if(typeof saved[key]==='boolean'||Number.isFinite(saved[key]))this[key]=saved[key];
+    this.supportId=typeof saved.supportId==='string'?saved.supportId:null;
+    this.updateMeshTransform();
   }
 
   applyPowerup(type, onEvent) {

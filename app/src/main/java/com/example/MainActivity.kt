@@ -15,6 +15,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,8 +30,27 @@ import androidx.core.view.WindowInsetsControllerCompat
 class MainActivity : ComponentActivity() {
 
     private var webView: WebView? = null
+    private var appResumed = false
 
     class AndroidBridge(private val context: Context) {
+        private val saves = context.getSharedPreferences("louffi_active_run", Context.MODE_PRIVATE)
+
+        @JavascriptInterface
+        fun readRunSnapshot(): String = saves.getString("snapshot", "") ?: ""
+
+        @JavascriptInterface
+        fun writeRunSnapshot(snapshot: String): Boolean {
+            if (snapshot.length > 2_000_000) return false
+            return try {
+                val parsed = org.json.JSONObject(snapshot)
+                if (parsed.optInt("version") != 1) false
+                else saves.edit().putString("snapshot", snapshot).commit()
+            } catch (_: Exception) { false }
+        }
+
+        @JavascriptInterface
+        fun clearRunSnapshot() { saves.edit().remove("snapshot").commit() }
+
         // Fixed local asset only; no caller-controlled paths or network access.
         @JavascriptInterface
         fun readVisualKit(): String = context.assets.open("game/models/louffi-world.glb").use {
@@ -70,6 +90,22 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                webView?.evaluateJavascript("""
+                    (() => {
+                      const g = window.gameInstance;
+                      if (!g) return 'exit';
+                      if (g.state === 'PLAYING' || g.state === 'COUNTDOWN') g.pause();
+                      else if (g.state === 'PAUSED') g.showMainMenu();
+                      else return 'exit';
+                      return 'handled';
+                    })()
+                """.trimIndent()) { result ->
+                    if (result == "\"exit\"") moveTaskToBack(true)
+                }
+            }
+        })
 
         // Immersive sticky full screen for arcade game
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -119,14 +155,24 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        appResumed = true
         webView?.onResume()
-        webView?.evaluateJavascript("window.gameInstance && window.gameInstance.resume && window.gameInstance.resume();", null)
+        webView?.evaluateJavascript("window.gameInstance?.onAppForeground();", null)
     }
 
     override fun onPause() {
-        webView?.evaluateJavascript("window.gameInstance && window.gameInstance.pause && window.gameInstance.pause();", null)
-        webView?.onPause()
+        appResumed = false
+        val view = webView
+        // Let JavaScript freeze and save before pausing the WebView itself.
+        view?.evaluateJavascript("window.gameInstance?.onAppBackground();") {
+            if (!appResumed && webView === view) view?.onPause()
+        }
         super.onPause()
+    }
+
+    override fun onUserLeaveHint() {
+        webView?.evaluateJavascript("window.gameInstance?.onAppBackground();", null)
+        super.onUserLeaveHint()
     }
 
     override fun onDestroy() {
@@ -140,4 +186,3 @@ class MainActivity : ComponentActivity() {
 fun Greeting(name: String, modifier: Modifier = Modifier) {
     androidx.compose.material3.Text(text = "Hello $name!", modifier = modifier)
 }
-

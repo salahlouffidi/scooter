@@ -1,4 +1,4 @@
-// SKY SCOOTER — LOUFFI EDITION
+// LOUFFI CITY RUSH — LOUFFI EDITION
 // Data Persistence & Transaction Safety
 window.GameStorage = {
   KEYS: {
@@ -6,7 +6,8 @@ window.GameStorage = {
     PROGRESS: 'skyscooter_progress_v1',
     WALLET: 'skyscooter_wallet_v1',
     TRANSACTIONS: 'skyscooter_tx_v1',
-    ML_WEIGHTS: 'skyscooter_ml_v1'
+    ML_WEIGHTS: 'skyscooter_ml_v1',
+    ACTIVE_RUN: 'skyscooter_active_run_v1'
   },
 
   defaultSettings: {
@@ -181,8 +182,42 @@ window.GameStorage = {
   },
 
   resetProgress() {
+    this.clearRun();
     const fresh = JSON.parse(JSON.stringify(this.defaultProgress));
     this.saveProgress(fresh);
     return fresh;
+  },
+
+  // Keep the legacy keys so renaming the game never erases a player's saves.
+  getRun() {
+    const candidates = [];
+    try { candidates.push(localStorage.getItem(this.KEYS.ACTIVE_RUN)); } catch (_) {}
+    try { candidates.push(window.AndroidBridge?.readRunSnapshot?.()); } catch (_) {}
+    const valid = [];
+    for (const raw of candidates) {
+      try {
+        const s = JSON.parse(raw);
+        if (s?.version !== 1 || !Number.isInteger(s.roundId) || s.roundId < 1 || s.roundId > 16) continue;
+        if (!s.runId || this.hasProcessedTx(s.runId) || this.hasProcessedTx(`coin_${s.runId}`)) continue;
+        if (!s.rider || !Number.isFinite(s.rider.s) || s.rider.s < 0 || !Number.isFinite(s.stats?.hearts) || s.stats.hearts <= 0) continue;
+        if (!s.track?.segments?.length || s.track.segments.length > 20) continue;
+        if (!Number.isFinite(s.track.seed) || !Number.isFinite(s.track.rngState)) continue;
+        valid.push(s);
+      } catch (_) { /* An interrupted or older save must not prevent boot. */ }
+    }
+    return valid.sort((a,b)=>(b.savedAt||0)-(a.savedAt||0))[0] || null;
+  },
+
+  saveRun(snapshot) {
+    const raw = JSON.stringify(snapshot);
+    let saved = false;
+    try { localStorage.setItem(this.KEYS.ACTIVE_RUN, raw); saved = true; } catch (_) {}
+    try { if (window.AndroidBridge?.writeRunSnapshot) saved = !!window.AndroidBridge.writeRunSnapshot(raw) || saved; } catch (_) {}
+    return saved;
+  },
+
+  clearRun() {
+    try { localStorage.removeItem(this.KEYS.ACTIVE_RUN); } catch (_) {}
+    try { window.AndroidBridge?.clearRunSnapshot?.(); } catch (_) {}
   }
 };

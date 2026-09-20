@@ -1,4 +1,4 @@
-// SKY SCOOTER — LOUFFI EDITION
+// LOUFFI CITY RUSH — LOUFFI EDITION
 // Main Game Engine, State Machine, HUD & Loop Coordinator
 window.SkyScooterGame = class SkyScooterGame {
   constructor() {
@@ -85,6 +85,7 @@ window.SkyScooterGame = class SkyScooterGame {
     this.input.updateSensitivity(settings.steeringSensitivity);
     this.applyGraphicsQuality(settings.graphicsQuality);
 
+    this.initSession();
     this.initUI();
     this.showIntro();
 
@@ -202,8 +203,25 @@ window.SkyScooterGame = class SkyScooterGame {
     this.dirLight.color.copy(dirColor);
     this.dirLight.intensity = dirIntensity;
     this.renderer.toneMappingExposure = exposure;
+    this.applyEnvironment(roundData);
 
     if (this.sky) this.sky.applyRound(roundData);
+  }
+
+  applyEnvironment(round) {
+    if(this.environmentCity===round.city)return;
+    // A small sky panorama produces soft material reflections without six
+    // full-resolution scene captures every time the player changes city.
+    const T=this.THREE,w=256,h=128,pixels=new Uint8Array(w*h*4);
+    const top=new T.Color(round.skyColor),horizon=new T.Color(round.fogColor),ground=new T.Color(0x827462);
+    for(let row=0;row<h;row++){
+      const y=-Math.cos(row/(h-1)*Math.PI),c=y>0?horizon.clone().lerp(top,Math.pow(y,.55)):horizon.clone().lerp(ground,-y);
+      for(let col=0;col<w;col++){const i=(row*w+col)*4;pixels[i]=Math.round(c.r*255);pixels[i+1]=Math.round(c.g*255);pixels[i+2]=Math.round(c.b*255);pixels[i+3]=255;}
+    }
+    const texture=new T.DataTexture(pixels,w,h);texture.mapping=T.EquirectangularReflectionMapping;texture.needsUpdate=true;
+    const pmrem=new T.PMREMGenerator(this.renderer),map=pmrem.fromEquirectangular(texture);
+    this.environmentMap?.dispose();this.environmentMap=map;this.scene.environment=map.texture;this.environmentCity=round.city;
+    texture.dispose();pmrem.dispose();
   }
 
   fogDensityFor(roundData) {
@@ -238,12 +256,17 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   showMainMenu() {
+    this.saveActiveRun();
+    this.hasActiveRun=false;
+    this.cancelCountdown();
+    this.input.resetAll();
     this.state = 'MENU';
     this.hideAllScreens();
     const menu = document.getElementById('main-menu');
     if (menu) menu.classList.remove('hidden');
 
     this.updateStatsDisplay();
+    this.refreshContinueButton();
 
     // Prepare animated 3D background with Round 1 track
     const r1 = window.ROUNDS_DATA[0];
@@ -256,13 +279,17 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   startRound(roundId, isEndless = false) {
+    this.cancelCountdown();
+    window.GameStorage.clearRun();
+    this.hasActiveRun=true;this.autosaveTimer=0;
+    this.input.resetAll();
     this.arcadeEffects.reset();
     this.currentRoundId = roundId;
     this.isEndless = isEndless;
     this.currentRunTxId = `run_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
 
     const roundData = isEndless
-      ? { ...window.ROUNDS_DATA[15], id: 99, name: 'Endless Skyway', length: 999999, baseSpeed: 12 }
+      ? { ...window.ROUNDS_DATA[15], id: 99, name: 'Endless City Tour', length: 999999, baseSpeed: 12 }
       : window.ROUNDS_DATA.find(r => r.id === roundId) || window.ROUNDS_DATA[0];
 
     // Reset scoring & health
@@ -301,9 +328,13 @@ window.SkyScooterGame = class SkyScooterGame {
 
     this.hideAllScreens();
     this.startCountdown();
+    this.saveActiveRun();
   }
 
   startCountdown() {
+    this.cancelCountdown();this.input.resetAll();
+    if (this.backgrounded || document.hidden) {this.state='PLAYING';this.pause();return;}
+    window.GameAudio?.resume();window.GameAudio?.startMusic();
     this.state = 'COUNTDOWN';
     this.notifyAndroidState('COUNTDOWN');
     const countdownEl = document.getElementById('countdown-display');
@@ -314,6 +345,7 @@ window.SkyScooterGame = class SkyScooterGame {
 
     if (this.countdownTimer) clearInterval(this.countdownTimer);
     this.countdownTimer = setInterval(() => {
+      if (this.state !== 'COUNTDOWN' || this.backgrounded || document.hidden) {this.pause();return;}
       this.countdownSeconds--;
       if (this.countdownSeconds > 0) {
         countdownEl.innerText = `${this.countdownSeconds}`;
@@ -326,6 +358,8 @@ window.SkyScooterGame = class SkyScooterGame {
         this.countdownTimer = null;
         countdownEl.classList.add('hidden');
         this.state = 'PLAYING';
+        this.lastTime=performance.now();
+        this.input.resetAll();
         this.notifyAndroidState('PLAYING');
         const hud = document.getElementById('gameplay-hud');
         if (hud) hud.classList.remove('hidden');
@@ -334,15 +368,19 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   pause() {
-    if (this.state !== 'PLAYING') return;
+    if (!['PLAYING','COUNTDOWN'].includes(this.state)) return;
+    this.cancelCountdown();this.input.resetAll();
     this.state = 'PAUSED';
     this.notifyAndroidState('PAUSED');
     const pauseMenu = document.getElementById('pause-modal');
     if (pauseMenu) pauseMenu.classList.remove('hidden');
+    document.getElementById('gameplay-hud')?.classList.remove('hidden');
+    this.saveActiveRun();
   }
 
   resume() {
     if (this.state !== 'PAUSED') return;
+    if (this.backgrounded || document.hidden) return;
     const pauseMenu = document.getElementById('pause-modal');
     if (pauseMenu) pauseMenu.classList.add('hidden');
     this.startCountdown(); // Resume with smooth countdown
@@ -376,11 +414,11 @@ window.SkyScooterGame = class SkyScooterGame {
       this.arcadeEffects.burst(param, settings.reducedMotion ? 3 : 18);
       if (window.GameAudio) window.GameAudio.playGem();
       this.vibrate(40);
-    } else if (eventType === 'jump_challenge') {
+    } else if (eventType === 'jump_challenge' || eventType === 'roof_landing') {
       const pts = 50;
       this.jumpScore += pts;
       this.score += pts;
-      this.showFloatingLabel('+50 JUMP CLEAR!', this.riderCtrl.mesh.position);
+      this.showFloatingLabel(eventType==='roof_landing'?'+50 ROOFTOP RIDE!':'+50 JUMP CLEAR!', this.riderCtrl.mesh.position);
       if (window.GameAudio) window.GameAudio.playGem();
     } else if (eventType === 'jump') {
       if (window.GameAudio) window.GameAudio.playJump();
@@ -506,6 +544,7 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   triggerGameOver() {
+    this.hasActiveRun=false;window.GameStorage.clearRun();this.cancelCountdown();
     if(this.mlWindowFeaturesSnapshot && this.mlWindowTimer>0){
       this.ml.recordWindowOutcome(this.mlWindowFeaturesSnapshot,{speed:this.riderCtrl.forwardSpeed},false);
       this.mlWindowTimer=0;
@@ -527,6 +566,7 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   triggerRoundComplete() {
+    this.hasActiveRun=false;window.GameStorage.clearRun();this.cancelCountdown();
     this.state = 'ROUND_COMPLETE';
     this.notifyAndroidState('ROUND_COMPLETE');
     this.hideAllScreens();
@@ -613,10 +653,12 @@ window.SkyScooterGame = class SkyScooterGame {
       }
 
       // Update Track Generator & recycle
-      this.trackGen.update(this.riderCtrl.s);
+      this.trackGen.update(this.riderCtrl.s,dt);
+      this.autosaveTimer+=dt;
+      if(this.autosaveTimer>=2){this.autosaveTimer=0;this.saveActiveRun();}
 
       // Check finish gate reached
-      if (this.riderCtrl.s >= roundData.length) {
+      if (this.state==='PLAYING' && this.riderCtrl.s >= roundData.length) {
         this.triggerRoundComplete();
       }
 
@@ -649,7 +691,7 @@ window.SkyScooterGame = class SkyScooterGame {
     } else if (this.state === 'MENU' || this.state === 'ROUND_SELECT') {
       // Gentle menu background camera motion
       const menuS = (timestamp * 0.003) % 400;
-      this.trackGen.update(menuS);
+      this.trackGen.update(menuS,this.backgrounded?0:dt);
       const tp = this.trackGen.getTrackPoint(menuS);
       this.camera.position.set(tp.x + 8, tp.y + 4, tp.z - 10);
       this.camera.lookAt(tp.x, tp.y + 1, tp.z + 10);
@@ -684,7 +726,7 @@ window.SkyScooterGame = class SkyScooterGame {
     const speed = document.getElementById('hud-speed');
     if (speed) {
       const rider = this.riderCtrl;
-      speed.textContent = `${Math.round(rider.forwardSpeed * 3.6)} km/h · ${rider.activeOverdrive ? '★ STAR TURBO' : rider.downhillIntensity > .4 ? '↓ DOWNHILL RUSH' : 'SKY CRUISE'}`;
+      speed.textContent = `${Math.round(rider.forwardSpeed * 3.6)} km/h · ${rider.activeOverdrive ? '★ STAR TURBO' : rider.downhillIntensity > .4 ? '↓ DOWNHILL RUSH' : 'CITY CRUISE'}`;
       speed.classList.toggle('turbo', rider.activeOverdrive);
     }
     // Score
@@ -789,6 +831,7 @@ window.SkyScooterGame = class SkyScooterGame {
   // --- UI Wiring ---
 
   initUI() {
+    document.getElementById('btn-menu-continue')?.addEventListener('click',()=>this.continueSavedRun());
     // Main Menu Buttons
     document.getElementById('btn-menu-play')?.addEventListener('click', () => {
       const progress = window.GameStorage.getProgress();
@@ -917,6 +960,7 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   showSettings() {
+    this.pause();
     const modal = document.getElementById('settings-modal');
     if (!modal) return;
     modal.classList.remove('hidden');

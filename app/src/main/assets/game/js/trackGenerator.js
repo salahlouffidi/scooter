@@ -1,4 +1,4 @@
-// SKY SCOOTER — LOUFFI EDITION
+// LOUFFI CITY RUSH — LOUFFI EDITION
 // Procedural Track Generator, Continuous Spline & Segment Pooling
 window.TrackGenerator = class TrackGenerator {
   constructor(scene, assetFactory, THREE) {
@@ -30,9 +30,9 @@ window.TrackGenerator = class TrackGenerator {
   // Seeded PRNG (Mulberry32)
   initRNG(seed) {
     this.seed = seed;
-    let s = seed >>> 0;
+    this.rngState = seed >>> 0;
     this.rng = () => {
-      s = (s + 0x6D2B79F5) | 0;
+      const s = this.rngState = (this.rngState + 0x6D2B79F5) | 0;
       let t = Math.imul(s ^ (s >>> 15), 1 | s);
       t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;

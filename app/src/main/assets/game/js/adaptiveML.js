@@ -1,4 +1,4 @@
-// SKY SCOOTER — LOUFFI EDITION
+// LOUFFI CITY RUSH — LOUFFI EDITION
 // Genuine Online Machine Learning: Bounded Logistic-Regression Difficulty Model
 window.AdaptiveDifficultyML = class AdaptiveDifficultyML {
   constructor() {

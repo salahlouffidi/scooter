@@ -1,7 +1,7 @@
 // Shared tuning keeps controls and generated-route validation in agreement.
 window.ScooterTuning = Object.freeze({
   testAllRounds: true, cruiseMultiplier: 1.25, boostMultiplier: 1.55,
-  maxSpeed: 28, lateralSpeed: 9, brakeFactor: .65
+  maxSpeed: 28, lateralSpeed: 9, brakeFactor: .65, jumpVelocity: 10.5, gravity: 22
 });
 
 window.createScooterStar = function(T, radius = .5) {

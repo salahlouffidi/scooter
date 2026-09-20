@@ -1,4 +1,4 @@
-// SKY SCOOTER — LOUFFI EDITION
+// LOUFFI CITY RUSH — LOUFFI EDITION
 // Physical Reachability Validator & Safety Verification
 window.ReachabilityValidator = class ReachabilityValidator {
   constructor() {
@@ -12,7 +12,7 @@ window.ReachabilityValidator = class ReachabilityValidator {
 
   // Validates if candidate difficulty parameters allow at least one safe navigable route
   validateLayout(p) {
-    const flight=2*8.5/22;
+    const flight=2*window.ScooterTuning.jumpVelocity/window.ScooterTuning.gravity;
     if(p.gapWidth && p.gapWidth+1 > (p.minSpeed || p.speed/1.35/1.1*.75)*flight) return false;
     if(Math.abs(p.safeLane-p.previousLane)/this.MAX_LATERAL_SPEED+.4 > p.length/p.speed) return false;
     if(Math.abs(p.safeLane)>p.roadWidth*.4) return false;
@@ -87,4 +87,3 @@ window.ReachabilityValidator = class ReachabilityValidator {
     return true;
   }
 };
-

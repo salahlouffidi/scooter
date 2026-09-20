@@ -4,7 +4,7 @@ global.window=global;global.THREE=require('../app/src/main/assets/game/lib/three
 global.localStorage={data:{},getItem(k){return this.data[k]||null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};
 const base=path.resolve(__dirname,'../app/src/main/assets/game');
 global.fetch=async()=>({ok:true,arrayBuffer:async()=>{const b=fs.readFileSync(base+'/models/louffi-world.glb');return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);}});
-['visualKit','kitLoader','storage','rounds','arcadeEffects','reachability','adaptiveML','assetFactory','trackGenerator','biomeArt','enhancedTrack','controller'].forEach(n=>require(base+'/js/'+n+'.js'));
+['visualKit','kitLoader','storage','rounds','arcadeEffects','reachability','adaptiveML','assetFactory','trackGenerator','biomeArt','cityArt','enhancedTrack','controller'].forEach(n=>require(base+'/js/'+n+'.js'));
 (async()=>{
  await loadLouffiKit();assert.equal(louffiAssetStatus,'GLB loaded');
  for(const n of ['RiderScooter','Island','Castle','Tree','Cloud','Waterfall','Crate'])assert(louffiKit.getObjectByName(n),n);

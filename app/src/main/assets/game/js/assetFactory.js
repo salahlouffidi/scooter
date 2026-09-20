@@ -1,4 +1,4 @@
-// SKY SCOOTER — LOUFFI EDITION
+// LOUFFI CITY RUSH — LOUFFI EDITION
 // Procedural 3D Asset Factory & Modular Mesh Generator (Zero External 3D Models Needed)
 window.AssetFactory = class AssetFactory {
   constructor(THREE) {
@@ -9,7 +9,16 @@ window.AssetFactory = class AssetFactory {
     // Reuse geometry/materials for streamed items instead of allocating every spawn.
     for(const name of ['createCoin','createGem','createPowerup','createObstacle']){
       const build=this[name].bind(this),cache=new Map();
-      this[name]=(...args)=>{const key=JSON.stringify(args);if(!cache.has(key))cache.set(key,build(...args));return cache.get(key).clone(true);};
+      this[name]=(...args)=>{const key=JSON.stringify(args);if(!cache.has(key)){
+        const object=build(...args);
+        if(name==='createObstacle'){
+          object.updateMatrixWorld(true);
+          const b=new THREE.Box3().setFromObject(object);
+          object.userData.collision={halfWidth:Math.max(Math.abs(b.min.x),Math.abs(b.max.x)),
+            halfLength:Math.max(Math.abs(b.min.z),Math.abs(b.max.z)),top:b.max.y};
+        }
+        cache.set(key,object);
+      }return cache.get(key).clone(true);};
     }
   }
 
@@ -384,7 +393,7 @@ window.AssetFactory = class AssetFactory {
   }
 
   // Obstacle mesh
-  createObstacle(type) {
+  createObstacle(type, city = '') {
     if (type === 'crate' && window.louffiKit) return window.louffiKit.getObjectByName('Crate').clone(true);
     const THREE = this.THREE;
     const group = new THREE.Group();
@@ -441,11 +450,18 @@ window.AssetFactory = class AssetFactory {
       }
     } else if (type === 'car' || type === 'taxi' || type === 'van' || type === 'bus') {
       const bus = type === 'bus', compact = type === 'car' || type === 'taxi';
-      const bodyMat = bus ? this.materials.vehicleBlue : (type === 'taxi' ? this.materials.vehicleYellow : compact ? this.materials.vehicleWhite : this.materials.vehicleYellow);
+      const bodyMat = bus ? (city==='London'?this.materials.warningRed:this.materials.vehicleBlue) : (type === 'taxi' ? this.materials.vehicleYellow : compact ? this.materials.vehicleWhite : this.materials.vehicleYellow);
       const width = bus ? 2.45 : compact ? 1.85 : 2.15, height = bus ? 1.5 : compact ? 1.0 : 1.22, length = bus ? 4.15 : compact ? 2.65 : 3.25;
-      const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, length), bodyMat);
+      // Bevels catch the directional light, making traffic readable at speed.
+      const softBox=(w,h,d,r=.1)=>{
+        const shape=new THREE.Shape(),ww=w-2*r,hh=h-2*r;
+        shape.moveTo(-ww/2,-hh/2);shape.lineTo(ww/2,-hh/2);shape.lineTo(ww/2,hh/2);shape.lineTo(-ww/2,hh/2);shape.closePath();
+        const geo=new THREE.ExtrudeGeometry(shape,{depth:d-2*r,bevelEnabled:true,bevelSegments:3,steps:1,bevelSize:r,bevelThickness:r,curveSegments:4});
+        geo.translate(0,0,-d/2+r);geo.computeVertexNormals();return geo;
+      };
+      const body = new THREE.Mesh(softBox(width, height, length), bodyMat);
       body.position.y = bus ? .82 : compact ? .58 : .7; group.add(body);
-      const roof = new THREE.Mesh(new THREE.BoxGeometry(width - .2, .32, length - (bus ? .6 : .55)), type === 'taxi' ? this.materials.warningWhite : this.materials.vehicleWhite);
+      const roof = new THREE.Mesh(softBox(width - .2, .32, length - (bus ? .6 : .55),.065), bodyMat);
       roof.position.y = bus ? 1.67 : compact ? 1.18 : 1.45; group.add(roof);
       const frontGlass = new THREE.Mesh(new THREE.BoxGeometry(bus ? 1.9 : compact ? 1.35 : 1.55, bus ? .42 : compact ? .32 : .42, .06), this.materials.vehicleGlass);
       frontGlass.position.set(0, bus ? 1.29 : compact ? .91 : 1.1, bus ? 2.08 : compact ? 1.36 : 1.66); group.add(frontGlass);
@@ -458,9 +474,18 @@ window.AssetFactory = class AssetFactory {
       const wheelGeo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, .2, 12); wheelGeo.rotateZ(Math.PI / 2);
       for (const x of [-1, 1]) for (const z of [-wheelZ, wheelZ]) {
         const wheel = new THREE.Mesh(wheelGeo, this.materials.vehicleTire); wheel.position.set(x * wheelHalf, .28, z); group.add(wheel);
+        const hub=new THREE.Mesh(new THREE.CylinderGeometry(wheelRadius*.54,wheelRadius*.54,.22,12),this.materials.scooterMetal);
+        hub.rotation.z=Math.PI/2;hub.position.copy(wheel.position);group.add(hub);
       }
       const headlightMat = new THREE.MeshStandardMaterial({color:0xfff1b0,emissive:0xffc34e,emissiveIntensity:.8});
       for (const x of [-.62, .62]) { const light = new THREE.Mesh(new THREE.BoxGeometry(.24,.16,.06), headlightMat); light.position.set(x,bus? .7:compact ? .54:.68,bus?2.1:compact ? 1.4:1.67); group.add(light); }
+      for(const sign of [-1,1]){
+        const bumper=new THREE.Mesh(softBox(width-.12,.14,.15,.025),this.materials.streetMetal);bumper.position.set(0,.32,sign*(length/2+.025));group.add(bumper);
+        const plate=new THREE.Mesh(new THREE.BoxGeometry(.48,.13,.022),this.materials.warningWhite);plate.position.set(0,.5,sign*(length/2+.09));group.add(plate);
+        const rear=new THREE.Mesh(new THREE.BoxGeometry(.23,.18,.05),this.materials.warningRed);rear.position.set(sign*(width/2-.2),.65,-length/2-.055);group.add(rear);
+        const mirror=new THREE.Mesh(softBox(.17,.13,.25,.025),bodyMat);mirror.position.set(sign*(width/2+.09),compact?.94:1.15,length*.24);group.add(mirror);
+        const handle=new THREE.Mesh(new THREE.BoxGeometry(.035,.06,.23),this.materials.scooterMetal);handle.position.set(sign*(width/2+.015),.72,-.2);group.add(handle);
+      }
     } else if (type === 'roadroller') {
       const frame = new THREE.Mesh(new THREE.BoxGeometry(1.9, .85, 2.1), this.materials.warningOrange);
       frame.position.y = .85; group.add(frame);

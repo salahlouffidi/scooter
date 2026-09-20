@@ -3,6 +3,7 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
   constructor(...args){
     super(...args);const T=this.THREE;
     this.biomeArt = new window.BiomeArt(T);
+    this.cityArt = new window.CityArt(T);
     this.boxGeometry=new T.BoxGeometry(1,1,1);
     this.stone=new T.MeshStandardMaterial({color:0xd9c6a5,roughness:.93});
     this.wood=new T.MeshStandardMaterial({color:0xa56e36,roughness:.8});
@@ -11,14 +12,14 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     // A readable city-street layer keeps the foreground from looking like a
     // placeholder bridge, while the round-specific floating world remains in
     // the skyline and roadside scenery.
-    this.cityRoad=new T.MeshStandardMaterial({color:0x4b5663,roughness:.96,metalness:.02});
+    this.cityRoad=this.cityArt.asphalt();
     this.citySidewalk=new T.MeshStandardMaterial({color:0x818b96,roughness:.9});
     this.cityRail=new T.MeshStandardMaterial({color:0x334552,roughness:.65,metalness:.35});
     this.cityRailDark=new T.MeshStandardMaterial({color:0x202d38,roughness:.72,metalness:.4});
-    this.cityMark=new T.MeshStandardMaterial({color:0xf5cf68,roughness:.7,emissive:0x6b4f16,emissiveIntensity:.12});
+    this.cityMark=new T.MeshStandardMaterial({color:0xe8e7d8,roughness:.85});
     this.cityPavers=[0x56616c,0x606b76,0x4f5a65].map(color=>new T.MeshStandardMaterial({color,roughness:.93}));
     this.validator=new window.ReachabilityValidator();this.difficulty={speedMultiplier:1,obstacleDensityMultiplier:1,movingTrafficChance:.42,magicPickupChance:.12,propulsorChance:.08};
-    this.totalCoins=0;this.lastSafeLane=0;this.collectedIDs=new Set();
+    this.totalCoins=0;this.lastSafeLane=0;this.collectedIDs=new Set();this.simulationTime=0;
     // Roadside charm geometry: a light summer-city layer that complements the
     // larger biome landmarks without adding runtime assets.
     this.picketGeo=new T.BoxGeometry(1,1,1);
@@ -63,8 +64,9 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     this.cityMark.color.set(['neon','crystal','moon'].includes(round.theme)?0x71efff:0xf5cf68);
     this.cityMark.emissive.set(['neon','crystal','moon'].includes(round.theme)?0x0b6a7b:0x6b4f16);
     this.cityMark.emissiveIntensity=['neon','crystal','moon'].includes(round.theme)?.34:.12;
+    this.cityMark.color.set(0xeee9d7);this.cityMark.emissive.set(0);this.cityMark.emissiveIntensity=0;
     this.cityPavers.forEach((m,i)=>m.color.set(this.cityRoad.color).multiplyScalar(.91+i*.045));
-    this.difficulty={speedMultiplier:1,obstacleDensityMultiplier:1,movingTrafficChance:.42,magicPickupChance:.12,propulsorChance:.08};this.totalCoins=0;this.lastSafeLane=0;this.collectedIDs.clear();
+    this.difficulty={speedMultiplier:1,obstacleDensityMultiplier:1,movingTrafficChance:.42,magicPickupChance:.12,propulsorChance:.08};this.totalCoins=0;this.lastSafeLane=0;this.collectedIDs.clear();this.simulationTime=0;
     super.buildRound(round,seed);
   }
   setDifficulty(c){this.difficulty={
@@ -128,38 +130,35 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     const T=this.THREE,s=this.nextSpawnS,w=this.roundData.roadWidth,g=new T.Group();
     const street=this.cityRoad,sidewalk=this.citySidewalk,rail=this.cityRail,railDark=this.cityRailDark;
     const gap=!!this.roundData.features.hasGaps&&s>this.roundData.firstSafeDistance&&s%144===96;
-    g.userData={sStart:s,sEnd:s+24,isGap:gap,gapStart:s+10.8,gapEnd:s+13.2,speedMultiplier:this.difficulty.speedMultiplier,densityMult:this.difficulty.obstacleDensityMultiplier};
+    g.userData={sStart:s,sEnd:s+24,isGap:gap,gapStart:s+10.8,gapEnd:s+13.2,speedMultiplier:this.difficulty.speedMultiplier,densityMult:this.difficulty.obstacleDensityMultiplier,
+      generation:{s,rngState:this.rngState,lastSafeLane:this.lastSafeLane,difficulty:{...this.difficulty}}};
     this.scene.add(g);this.activeSegments.push(g);
     for(let i=0;i<12;i++){
       const mid=s+i*2+1;if(gap&&mid>s+10&&mid<s+14)continue;
       this.addBox(g,street,mid,0,-.27,w,.5,2.05);
       // Short dashed center lines make the route read as a city street even
       // when the surrounding biome is magical, snowy, or volcanic.
-      if(!gap&&(i%2===0)){
-        this.addBox(g,this.cityMark,mid,-w*.14,.01,.085,.035,.82);
-        this.addBox(g,this.cityMark,mid,w*.14,.01,.085,.035,.82);
+      if(!gap&&(i%3!==2)&&s%96!==48){
+        this.addBox(g,this.cityMark,mid,-w/6,.003,.09,.014,1.95);
+        this.addBox(g,this.cityMark,mid,w/6,.003,.09,.014,1.95);
       }
       for(const sideSign of [-1,1]){
-        this.addBox(g,sidewalk,mid,sideSign*(w/2+.43),-.02,.72,.13,2.05);
+        this.addBox(g,sidewalk,mid,sideSign*(w/2+1.7),-.02,3.4,.38,2.06);
+        this.addBox(g,this.picketMat,mid,sideSign*(w/2+.06),.03,.16,.32,2.02);
+        this.addBox(g,sidewalk,mid,sideSign*(w/2+10),-1.9,17,3,2.1);
+        if(i%2===0)this.addBox(g,this.cityMark,mid,sideSign*(w/2-.18),.003,.08,.014,1.8);
       }
     }
     if(gap){this.addBox(g,street,s+10.4,0,-.27,w,.5,.8);this.addBox(g,street,s+13.6,0,-.27,w,.5,.8);}
-    for(let shade=0;shade<3;shade++){
-      const transforms=[];
-      for(let row=0;row<16;row++)for(let col=0;col<4;col++){
-        if((row+col)%3!==shade)continue;const at=s+row*1.5+.75;if(gap&&at>s+10&&at<s+14)continue;
-        const planks=['forest','sunset','workshop'].includes(this.roundData.theme);
-        if(planks&&col!==0)continue;
-        const p=this.frame(at,planks?0:(col-1.5)*(w/4),.015),o=new T.Object3D();o.position.set(p.x,p.y,p.z);o.rotation.y=Math.atan2(this.getTrackTangent(at).x,this.getTrackTangent(at).z);o.rotation.order="YXZ";o.rotation.x=-Math.atan(this.getTrackGrade(at));o.scale.set(planks?w-.15:w/4-.06,.06,1.43);o.updateMatrix();transforms.push(o.matrix);
-      }
-      const tiles=new T.InstancedMesh(this.boxGeometry,this.cityPavers[shade],transforms.length);transforms.forEach((m,i)=>tiles.setMatrixAt(i,m));tiles.receiveShadow=true;g.add(tiles);
+    // Junctions and crossings replace bridge planks and continuous guardrails.
+    if(s%96===48&&!gap){
+      this.addBox(g,street,s+8,0,-.012,w+36,.018,8);
+      for(const offset of [3.5,12.5])for(let n=0;n<Math.floor(w/.9);n++)
+        this.addBox(g,this.cityMark,s+offset,-w/2+.5+n*.9,.008,.5,.025,2.2);
+      const lights=this.cityArt.intersection(this.roundData),p=this.frame(s+13,0);
+      lights.position.set(p.x,p.y,p.z);lights.rotation.y=Math.atan2(this.getTrackTangent(s+13).x,this.getTrackTangent(s+13).z);this.addScenery(lights,s);
     }
-    for(const side of [-1,1]){
-      for(let i=0;i<6;i++){const at=s+i*4+2;this.addBox(g,rail,at,side*(w/2-.17),.77,.25,.24,4.05);this.addBox(g,railDark,at,side*(w/2-.17),.34,.17,.14,4.05);}
-      for(let i=0;i<6;i++)this.addBox(g,rail,s+i*4,side*(w/2-.17),.52,.34,1.05,.34);
-    }
-    if(gap)this.addBox(g,rail,s+9.9,0,.07,w,.05,.7);
-    this.addCharm(g,s,w,gap);
+    if(gap)this.addBox(g,this.cityMark,s+9.9,0,.035,w,.05,.35);
     this.populateSegment(s,s+24,gap,w,g);
     if(s%72===24&&['garden','crystal','moon','rainbow','grand_run'].includes(this.roundData.theme)){
       const portal=this.biomeArt.portal(this.roundData),p=this.frame(s+12);
@@ -192,10 +191,10 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     const plan={roadWidth:w,speed:window.ScooterTuning.maxSpeed,minSpeed:this.roundData.baseSpeed*.9*window.ScooterTuning.cruiseMultiplier*window.ScooterTuning.brakeFactor,length:24,previousLane:this.lastSafeLane,safeLane,hazards,gapWidth:gap?2.4:0};
     if(!this.validator.validateLayout(plan))hazards.length=0;this.lastSafeLane=safeLane;
     for(const h of hazards){
-      const m=this.factory.createObstacle(h.type),at=s+18,p=this.frame(at,h.laneX);
+      const m=this.factory.createObstacle(h.type,this.roundData.city),at=s+18,p=this.frame(at,h.laneX);
       m.position.set(p.x,p.y,p.z);m.rotation.y=Math.atan2(this.getTrackTangent(at).x,this.getTrackTangent(at).z);
       const movingTraffic=!!this.roundData.city&&['car','taxi','van','bus','roadroller'].includes(h.type)&&this.rng()<this.difficulty.movingTrafficChance;
-      m.userData={id:`obs_${at}_${h.laneX}`,s:at,laneX:h.laneX,type:h.type,hit:false,
+      m.userData={...m.userData,id:`obs_${at}_${h.laneX}`,s:at,laneX:h.laneX,type:h.type,hit:false,
         isJumpable:['barrier','traffic_cone','construction_barrier'].includes(h.type),isCityObstacle:!['barrier','crate'].includes(h.type),
         isMoving:movingTraffic,baseLaneX:h.laneX,motionPhase:this.rng()*Math.PI*2,motionRate:.65+this.rng()*.35,motionAmplitude:movingTraffic?.38:0};
       m.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});this.scene.add(m);this.activeObstacles.push(m);
@@ -208,39 +207,25 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
       if(!gap&&!safe&&this.rng()<this.difficulty.propulsorChance)this.addItem(this.factory.createPowerup('propulsor'),s+15,safeLane,1.35,{id:`lift_${s}`,isPowerup:true,type:'propulsor'});
       if(!gap&&this.rng()<.16)this.addItem(this.factory.createGem(),s+9,safeLane,1.15,{id:`gem_${s}`,isGem:true});
     }
-    // Put a city district in the opening view, then alternate the side every
-    // 48 metres. This makes the setting obvious immediately while preserving
-    // the floating-island reveal between districts.
-    const citySide=(s%96===0||s%96===48)?((Math.floor(s/48)%2)?1:-1):0;
-    const cityStretch=s%96===0||s%96===48;
+    // Street walls on both sides enclose the playable route. Cross streets give
+    // brief skyline reveals; the destination landmark is large enough to read.
     for(const side of [-1,1]){
-      const at=s+10+this.rng()*8,offset=side*(w/2+9+this.rng()*5),p=this.frame(at,offset,-3-this.rng()*2);
-      const showCity=citySide===side||(cityStretch&&s%96===0);
-      // On a city stretch the roadside district replaces that side's island,
-      // keeping the pylon/buildings readable instead of hiding them behind trees.
-      if(citySide!==side&&!showCity){
-        const island=this.biomeArt.create(this.roundData);island.position.set(p.x,p.y,p.z);
-        island.scale.setScalar(.8+this.rng()*.35);island.rotation.y=side*.25;this.addScenery(island,s);
+      if(s%96!==48){
+        const district=this.cityArt.district(this.roundData,(Math.floor(s/24)+(side>0?1:0))%3);
+        const cp=this.frame(s+12,side*(w/2),0);
+        district.position.set(cp.x,cp.y,cp.z);
+        // frame lateral points to -X; local positive X always points away from the road.
+        district.rotation.y=Math.atan2(this.getTrackTangent(s+12).x,this.getTrackTangent(s+12).z)+(side>0?Math.PI:0);
+        this.addScenery(district,s);
       }
-      // Every other stretch gets a denser foreground landmark.  These modular
-      // terraces make the world feel connected instead of repeating empty islands.
-      if(s%48===0){
-        const variant=(Math.floor(s/48)+(side>0?1:0))%3;
-        const landmark=this.biomeArt.cluster(this.roundData,variant);
-        const lp=this.frame(s+12+(side>0?2:-2),side*(w/2+13.5),-1.25-this.rng()*.75);
-        landmark.position.set(lp.x,lp.y,lp.z);
-        landmark.scale.setScalar(.86+this.rng()*.1);
-        landmark.rotation.y=side*.08;
+      if(s%192===48){
+        const landmark=this.cityArt.landmark(this.roundData),p=this.frame(s+25,side*(w/2+23),-1);
+        landmark.position.set(p.x,p.y,p.z);landmark.rotation.y=Math.atan2(this.getTrackTangent(s+25).x,this.getTrackTangent(s+25).z);
         this.addScenery(landmark,s);
       }
-      // A larger city/coastal landmark arrives less often so it reads as a
-      // destination: utility pylon, lamps, guardrails and small buildings.
-      if(showCity){
-        const city=this.biomeArt.cityBlock(this.roundData,Math.floor(s/96)%3);
-        const cp=this.frame(s+12,side*(w/2+9.5),-.9-this.rng()*.35);
-        city.position.set(cp.x,cp.y,cp.z);city.scale.setScalar(.98+this.rng()*.1);city.rotation.y=side*.06;
-        city.userData.dynamicCity=true;city.userData.baseY=cp.y;city.userData.baseRotationY=city.rotation.y;city.userData.motionPhase=this.rng()*Math.PI*2;
-        this.addScenery(city,s);
+      if(s%96===72){
+        const island=this.biomeArt.create(this.roundData),p=this.frame(s+12,side*(w/2+42),5);
+        island.position.set(p.x,p.y,p.z);island.scale.setScalar(1.25);this.addScenery(island,s);
       }
     }
   }
@@ -254,12 +239,37 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     this.clearAll();this.initRNG(seed);this.roundData=round;this.nextSpawnS=0;this.totalCoins=0;this.lastSafeLane=0;this.collectedIDs=ids;
     while(this.nextSpawnS<s+this.spawnAheadDistance)this.spawnNextSegment();
   }
-  update(s){
+  captureState(){
+    for(const m of this.activeCollectibles)if(m.userData.collected)this.collectedIDs.add(m.userData.id);
+    return {seed:this.seed,rngState:this.rngState,nextSpawnS:this.nextSpawnS,lastSafeLane:this.lastSafeLane,
+      difficulty:{...this.difficulty},totalCoins:this.totalCoins,simulationTime:this.simulationTime,
+      segments:this.activeSegments.map(g=>g.userData.generation),collectedIDs:[...this.collectedIDs],
+      obstacles:this.activeObstacles.map(o=>({id:o.userData.id,hit:o.userData.hit,roofAwarded:o.userData.roofAwarded}))};
+  }
+  restoreState(round,saved){
+    this.buildRound(round,saved.seed);this.clearAll();
+    this.collectedIDs=new Set(saved.collectedIDs||[]);
+    for(const record of saved.segments){
+      this.nextSpawnS=record.s;this.rngState=record.rngState;this.lastSafeLane=record.lastSafeLane;
+      this.setDifficulty(record.difficulty);this.spawnNextSegment();
+    }
+    this.rngState=saved.rngState;this.nextSpawnS=saved.nextSpawnS;this.lastSafeLane=saved.lastSafeLane;
+    this.setDifficulty(saved.difficulty);this.totalCoins=saved.totalCoins;
+    this.simulationTime=saved.simulationTime||0;
+    const states=new Map((saved.obstacles||[]).map(o=>[o.id,o]));
+    for(const obs of this.activeObstacles)Object.assign(obs.userData,states.get(obs.userData.id)||{});
+    this.updateMovingObjects();
+  }
+  update(s,dt=0){
+    this.simulationTime+=dt;
     for(const m of this.activeCollectibles)if(m.userData.collected)this.collectedIDs.add(m.userData.id);
     const threshold=s-this.recycleBehindDistance;
     for(const g of this.activeSegments)if(g.userData.sEnd<threshold)g.traverse(m=>{if(m.isInstancedMesh)m.dispose();});
     super.update(s);
-    const t=performance.now()*.001;
+    this.updateMovingObjects();
+  }
+  updateMovingObjects(){
+    const t=this.simulationTime;
     this.activeCollectibles.forEach(m=>{m.rotation.y=t*1.7;m.position.y=m.userData.baseY+Math.sin(t*2+m.userData.s)*.1;});
     // Traffic breathes and drifts within its own lane, creating a moving city
     // without invalidating the validator's guaranteed safe lane.

@@ -1,6 +1,6 @@
 {
-  "name": "Sky Scooter",
-  "description": "3D third-person scooter auto-runner game — Louffi Edition with 16 unique rounds, procedural worlds, and adaptive gameplay.",
+  "name": "LOUFFI CITY RUSH",
+  "description": "Offline 3D scooter city runner — Louffi Edition. Sixteen city districts, rooftop jumps, magical sky lifts, durable run saves and local adaptive difficulty.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

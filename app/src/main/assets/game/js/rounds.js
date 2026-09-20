@@ -1,9 +1,9 @@
-// SKY SCOOTER — LOUFFI EDITION
+// LOUFFI CITY RUSH — LOUFFI EDITION
 // 16 Handcrafted Round Configurations & Biomes
 window.ROUNDS_DATA = [
   {
     id: 1,
-    name: 'Kyoto Sky Garden',
+    name: 'Kyoto Lantern Quarter',
     length: 600,
     baseSpeed: 8,
     theme: 'garden',
@@ -16,8 +16,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0x4caf50,
     islandRockColor: 0x795548,
     ambientLight: 0xffffff,
-    roadWidth: 9.0, // extra wide protected road
-    description: 'Kyoto-inspired lantern streets, flower islands and pink garden arches under a bright blue sky.',
+    roadWidth: 9.6, // extra wide protected road
+    description: 'Tea shops, pagoda rooftops, cherry trees and lanterns beside an asphalt boulevard.',
     firstSafeDistance: 120, // first 120m contain no damage hazards
     features: {
       hasJumps: true,
@@ -29,7 +29,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 2,
-    name: 'London Cloud Bridge',
+    name: 'London Westminster Rush',
     length: 720,
     baseSpeed: 9,
     theme: 'castle_bridge',
@@ -42,8 +42,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0x66bb6a,
     islandRockColor: 0x546e7a,
     ambientLight: 0xfff9c4,
-    roadWidth: 8.5,
-    description: 'London-inspired clock towers, banners, crenellated walls and cool stone bridges.',
+    roadWidth: 9.6,
+    description: 'Brick terraces, red phone boxes, zebra crossings and a giant clock tower.',
     firstSafeDistance: 60,
     features: {
       hasJumps: true,
@@ -55,7 +55,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 3,
-    name: 'Singapore Waterfall Way',
+    name: 'Singapore Garden Avenue',
     length: 800,
     baseSpeed: 10,
     theme: 'waterfalls',
@@ -68,8 +68,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0x43a047,
     islandRockColor: 0x455a64,
     ambientLight: 0xe0f7fa,
-    roadWidth: 8.0,
-    description: 'Singapore-inspired garden towers, turquoise waterfalls and misty floating mesas.',
+    roadWidth: 9.6,
+    description: 'Garden shops, palms and a skypark skyline with magical waterfalls beyond the city.',
     firstSafeDistance: 60,
     features: {
       hasJumps: true,
@@ -81,7 +81,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 4,
-    name: 'Vancouver Canopy',
+    name: 'Vancouver Coast Street',
     length: 880,
     baseSpeed: 10,
     theme: 'forest',
@@ -94,8 +94,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0x2e7d32,
     islandRockColor: 0x3e2723,
     ambientLight: 0xe8f5e9,
-    roadWidth: 8.0,
-    description: 'Vancouver-inspired green towers, giant treetops and golden fireflies beside the route.',
+    roadWidth: 9.6,
+    description: 'Glass towers, coffee shops, mountain greenery and a harbour observation tower.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -107,7 +107,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 5,
-    name: 'Marrakech Sky Market',
+    name: 'Marrakech Medina Rush',
     length: 960,
     baseSpeed: 11,
     theme: 'desert',
@@ -120,8 +120,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0xdce775,
     islandRockColor: 0x8d6e63,
     ambientLight: 0xfff3e0,
-    roadWidth: 8.0,
-    description: 'Marrakech-inspired sandstone markets, ancient arches and glowing oasis orbs.',
+    roadWidth: 9.6,
+    description: 'Terracotta shopfronts, striped market awnings and a towering minaret skyline.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -133,7 +133,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 6,
-    name: 'Prague Crystal District',
+    name: 'Prague Old Town',
     length: 1000,
     baseSpeed: 11,
     theme: 'crystal',
@@ -146,8 +146,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0xab47bc,
     islandRockColor: 0x4a148c,
     ambientLight: 0xf3e5f5,
-    roadWidth: 8.0,
-    description: 'Prague-inspired rooftops, luminous lavender crystals, cave arches and glowing rails.',
+    roadWidth: 9.6,
+    description: 'Gabled roofs, crystal shops and a pair of gothic towers above the old town.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -159,7 +159,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 7,
-    name: 'Sapporo Snow Summit',
+    name: 'Sapporo Snow District',
     length: 1040,
     baseSpeed: 11,
     theme: 'snow',
@@ -172,8 +172,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0xffffff,
     islandRockColor: 0x607d8b,
     ambientLight: 0xffffff,
-    roadWidth: 8.0,
-    description: 'Sapporo-inspired snow streets, frosted pines and little island snowmen.',
+    roadWidth: 9.6,
+    description: 'Snow-covered rooflines, warm ramen shops and a winter pagoda skyline.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -185,7 +185,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 8,
-    name: 'Rio Sunset Harbor',
+    name: 'Rio Sunset Boulevard',
     length: 1080,
     baseSpeed: 12,
     theme: 'sunset',
@@ -198,8 +198,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0x81c784,
     islandRockColor: 0x4e342e,
     ambientLight: 0xfbe9e7,
-    roadWidth: 8.0,
-    description: 'Rio-inspired coastal streets, floating sailboats, lighthouses and warm sunset docks.',
+    roadWidth: 9.6,
+    description: 'Pastel seafront shops, palms, golden evening light and a hilltop landmark.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -211,7 +211,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 9,
-    name: 'Tokyo Neon Skyline',
+    name: 'Tokyo Neon Crossing',
     length: 1120,
     baseSpeed: 12,
     theme: 'neon',
@@ -224,8 +224,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0x1e88e5,
     islandRockColor: 0x0d47a1,
     ambientLight: 0x00e5ff,
-    roadWidth: 8.0,
-    description: 'Tokyo-inspired neon towers, glowing window stripes and pink sky rings.',
+    roadWidth: 9.6,
+    description: 'Tall signs, luminous shop windows, traffic lights and an electric Tokyo skyline.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -237,7 +237,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 10,
-    name: 'Amsterdam Sky Workshop',
+    name: 'Amsterdam Canal Quarter',
     length: 1160,
     baseSpeed: 12,
     theme: 'workshop',
@@ -250,8 +250,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0x757575,
     islandRockColor: 0x424242,
     ambientLight: 0xffecb3,
-    roadWidth: 8.0,
-    description: 'Amsterdam-inspired canals, golden gears, mint cranes and toy-like factory islands.',
+    roadWidth: 9.6,
+    description: 'Narrow gabled houses, bicycles, canal cafes and a windmill landmark.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -263,7 +263,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 11,
-    name: 'New York Cloud Storm',
+    name: 'New York Midtown Run',
     length: 1200,
     baseSpeed: 12,
     theme: 'storm',
@@ -276,8 +276,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0xb0bec5,
     islandRockColor: 0x37474f,
     ambientLight: 0xe0f7fa,
-    roadWidth: 8.0,
-    description: 'New York-inspired skyline silhouettes, soft storm clouds and golden lightning sculptures.',
+    roadWidth: 9.6,
+    description: 'Deli storefronts, glass towers, taxis and a stepped skyscraper skyline.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -289,7 +289,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 12,
-    name: 'Naples Volcano Crossing',
+    name: 'Naples Waterfront Rush',
     length: 1240,
     baseSpeed: 13,
     theme: 'volcano',
@@ -302,8 +302,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0x3e2723,
     islandRockColor: 0xbf360c,
     ambientLight: 0xffe0b2,
-    roadWidth: 7.8,
-    description: 'Naples-inspired waterfront roads, warm volcanoes, magic embers and basalt islands.',
+    roadWidth: 9.6,
+    description: 'Gelato shops, Italian balconies and waterfront towers below the distant volcano.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -315,7 +315,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 13,
-    name: 'Paris Moon Garden',
+    name: 'Paris Midnight Boulevard',
     length: 1280,
     baseSpeed: 13,
     theme: 'moon',
@@ -328,8 +328,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0x312e81,
     islandRockColor: 0x1e1b4b,
     ambientLight: 0xc7d2fe,
-    roadWidth: 7.8,
-    description: 'Paris-inspired moon rings, turquoise gardens and floating starlight.',
+    roadWidth: 9.6,
+    description: 'Boulangeries, mansard roofs, iron balconies and an Eiffel-inspired tower under a magical orbit.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -341,7 +341,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 14,
-    name: 'Istanbul Ancient Citadel',
+    name: 'Istanbul Bazaar Street',
     length: 1320,
     baseSpeed: 13,
     theme: 'citadel',
@@ -354,8 +354,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0x689f38,
     islandRockColor: 0x263238,
     ambientLight: 0xfff9c4,
-    roadWidth: 7.8,
-    description: 'Istanbul-inspired blue citadels, market banners, columned walls and golden arches.',
+    roadWidth: 9.6,
+    description: 'Warm bazaars, turquoise domes and twin minarets above a lively city street.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -367,7 +367,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 15,
-    name: 'Barcelona Rainbow Heights',
+    name: 'Barcelona Mosaic Mile',
     length: 1400,
     baseSpeed: 14,
     theme: 'rainbow',
@@ -380,8 +380,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0x69f0ae,
     islandRockColor: 0x7c4dff,
     ambientLight: 0xffffff,
-    roadWidth: 7.5,
-    description: 'Barcelona-inspired rainbow arches, pink cloud islands and glowing pastel paths.',
+    roadWidth: 9.6,
+    description: 'Mosaic benches, balconies and sculptural spires under a pastel sky.',
     firstSafeDistance: 50,
     features: {
       hasJumps: true,
@@ -393,7 +393,7 @@ window.ROUNDS_DATA = [
   },
   {
     id: 16,
-    name: 'LOUFFI World Grand Run',
+    name: 'LOUFFI Grand City Finale',
     length: 1600,
     baseSpeed: 14,
     theme: 'grand_run',
@@ -406,8 +406,8 @@ window.ROUNDS_DATA = [
     islandGrassColor: 0x4caf50,
     islandRockColor: 0x4e342e,
     ambientLight: 0xfffde7,
-    roadWidth: 7.5,
-    description: 'A golden world-city celebration with tall spires, pink flags and shining sky portals.',
+    roadWidth: 9.6,
+    description: 'A festive world-city boulevard with signature shops, towers and a golden sky ring.',
     firstSafeDistance: 60,
     features: {
       hasJumps: true,

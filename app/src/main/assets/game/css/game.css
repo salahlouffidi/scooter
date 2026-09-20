@@ -1,4 +1,4 @@
-/* SKY SCOOTER — LOUFFI EDITION Stylesheet */
+/* LOUFFI CITY RUSH — LOUFFI EDITION Stylesheet */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -680,4 +680,16 @@ html, body {
   position: absolute; right: 16px; top: 68px; max-width: 48%;
   color: #fff; background: rgba(22, 35, 64, .8); border-radius: 12px;
   padding: 7px 12px; font-size: 12px; font-weight: 700; pointer-events: none;
+}
+
+/* Keep the resumed-run menu usable on short landscape phone screens. */
+.menu-title-main { font-size: clamp(1.65rem, 4vw, 2.5rem); letter-spacing: 1px; }
+.menu-card { max-height: calc(100dvh - 24px); overflow-y: auto; }
+#btn-menu-continue { font-size: .95rem; }
+@media (max-height: 500px) {
+  .menu-card { padding: 12px 24px; }
+  .menu-title-main { margin-bottom: 8px; }
+  .menu-stats-row { margin-bottom: 9px; padding: 6px; }
+  .menu-buttons { gap: 7px; }
+  .menu-buttons button { padding: 9px 15px; }
 }

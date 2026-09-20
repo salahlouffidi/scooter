@@ -1,4 +1,4 @@
-// SKY SCOOTER — LOUFFI EDITION
+// LOUFFI CITY RUSH — LOUFFI EDITION
 // Multi-Touch Input Manager with Independent Pointer Tracking & Desktop Keyboard
 window.InputManager = class InputManager {
   constructor() {
