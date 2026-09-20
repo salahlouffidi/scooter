@@ -29,7 +29,7 @@ window.GameCamera = class GameCamera {
     );
     this.currentLookAt.set(
       p.x + tan.x * this.lookAheadDistance,
-      p.y + this.lookUpOffset,
+      trackGen.getTrackPoint(riderMesh.position.z + this.lookAheadDistance).y + this.lookUpOffset,
       p.z + tan.z * this.lookAheadDistance
     );
 
@@ -52,7 +52,7 @@ window.GameCamera = class GameCamera {
 
     const targetLookAt = new this.THREE.Vector3(
       p.x + tan.x * this.lookAheadDistance,
-      p.y + this.lookUpOffset,
+      trackGen.getTrackPoint(riderMesh.position.z + this.lookAheadDistance).y + this.lookUpOffset,
       p.z + tan.z * this.lookAheadDistance
     );
 

@@ -313,10 +313,11 @@ window.AssetFactory = class AssetFactory {
       const mesh = new THREE.Mesh(geo, this.materials.doublePowerup);
       group.add(mesh);
     } else if (type === 'overdrive') {
-      // Lightning bolt icon
-      const geo = new THREE.ConeGeometry(0.3, 0.9, 4);
-      geo.rotateZ(Math.PI);
-      const mesh = new THREE.Mesh(geo, this.materials.overdrivePowerup);
+      // A gold star marks the five-second turbo pickup.
+      const geo = window.createScooterStar(THREE, .65);
+      const material = this.materials.overdrivePowerup.clone();
+      material.side = THREE.DoubleSide;
+      const mesh = new THREE.Mesh(geo, material);
       group.add(mesh);
     } else if (type === 'heart') {
       // Heart shape with spheres + cone
@@ -492,3 +493,4 @@ window.AssetFactory = class AssetFactory {
     return group;
   }
 };
+

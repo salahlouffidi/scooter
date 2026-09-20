@@ -71,6 +71,7 @@ window.SkyScooterGame = class SkyScooterGame {
     this.scene.add(riderMesh);
     this.riderCtrl = new window.RiderController(riderMesh, this.trackGen);
     this.gameCam = new window.GameCamera(this.camera, this.THREE);
+    this.arcadeEffects = new window.ArcadeEffects(this.scene, this.THREE);
 
     // Wire input pause callback
     this.input.onPauseRequested = () => {
@@ -254,6 +255,7 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   startRound(roundId, isEndless = false) {
+    this.arcadeEffects.reset();
     this.currentRoundId = roundId;
     this.isEndless = isEndless;
     this.currentRunTxId = `run_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
@@ -282,7 +284,7 @@ window.SkyScooterGame = class SkyScooterGame {
     this.trackGen.buildRound(roundData, seed);
 
     // Reset rider
-    this.riderCtrl.reset(0, roundData.baseSpeed);
+    this.riderCtrl.reset(0, roundData.baseSpeed * window.ScooterTuning.cruiseMultiplier);
     this.gameCam.reset(this.riderCtrl.mesh, this.trackGen);
 
     // ML Challenge Window initialization
@@ -361,6 +363,7 @@ window.SkyScooterGame = class SkyScooterGame {
       this.score += pts;
 
       this.showFloatingLabel(`+${pts}`, param);
+      this.arcadeEffects.burst(param, settings.reducedMotion ? 2 : 6);
       if (window.GameAudio) window.GameAudio.playCoin();
       this.vibrate(18);
     } else if (eventType === 'gem') {
@@ -368,6 +371,7 @@ window.SkyScooterGame = class SkyScooterGame {
       this.gemScore += pts;
       this.score += pts;
       this.showFloatingLabel('+100 GEM!', param);
+      this.arcadeEffects.burst(param, settings.reducedMotion ? 3 : 18);
       if (window.GameAudio) window.GameAudio.playGem();
       this.vibrate(40);
     } else if (eventType === 'jump_challenge') {
@@ -416,7 +420,8 @@ window.SkyScooterGame = class SkyScooterGame {
       }
       if (window.GameAudio) window.GameAudio.playPowerup();
     } else if (eventType === 'powerup') {
-      const name = String(param).toUpperCase();
+      const name = param === 'overdrive' ? 'STAR TURBO · 5s' : String(param).toUpperCase();
+      this.arcadeEffects.burst(this.riderCtrl.mesh.position, settings.reducedMotion ? 4 : 32);
       this.showFloatingLabel(`${name}!`, this.riderCtrl.mesh.position, '#ffeb3b');
       if (window.GameAudio) window.GameAudio.playPowerup();
       this.vibrate(35);
@@ -631,8 +636,10 @@ window.SkyScooterGame = class SkyScooterGame {
 
     // 2. Camera Update
     if (this.state === 'PLAYING' || this.state === 'COUNTDOWN') {
-      this.gameCam.update(dt, this.riderCtrl.mesh, this.trackGen, this.riderCtrl.activeOverdrive, settings);
+      this.gameCam.update(dt, this.riderCtrl.mesh, this.trackGen, this.riderCtrl.activeOverdrive || this.riderCtrl.downhillIntensity > .65, settings);
     }
+
+    this.arcadeEffects.update(dt, this.riderCtrl, this.trackGen, settings, this.state === 'PLAYING');
 
     // Sky atmosphere follows the camera focus (menu camera or rider)
     if (this.sky) {
@@ -651,6 +658,12 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   updateHUD() {
+    const speed = document.getElementById('hud-speed');
+    if (speed) {
+      const rider = this.riderCtrl;
+      speed.textContent = `${Math.round(rider.forwardSpeed * 3.6)} km/h · ${rider.activeOverdrive ? '★ STAR TURBO' : rider.downhillIntensity > .4 ? '↓ DOWNHILL RUSH' : 'SKY CRUISE'}`;
+      speed.classList.toggle('turbo', rider.activeOverdrive);
+    }
     // Score
     const scoreVal = document.getElementById('hud-score-val');
     if (scoreVal) scoreVal.innerText = `${Math.floor(this.score)}`;
@@ -704,7 +717,7 @@ window.SkyScooterGame = class SkyScooterGame {
     if (coinsEl) coinsEl.innerText = `${wallet.totalCoins || 0}`;
 
     const roundEl = document.getElementById('menu-highest-round');
-    if (roundEl) roundEl.innerText = `${progress.highestUnlockedRound || 1} / 16`;
+    if (roundEl) roundEl.innerText = window.ScooterTuning.testAllRounds ? '16 / 16 · TEST ACCESS' : `${progress.highestUnlockedRound || 1} / 16`;
 
     let bestTotal = 0;
     Object.values(progress.bestScores).forEach(s => bestTotal = Math.max(bestTotal, s));
@@ -846,7 +859,7 @@ window.SkyScooterGame = class SkyScooterGame {
     const highest = progress.highestUnlockedRound || 1;
 
     window.ROUNDS_DATA.forEach(round => {
-      const isUnlocked = round.id <= highest;
+      const isUnlocked = window.ScooterTuning.testAllRounds || round.id <= highest;
       const card = document.createElement('div');
       card.className = `round-card ${isUnlocked ? 'unlocked' : 'locked'}`;
 
@@ -857,7 +870,7 @@ window.SkyScooterGame = class SkyScooterGame {
       card.innerHTML = `
         <div class="rc-number">Round ${round.id}</div>
         <div class="rc-title">${round.name}</div>
-        <div class="rc-meta">${round.length}m • ${round.baseSpeed} m/s</div>
+        <div class="rc-meta">${round.length}m • ${Math.round(round.baseSpeed * window.ScooterTuning.cruiseMultiplier * 3.6)} km/h cruise</div>
         <div class="rc-desc">${round.description}</div>
         <div class="rc-stars">${starsDisplay}</div>
         ${isUnlocked ? `<div class="rc-best">Best: ${best}</div>` : '<div class="rc-locked-msg">Locked</div>'}

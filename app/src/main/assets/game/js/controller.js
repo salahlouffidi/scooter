@@ -18,7 +18,7 @@ window.RiderController = class RiderController {
     // Physics constants
     this.GRAVITY = 22.0;
     this.JUMP_VELOCITY = 8.5;
-    this.MAX_LATERAL_SPEED = 6.2;
+    this.MAX_LATERAL_SPEED = window.ScooterTuning.lateralSpeed;
     this.LATERAL_ACCEL = 24.0;
     this.LATERAL_DRAG = 16.0;
 
@@ -51,6 +51,7 @@ window.RiderController = class RiderController {
 
     // Procedural animation state
     this.leanAngle = 0.0;
+    this.downhillIntensity = 0;
     this.wheelRotation = 0.0;
     this.idleTime = 0.0;
   }
@@ -68,6 +69,8 @@ window.RiderController = class RiderController {
     this.isInvulnerable = false;
     this.wobbleTimer = 0.0;
     this.leanAngle = 0.0;
+    this.downhillIntensity = 0;
+    this.previousSteerSign = 0;
 
     this.activeShield = false;
     this.activeMagnet = false;
@@ -137,32 +140,33 @@ window.RiderController = class RiderController {
     }
 
     // 2. Forward speed calculation (with overdrive boost & brake)
-    let targetSpeed = baseSpeed;
+    const tuning = window.ScooterTuning;
+    const grade = this.trackGen.getTrackGrade(this.s);
+    this.downhillIntensity = Math.min(1, Math.max(0, -grade / .14));
+    let targetSpeed = baseSpeed * tuning.cruiseMultiplier + this.downhillIntensity * 4.5;
     if (this.activeOverdrive) {
-      targetSpeed *= 1.35; // 35% speed boost in Overdrive
+      targetSpeed *= tuning.boostMultiplier;
     }
-    if (input.isBraking) {
-      targetSpeed *= 0.75; // 25% brake reduction
-    }
-    this.forwardSpeed += (targetSpeed - this.forwardSpeed) * Math.min(1.0, dt * 6.0);
+    targetSpeed = Math.min(tuning.maxSpeed, targetSpeed);
+    if (input.isBraking) targetSpeed *= tuning.brakeFactor;
+    this.forwardSpeed += (targetSpeed - this.forwardSpeed) * (1 - Math.exp(-dt * (input.isBraking ? 14 : 8)));
 
     // 3. Lateral Steering
-    const steerInput = input.horizontalSteer;
+    const steerInput = Math.max(-1, Math.min(1, input.horizontalSteer));
     if (Math.abs(steerInput) > 0.05) {
       if(Math.sign(steerInput)!==this.previousSteerSign)this.steerCorrections++;
       this.previousSteerSign=Math.sign(steerInput);
-      this.lateralVelocity += steerInput * this.LATERAL_ACCEL * dt;
-      this.lateralVelocity = Math.max(-this.MAX_LATERAL_SPEED, Math.min(this.MAX_LATERAL_SPEED, this.lateralVelocity));
+      this.lateralVelocity += (steerInput * this.MAX_LATERAL_SPEED - this.lateralVelocity) * (1 - Math.exp(-22 * dt));
     } else {
       // Lateral drag to smoothly stop steering without snapping back to center
-      const drag = Math.sign(this.lateralVelocity) * Math.min(Math.abs(this.lateralVelocity), this.LATERAL_DRAG * dt);
-      this.lateralVelocity -= drag;
+      this.lateralVelocity *= Math.exp(-30 * dt);
     }
 
     this.laneX += this.lateralVelocity * dt;
     // Bound rider inside usable roadway
     const halfRoad = roadWidth * 0.45;
     this.laneX = Math.max(-halfRoad, Math.min(halfRoad, this.laneX));
+    if (Math.abs(this.laneX) >= halfRoad && Math.sign(this.lateralVelocity) === Math.sign(this.laneX)) this.lateralVelocity = 0;
 
     // 4. Vertical Physics & Jump
     if (this.isGrounded) {
@@ -249,7 +253,8 @@ window.RiderController = class RiderController {
 
       // Check distance to player
       const distToMesh = item.position.distanceTo(this.mesh.position.clone().add(new this.trackGen.THREE.Vector3(0, 1.0, 0)));
-      if (distToMesh < 1.0 || (itemS >= s0 && itemS <= s1 && Math.abs(this.laneX - item.userData.laneX) < .8 && Math.abs(this.y+1-item.position.y)<1.0)) {
+      const roadY = this.trackGen.getTrackPoint(itemS).y;
+      if (distToMesh < 1.0 || (itemS >= s0 && itemS <= s1 && Math.abs(this.laneX - item.userData.laneX) < .8 && Math.abs(roadY+this.y+1-item.position.y)<1.0)) {
         item.userData.collected = true;
         this.trackGen.scene.remove(item);
 
@@ -336,7 +341,7 @@ window.RiderController = class RiderController {
     }
 
     // 2. Smooth Banking / Lean in turns
-    const targetLean = -this.lateralVelocity * 0.07;
+    const targetLean = -this.lateralVelocity * 0.045;
     this.leanAngle += (targetLean - this.leanAngle) * Math.min(1.0, dt * 10.0);
     this.mesh.rotation.z = this.leanAngle;
 
@@ -367,5 +372,7 @@ window.RiderController = class RiderController {
 
     this.mesh.position.set(worldX, worldY, worldZ);
     this.mesh.rotation.y = Math.atan2(tan.x, tan.z);
+    this.mesh.rotation.order = 'YXZ';
+    this.mesh.rotation.x = -Math.atan(this.trackGen.getTrackGrade(this.s));
   }
 };

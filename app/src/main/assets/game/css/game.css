@@ -609,3 +609,11 @@ html, body {
   font-size: 0.75rem;
   z-index: 40;
 }
+#hud-speed {
+  position: absolute; top: 116px; left: 50%; transform: translateX(-50%);
+  color: #e7fbff; background: rgba(8, 32, 57, .78); border: 1px solid #8ce8ff;
+  border-radius: 20px; padding: 7px 15px; font-size: 12px; font-weight: 800;
+  letter-spacing: 1px; white-space: nowrap; pointer-events: none;
+}
+#hud-speed.turbo { color: #fff2a3; border-color: #ffd43b; background: rgba(65, 38, 8, .85); }
+@media (max-height: 480px) { #hud-speed { top: 90px; font-size: 10px; padding: 5px 12px; } }

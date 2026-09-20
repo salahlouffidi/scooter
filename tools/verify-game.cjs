@@ -4,7 +4,7 @@ global.window=global;global.THREE=require('../app/src/main/assets/game/lib/three
 global.localStorage={data:{},getItem(k){return this.data[k]||null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};
 const base=path.resolve(__dirname,'../app/src/main/assets/game');
 global.fetch=async()=>({ok:true,arrayBuffer:async()=>{const b=fs.readFileSync(base+'/models/louffi-world.glb');return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);}});
-['visualKit','kitLoader','storage','rounds','reachability','adaptiveML','assetFactory','trackGenerator','enhancedTrack','controller'].forEach(n=>require(base+'/js/'+n+'.js'));
+['visualKit','kitLoader','storage','rounds','arcadeEffects','reachability','adaptiveML','assetFactory','trackGenerator','enhancedTrack','controller'].forEach(n=>require(base+'/js/'+n+'.js'));
 (async()=>{
  await loadLouffiKit();assert.equal(louffiAssetStatus,'GLB loaded');
  for(const n of ['RiderScooter','Island','Castle','Tree','Cloud','Waterfall','Crate'])assert(louffiKit.getObjectByName(n),n);
@@ -28,10 +28,37 @@ global.fetch=async()=>({ok:true,arrayBuffer:async()=>{const b=fs.readFileSync(ba
  const input={horizontalSteer:0,isBraking:true,consumeJump(){const r=jump;jump=false;return r;}};
  for(let i=0;i<90;i++)rider.update(1/120,input,10,8,e=>{if(e==='fall')falls++;});
  assert.equal(falls,0,'2.4m gap clears at braking speed');assert(rider.s>gap.gapEnd);
+ // Responsive steering, release/reversal, slope-relative pickups and bounded turbo.
+ track.buildRound(ROUNDS_DATA[0],55);track.activeObstacles=[];
+ const controls={horizontalSteer:1,isBraking:false,consumeJump:()=>false};
+ rider.reset(0,12.5);
+ for(let i=0;i<12;i++)rider.update(1/120,controls,10,8);
+ assert(rider.lateralVelocity>7.8,'full steering response within 100ms');
+ controls.horizontalSteer=-1;
+ for(let i=0;i<12;i++)rider.update(1/120,controls,10,8);
+ assert(rider.lateralVelocity < -6.8,'rapid direction reversal');
+ controls.horizontalSteer=0;
+ for(let i=0;i<24;i++)rider.update(1/120,controls,10,8);
+ assert(Math.abs(rider.lateralVelocity)<.03,'release stops sideways drift');
+ rider.reset(40,12.5);for(let i=0;i<60;i++)rider.update(1/120,controls,10,8);
+ assert(rider.forwardSpeed>16,'downhill accelerates');
+ rider.applyPowerup('overdrive');for(let i=0;i<60;i++)rider.update(1/120,controls,10,8);
+ assert(rider.forwardSpeed>23 && rider.forwardSpeed<=ScooterTuning.maxSpeed);
+ controls.isBraking=true;for(let i=0;i<60;i++)rider.update(1/120,controls,10,8);
+ assert(rider.forwardSpeed<19,'brake works during turbo');controls.isBraking=false;
+ const item=track.activeCollectibles.find(m=>m.userData.s===31&&m.userData.type==='overdrive');
+ assert(item,'early guaranteed turbo pickup');
+ rider.reset(31,12.5);rider.laneX=item.userData.laneX;rider.updateMeshTransform();
+ rider.checkCollisions(30,32);assert(item.userData.collected&&rider.activeOverdrive,'collect pickup on slope');
+ assert(Math.abs(rider.mesh.position.y-track.getTrackPoint(31).y)<.001);
+ const fx=new ArcadeEffects(scene,THREE);fx.burst(rider.mesh.position,32);
+ fx.update(1/60,rider,track,{graphicsQuality:'high'},true);assert(fx.stars.count>0);assert.equal(fx.wind.geometry.drawRange.count,96);
+ fx.update(1/60,rider,track,{reducedMotion:true},true);assert.equal(fx.wind.geometry.drawRange.count,0);
+ fx.reset();assert.equal(fx.stars.count,0);assert(!fx.root.visible);
  const ml=new AdaptiveDifficultyML();assert.equal(ml.selectCandidate(ROUNDS_DATA[0],{hearts:3},validator).speedMultiplier,1);
  const features=new Array(10).fill(.5);for(let i=0;i<32;i++)ml.examples.push({features,label:i%4?1:0});
  const before=Array.from(ml.weights);ml.trainBatch();assert(ml.weights.some((v,i)=>v!==before[i]));ml.save();assert.equal(new AdaptiveDifficultyML().examples.length,32);
  const chosen=ml.selectCandidate(ROUNDS_DATA[0],{hearts:3},validator);assert(Number.isFinite(chosen.speedMultiplier));
  GameStorage.saveSettings({adaptiveDifficulty:false});const disabled=Array.from(ml.weights);ml.recordWindowOutcome(features,{},true);assert.deepEqual(Array.from(ml.weights),disabled);
- console.log('PASS: GLB parsing/geometry, seven named assets, 16 rounds, bounded active objects, real speed application, jump physics, ML training/persistence/OFF. Gap checks:',gapCount);
+ console.log('PASS: GLB parsing/geometry, seven named assets, 16 rounds, bounded active objects, responsive steering/reversal/release, downhill/turbo/brake speeds, sloped pickups, pooled effects/reduced motion, jump physics, ML training/persistence/OFF. Gap checks:',gapCount);
 })().catch(e=>{console.error(e);process.exitCode=1;});

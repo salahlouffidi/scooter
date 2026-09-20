@@ -3,7 +3,7 @@
 window.ReachabilityValidator = class ReachabilityValidator {
   constructor() {
     this.RIDER_WIDTH = 1.0; // Player collision width in meters
-    this.MAX_LATERAL_SPEED = 6.0; // Max lateral steering velocity m/s
+    this.MAX_LATERAL_SPEED = window.ScooterTuning.lateralSpeed; // Max lateral steering velocity m/s
     this.MAX_BRAKE_FACTOR = 0.25; // 25% deceleration
     this.JUMP_FLIGHT_TIME = 0.65; // Seconds in air during normal jump
     this.MIN_REACTION_TIME = 2.0; // At least 2.0s warning before unavoidable hazard
@@ -13,8 +13,8 @@ window.ReachabilityValidator = class ReachabilityValidator {
   // Validates if candidate difficulty parameters allow at least one safe navigable route
   validateLayout(p) {
     const flight=2*8.5/22;
-    if(p.gapWidth && p.gapWidth+1 > p.speed/1.35/1.1*.75*flight) return false;
-    if(Math.abs(p.safeLane-p.previousLane)/6.2+.4 > p.length/p.speed) return false;
+    if(p.gapWidth && p.gapWidth+1 > (p.minSpeed || p.speed/1.35/1.1*.75)*flight) return false;
+    if(Math.abs(p.safeLane-p.previousLane)/this.MAX_LATERAL_SPEED+.4 > p.length/p.speed) return false;
     if(Math.abs(p.safeLane)>p.roadWidth*.4) return false;
     return p.hazards.every(h=>Math.abs(h.laneX-p.safeLane)>=1.8);
   }
@@ -87,3 +87,4 @@ window.ReachabilityValidator = class ReachabilityValidator {
     return true;
   }
 };
+

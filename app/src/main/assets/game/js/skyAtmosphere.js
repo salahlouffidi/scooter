@@ -142,6 +142,7 @@ window.SkyAtmosphere = class SkyAtmosphere {
         const tower = this.factory.createCastleTower(rock || 0x78909c);
         tower.scale.setScalar(0.55 + Math.random() * 0.25);
         tower.position.set(0, cfg.y + 1.2, cfg.z);
+        tower.userData = {...island.userData, height: cfg.y + 1.2};
         tower.traverse(m => {
           if (m.isMesh) {
             m.castShadow = false;
@@ -164,6 +165,7 @@ window.SkyAtmosphere = class SkyAtmosphere {
 
   // --- Per-round atmosphere ---
   applyRound(roundData) {
+    this.cloudSprites.forEach((sprite, i) => { sprite.userData.z = i * 45 - 20; });
     this.roundData = roundData;
     const T = this.THREE;
     const sky = new T.Color(roundData.skyColor);
@@ -216,6 +218,7 @@ window.SkyAtmosphere = class SkyAtmosphere {
     this.configureSun(theme);
     this.clearDistantScenery();
     this.buildDistantScenery();
+    this.setQuality(this.quality);
   }
 
   // World-space sun/moon sprite that stays ahead of the camera.

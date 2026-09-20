@@ -40,6 +40,7 @@ window.InputManager = class InputManager {
       e.preventDefault();
       if (this.joystickPointerId !== null) return;
       this.joystickPointerId = e.pointerId;
+      joystickArea.setPointerCapture(e.pointerId);
       const rect = joystickArea.getBoundingClientRect();
       this.joystickStartX = e.clientX;
       this.joystickCurrentX = e.clientX;
@@ -100,6 +101,7 @@ window.InputManager = class InputManager {
     if (btnBrake) {
       btnBrake.addEventListener('pointerdown', (e) => {
         e.preventDefault();
+        btnBrake.setPointerCapture(e.pointerId);
         this.isBraking = true;
       });
       btnBrake.addEventListener('pointerup', (e) => {
