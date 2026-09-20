@@ -35,6 +35,7 @@ window.SkyScooterGame = class SkyScooterGame {
     this.renderer = null;
     this.dirLight = null;
     this.hemiLight = null;
+    this.sky = null;
 
     // Systems
     this.factory = null;
@@ -60,6 +61,7 @@ window.SkyScooterGame = class SkyScooterGame {
     this.initThree();
     this.factory = new window.AssetFactory(this.THREE);
     this.trackGen = new window.TrackGenerator(this.scene, this.factory, this.THREE);
+    this.sky = new window.SkyAtmosphere(this.scene, this.THREE, this.factory, this.trackGen);
     this.input = new window.InputManager();
     this.ml = new window.AdaptiveDifficultyML();
     this.validator = new window.ReachabilityValidator();
@@ -93,7 +95,7 @@ window.SkyScooterGame = class SkyScooterGame {
     const THREE = this.THREE;
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x4fc3f7);
-    this.scene.fog = new THREE.FogExp2(0xb3e5fc, 0.007);
+    this.scene.fog = new THREE.FogExp2(0xb3e5fc, 0.006);
 
     const aspect = window.innerWidth / window.innerHeight;
     this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 800);
@@ -147,6 +149,67 @@ window.SkyScooterGame = class SkyScooterGame {
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
       this.renderer.shadowMap.enabled = true;
     }
+    if (this.sky) this.sky.setQuality(quality);
+  }
+
+  applyRoundAtmosphere(roundData) {
+    const THREE = this.THREE;
+    const sky = new THREE.Color(roundData.skyColor);
+    const fog = new THREE.Color(roundData.fogColor);
+    const hsl = {};
+    sky.getHSL(hsl);
+    const isNight = hsl.l < 0.38;
+    const theme = roundData.theme || '';
+    const isWarm = theme === 'sunset' || theme === 'volcano' || theme === 'desert';
+    const isStorm = theme === 'storm';
+
+    this.scene.background = sky.clone();
+    this.scene.fog = new THREE.FogExp2(fog, this.fogDensityFor(roundData));
+
+    // Hemisphere fill uses the round's ambient tint, grounded by a cool/warm floor.
+    const hemiSky = new THREE.Color(roundData.ambientLight || 0xffffff);
+    const hemiGround = isNight ? new THREE.Color(0x1c2333) : new THREE.Color(0x8d6e63);
+    this.hemiLight.color.copy(hemiSky);
+    this.hemiLight.groundColor.copy(hemiGround);
+
+    // Key light: warm sun for day, amber for sunset, cool moon for night.
+    let dirColor, dirIntensity, hemiIntensity, exposure;
+    if (isNight) {
+      dirColor = new THREE.Color(0xaecbff);
+      dirIntensity = 0.9;
+      hemiIntensity = 0.55;
+      exposure = 1.05;
+    } else if (isStorm) {
+      dirColor = new THREE.Color(0xe8f4ff);
+      dirIntensity = 1.2;
+      hemiIntensity = 0.8;
+      exposure = 1.0;
+    } else if (isWarm) {
+      dirColor = new THREE.Color(0xffd0a0);
+      dirIntensity = 1.9;
+      hemiIntensity = 1.2;
+      exposure = 1.2;
+    } else {
+      dirColor = new THREE.Color(0xfff2dc);
+      dirIntensity = 2.2;
+      hemiIntensity = 1.35;
+      exposure = 1.25;
+    }
+
+    this.hemiLight.intensity = hemiIntensity;
+    this.dirLight.color.copy(dirColor);
+    this.dirLight.intensity = dirIntensity;
+    this.renderer.toneMappingExposure = exposure;
+
+    if (this.sky) this.sky.applyRound(roundData);
+  }
+
+  fogDensityFor(roundData) {
+    const hsl = {};
+    new this.THREE.Color(roundData.skyColor).getHSL(hsl);
+    if (hsl.l < 0.35) return 0.004;
+    if (roundData.theme === 'storm') return 0.009;
+    return 0.006;
   }
 
   // --- State Transitions ---
@@ -183,6 +246,7 @@ window.SkyScooterGame = class SkyScooterGame {
     // Prepare animated 3D background with Round 1 track
     const r1 = window.ROUNDS_DATA[0];
     this.trackGen.buildRound(r1, 42);
+    this.applyRoundAtmosphere(r1);
     this.riderCtrl.reset(0, 0); // idle in menu
 
     if (window.GameAudio) window.GameAudio.startMusic();
@@ -210,10 +274,8 @@ window.SkyScooterGame = class SkyScooterGame {
     this.coinsCollectedThisRun = 0;
     this.totalSpawnedCoinsEstimate = Math.floor(roundData.length / 14);
 
-    // Apply Biome visual colors
-    this.scene.background = new this.THREE.Color(roundData.skyColor);
-    this.scene.fog.color = new this.THREE.Color(roundData.fogColor);
-    this.hemiLight.color = new this.THREE.Color(0xc8eaff);
+    // Apply Biome atmosphere (sky, fog, lighting)
+    this.applyRoundAtmosphere(roundData);
 
     // Build track with seeded randomness
     const seed = Date.now();
@@ -570,6 +632,14 @@ window.SkyScooterGame = class SkyScooterGame {
     // 2. Camera Update
     if (this.state === 'PLAYING' || this.state === 'COUNTDOWN') {
       this.gameCam.update(dt, this.riderCtrl.mesh, this.trackGen, this.riderCtrl.activeOverdrive, settings);
+    }
+
+    // Sky atmosphere follows the camera focus (menu camera or rider)
+    if (this.sky) {
+      const skyFocus = (this.state === 'MENU' || this.state === 'ROUND_SELECT')
+        ? this.camera.position
+        : (this.riderCtrl ? this.riderCtrl.mesh.position : null);
+      this.sky.update(skyFocus, dt);
     }
 
     // 3. Render 3D Scene

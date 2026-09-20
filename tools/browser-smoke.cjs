@@ -13,8 +13,10 @@ const root=path.resolve(__dirname,'../app/src/main/assets/game');
   assert(await page.locator('#joystick-zone').isVisible());assert(await page.locator('#btn-hud-pause').isVisible());
   assert(await page.evaluate(()=>{const e=document.getElementById('joystick-zone'),r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),'joystick above canvas');
   await page.keyboard.down('ArrowRight');await page.waitForTimeout(500);await page.keyboard.up('ArrowRight');
+  await page.waitForFunction(()=>Math.abs(gameInstance.riderCtrl.laneX)>.01,null,{timeout:3000});
   const steerState=await page.evaluate(()=>({lane:gameInstance.riderCtrl.laneX,state:gameInstance.state,keys:gameInstance.input.keys}));console.log('steer',steerState);assert(Math.abs(steerState.lane)>.01);
-  await page.keyboard.down('Space');await page.waitForTimeout(120);await page.keyboard.up('Space');assert(await page.evaluate(()=>gameInstance.riderCtrl.jumpAttempts>0));
+  await page.keyboard.down('Space');await page.waitForTimeout(120);await page.keyboard.up('Space');
+  await page.waitForFunction(()=>gameInstance.riderCtrl.jumpAttempts>0,null,{timeout:3000});
   await page.click('#btn-hud-pause');const s=await page.evaluate(()=>gameInstance.riderCtrl.s);await page.waitForTimeout(150);assert.equal(await page.evaluate(()=>gameInstance.riderCtrl.s),s);
   await page.click('#btn-pause-resume');await page.waitForFunction(()=>gameInstance.state==='PLAYING');
   // Take an actual rendered frame with the player centered, without altering asset visibility.

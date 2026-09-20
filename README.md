@@ -2,6 +2,10 @@
 
 Android WebView + offline Three.js scooter runner. This update adds a reference-inspired warm stone bridge, wooden rails, a rounded helmeted rider, blue scooter, floating islands, leafy trees, castle towers, clouds and waterfalls. It is original stylized geometry, not an exact reconstruction of the reference illustration.
 
+## Sky & lighting polish
+
+`js/skyAtmosphere.js` adds a camera-following gradient sky dome, a world-space sun/moon glow sprite, canvas stars for night rounds, drifting cloud sprites and distant recycled floating islands. `game.js` applies per-round atmosphere: fog density, hemisphere and directional light color/intensity, and tone-mapping exposure are derived from each round's `skyColor`, `fogColor`, `ambientLight` and `theme` (night, warm sunset, storm, and default day). The sky respects the graphics quality setting — low quality hides clouds and distant islands, keeping only the dome, sun and stars.
+
 ## One reusable Blender-compatible asset file
 
 `app/src/main/assets/game/models/louffi-world.glb` is a real binary glTF 2.0 asset containing named RiderScooter, Island, Castle, Tree, Cloud, Waterfall and Crate groups. In Blender use **File → Import → glTF 2.0** to edit it. There are not sixteen duplicate level files. The game loads and clones these shared assets. This is a GLB, not a native `.blend` project.
@@ -13,6 +17,8 @@ Android WebView + offline Three.js scooter runner. This update adds a reference-
 Serve `app/src/main/assets/game` with a local HTTP server, for example `python -m http.server 8765 --directory app/src/main/assets/game`. Open localhost:8765. Touch joystick steers; right buttons jump/brake. Desktop A/D or arrows, Space, S/down, Escape. Android requests landscape orientation.
 
 Run `node tools/verify-game.cjs`. It checks real GLB parsing and geometry, all sixteen round generators, bounded active objects, short-gap jump physics, applied difficulty parameters, ML weight changes, persistence and adaptive OFF. These CPU checks do not establish Android frame rate or visual quality on a device.
+
+`node tools/browser-smoke.cjs` runs a real headless-browser pass (Playwright, now a devDependency): it loads the GLB, plays, steers, jumps, pauses/resumes, and asserts no page errors. Set `CHROMIUM_EXECUTABLE_PATH` to use a system Chrome/Edge instead of downloading browsers.
 
 Open the Android project in Android Studio to build/test on a device. This change does not include a signed release APK/AAB.
 

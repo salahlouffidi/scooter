@@ -21,23 +21,23 @@ window.AssetFactory = class AssetFactory {
     this.materials.riderSkin = new THREE.MeshLambertMaterial({ color: 0xffcc80 }); // Skin tone
     this.materials.riderShoe = new THREE.MeshLambertMaterial({ color: 0xffffff }); // White sneakers
 
-    this.materials.scooterMetal = new THREE.MeshStandardMaterial({ color: 0x78909c, metalness: 0.8, roughness: 0.3 });
+    this.materials.scooterMetal = new THREE.MeshStandardMaterial({ color: 0x78909c, metalness: 0.55, roughness: 0.35 });
     this.materials.scooterDeck = new THREE.MeshLambertMaterial({ color: 0x37474f });
     this.materials.scooterTire = new THREE.MeshLambertMaterial({ color: 0x111111 });
     this.materials.scooterGrip = new THREE.MeshLambertMaterial({ color: 0x263238 });
 
     this.materials.goldCoin = new THREE.MeshStandardMaterial({
       color: 0xffd700,
-      metalness: 0.9,
-      roughness: 0.2,
-      emissive: 0x332200
+      metalness: 0.35,
+      roughness: 0.25,
+      emissive: 0x664400
     });
 
     this.materials.gem = new THREE.MeshStandardMaterial({
       color: 0xba68c8,
-      metalness: 0.4,
-      roughness: 0.1,
-      emissive: 0x4a148c
+      metalness: 0.15,
+      roughness: 0.15,
+      emissive: 0x7b1fa2
     });
 
     this.materials.crate = new THREE.MeshLambertMaterial({ color: 0x8d6e63 });
