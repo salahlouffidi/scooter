@@ -206,6 +206,9 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
       if(!gap&&!safe&&this.rng()<this.difficulty.magicPickupChance)this.addItem(this.factory.createPowerup('magic_fruit'),s+11,safeLane,1.25,{id:`fruit_${s}`,isPowerup:true,type:'magic_fruit'});
       if(!gap&&!safe&&this.rng()<this.difficulty.propulsorChance)this.addItem(this.factory.createPowerup('propulsor'),s+15,safeLane,1.35,{id:`lift_${s}`,isPowerup:true,type:'propulsor'});
       if(!gap&&this.rng()<.16)this.addItem(this.factory.createGem(),s+9,safeLane,1.15,{id:`gem_${s}`,isGem:true});
+      // Start at 61m in each city, in the validated safe lane. No extra RNG
+      // calls: restoring an older run keeps its original obstacle sequence.
+      if(!gap&&s%192===48)this.addItem(this.factory.createPowerup('antigravity'),s+13,safeLane,1.3,{id:`hover_${s}`,isPowerup:true,type:'antigravity'});
     }
     // Street walls on both sides enclose the playable route. Cross streets give
     // brief skyline reveals; the destination landmark is large enough to read.
@@ -270,7 +273,13 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
   }
   updateMovingObjects(){
     const t=this.simulationTime;
-    this.activeCollectibles.forEach(m=>{m.rotation.y=t*1.7;m.position.y=m.userData.baseY+Math.sin(t*2+m.userData.s)*.1;});
+    this.activeCollectibles.forEach(m=>{
+      m.rotation.y=t*1.7;m.position.y=m.userData.baseY+Math.sin(t*2+m.userData.s)*.1;
+      if(m.userData.type==='antigravity'){
+        m.getObjectByName('antigravityOuterRing').rotation.y=t*2.6;
+        m.getObjectByName('antigravityInnerRing').rotation.y=-t*3.4;
+      }
+    });
     // Traffic breathes and drifts within its own lane, creating a moving city
     // without invalidating the validator's guaranteed safe lane.
     for(const obs of this.activeObstacles){

@@ -1,7 +1,9 @@
 // Shared tuning keeps controls and generated-route validation in agreement.
 window.ScooterTuning = Object.freeze({
   testAllRounds: true, cruiseMultiplier: 1.25, boostMultiplier: 1.55,
-  maxSpeed: 28, lateralSpeed: 9, brakeFactor: .65, jumpVelocity: 10.5, gravity: 22
+  maxSpeed: 28, lateralSpeed: 9, brakeFactor: .65, jumpVelocity: 10.5, gravity: 22,
+  antigravityDuration: 8, antigravityGravity: .22, antigravitySteer: 1.45,
+  antigravityResponse: 38, glideFallSpeed: 1.4, hoverHeight: .32
 });
 
 window.createScooterStar = function(T, radius = .5) {
@@ -46,10 +48,10 @@ window.ArcadeEffects = class ArcadeEffects {
     this.flames.forEach(f => { f.visible = false; });
     this.stars.count = 0; this.wind.geometry.setDrawRange(0, 0);
   }
-  burst(position, count = 16) {
+  burst(position, count = 16, color = 0xffdd55) {
     for (let i = 0; i < count; i++) {
       const p = this.pool[this.cursor++ % this.pool.length], a = i * 2.39996;
-      p.trail = false; p.color.set(0xffdd55);
+      p.trail = false; p.hover = false; p.color.set(color);
       p.p.copy(position); p.p.y += .8; p.v.set(Math.cos(a) * 2.4, 1.5 + Math.random() * 2, Math.sin(a) * 2.4);
       p.life = p.maxLife = .55 + Math.random() * .35; p.spin = a;
     }
@@ -57,20 +59,21 @@ window.ArcadeEffects = class ArcadeEffects {
   emitTrail(rider) {
     const p = this.pool[this.cursor++ % this.pool.length];
     p.trail = true;
+    p.hover = !!rider.activeAntigravity;
     p.p.set(0, .32, -1.3).applyQuaternion(rider.mesh.quaternion).add(rider.mesh.position);
-    p.v.set(Math.sin(this.time * 17) * .35, .3, -.8).applyQuaternion(rider.mesh.quaternion);
-    p.color.setHSL((this.time * .45) % 1, .95, .62);
-    p.life = p.maxLife = .8; p.spin = this.time * 8;
+    p.v.set(Math.sin(this.time * 17) * .35, p.hover ? .9 : .3, -.8).applyQuaternion(rider.mesh.quaternion);
+    p.color.setHSL(p.hover ? .76 + Math.sin(this.time * 4) * .025 : (this.time * .45) % 1, .95, p.hover ? .75 : .62);
+    p.life = p.maxLife = p.hover ? 1 : .8; p.spin = this.time * 8;
   }
   update(dt, rider, track, settings, playing) {
     this.root.visible = playing;
     if (!playing) { this.flames.forEach(f => { f.visible = false; }); return; }
     this.time += dt;
     const T = this.T, tan = track.getTrackTangent(rider.s), pos = rider.mesh.position;
-    const rush = Math.max(rider.activeOverdrive ? 1 : 0, rider.activeSkyFlight ? 2 : 0, rider.downhillIntensity || 0);
+    const rush = Math.max(rider.activeOverdrive ? 1 : 0, rider.activeSkyFlight ? 2 : 0, rider.activeAntigravity ? 1.2 : 0, rider.downhillIntensity || 0);
     const count = settings.reducedMotion ? 0 : (settings.graphicsQuality === 'low' ? 16 : 48);
     this.wind.material.opacity = .12 + rush * .65;
-    this.wind.material.color.set(rider.activeSkyFlight ? 0x70f4ff : rider.activeOverdrive ? 0xffe9a0 : 0xc5f7ff);
+    this.wind.material.color.set(rider.activeAntigravity ? 0xc18aff : rider.activeSkyFlight ? 0x70f4ff : rider.activeOverdrive ? 0xffe9a0 : 0xc5f7ff);
     for (let i = 0; i < count; i++) {
       const cycle = (this.time * (1.4 + rush) + i * .618) % 1;
       const behind = .5 + cycle * (6 + rush * 5), angle = i * 2.39996;
@@ -90,7 +93,7 @@ window.ArcadeEffects = class ArcadeEffects {
       flame.scale.set(1, 1, flicker);
       flame.material.opacity = .75 + flicker * .2;
     });
-    if (turboOn) {
+    if (turboOn || (rider.activeAntigravity && !settings.reducedMotion)) {
       this.emission += dt * (settings.graphicsQuality === 'low' ? 5 : 10);
       while (this.emission >= 1) { this.emitTrail(rider); this.emission--; }
     } else {
@@ -101,7 +104,7 @@ window.ArcadeEffects = class ArcadeEffects {
       if (p.life <= 0) continue;
       if (settings.reducedMotion && p.trail) { p.life = 0; continue; }
       p.life -= dt; if (p.life <= 0) continue;
-      p.p.addScaledVector(p.v, dt); p.v.y -= dt * 3;
+      p.p.addScaledVector(p.v, dt); p.v.y -= dt * (p.hover ? .15 : 3);
       this.dummy.position.copy(p.p); this.dummy.rotation.set(0, this.time * 2 + p.spin, this.time * 4 + p.spin);
       this.dummy.scale.setScalar(Math.min(1, p.life / p.maxLife * 2) * (p.trail ? .42 : 1)); this.dummy.updateMatrix();
       this.stars.setColorAt(visible, p.color);

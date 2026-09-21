@@ -46,6 +46,11 @@ window.RiderController = class RiderController {
     this.activeSkyFlight = false;
     this.skyFlightTimer = 0.0;
     this.skyFlightDuration = 3.6;
+    this.activeAntigravity = false;
+    this.antigravityTimer = 0;
+    this.hoverOffset = 0;
+    this.isGliding = false;
+    this.reducedMotion = false;
 
     // Checkpoint & stats tracking
     this.furthestS = 0.0;
@@ -93,10 +98,15 @@ window.RiderController = class RiderController {
     this.faultGuardCharges = 0;
     this.activeSkyFlight = false;
     this.skyFlightTimer = 0;
+    this.activeAntigravity = false;
+    this.antigravityTimer = 0;
+    this.hoverOffset = 0;
+    this.isGliding = false;
 
     this.furthestS = s;
     this.lastCheckpointS = s;
     this.recentDamageCount=0;this.jumpAttempts=0;this.jumpSuccesses=0;this.steerCorrections=0;this.coinsCollectedInWindow=0;
+    this.updateProceduralAnimations(0);
     this.updateMeshTransform();
   }
 
@@ -105,7 +115,7 @@ window.RiderController = class RiderController {
     this.trackGen.restoreCheckpoint?.(this.lastCheckpointS);
     this.s = this.lastCheckpointS;
     this.laneX = 0.0;
-    this.y = 0;
+    this.y = this.hoverOffset;
     this.verticalVelocity = 0.0;
     this.lateralVelocity = 0.0;
     this.isGrounded = true;
@@ -127,12 +137,23 @@ window.RiderController = class RiderController {
 
   step(dt, input, baseSpeed, roadWidth, onEvent) {
     const previous={s:this.s,laneX:this.laneX,y:this.y};
+    const oldHover = this.hoverOffset;
+    if (this.activeAntigravity) {
+      this.antigravityTimer = Math.max(0, this.antigravityTimer - dt);
+      this.activeAntigravity = this.antigravityTimer > 0;
+      if (!this.activeAntigravity && onEvent) onEvent('antigravity_end');
+    }
+    const hoverTarget = this.activeAntigravity ? window.ScooterTuning.hoverHeight : 0;
+    this.hoverOffset += (hoverTarget - this.hoverOffset) * (1 - Math.exp(-28 * dt));
+    if (Math.abs(this.hoverOffset - hoverTarget) < .0001) this.hoverOffset = hoverTarget;
+    // Lift only the supported rider. Airborne height is continuous on pickup/expiry.
+    if (this.isGrounded && !this.supportId) this.y += this.hoverOffset - oldHover;
     if(this.supportId && this.isGrounded){
       const support=this.trackGen.activeObstacles.find(o=>o.userData.id===this.supportId);
       const c=support?.userData.collision;
       if(!c || Math.abs(this.s-support.userData.s)>c.halfLength+.15 || Math.abs(this.laneX-support.userData.laneX)>c.halfWidth+.15){
         this.supportId=null;this.isGrounded=false;this.verticalVelocity=0;
-      } else this.y=this.trackGen.getTrackPoint(support.userData.s).y+c.top-this.trackGen.getTrackPoint(this.s).y;
+      } else this.y=this.trackGen.getTrackPoint(support.userData.s).y+c.top-this.trackGen.getTrackPoint(this.s).y+this.hoverOffset;
     }
     // 1. Update timers
     if (this.invulnerableTimer > 0) {
@@ -207,7 +228,9 @@ window.RiderController = class RiderController {
     if (Math.abs(steerInput) > 0.05) {
       if(Math.sign(steerInput)!==this.previousSteerSign)this.steerCorrections++;
       this.previousSteerSign=Math.sign(steerInput);
-      this.lateralVelocity += (steerInput * this.MAX_LATERAL_SPEED - this.lateralVelocity) * (1 - Math.exp(-22 * dt));
+      const lateralSpeed = this.MAX_LATERAL_SPEED * (this.activeAntigravity ? tuning.antigravitySteer : 1);
+      const response = this.activeAntigravity ? tuning.antigravityResponse : 22;
+      this.lateralVelocity += (steerInput * lateralSpeed - this.lateralVelocity) * (1 - Math.exp(-response * dt));
     } else {
       // Lateral drag to smoothly stop steering without snapping back to center
       this.lateralVelocity *= Math.exp(-30 * dt);
@@ -239,6 +262,7 @@ window.RiderController = class RiderController {
       }
     }
 
+    this.isGliding = false;
     if (this.activeSkyFlight) {
       const progress = 1 - this.skyFlightTimer / Math.max(.1, this.skyFlightDuration);
       if (this.skyFlightTimer <= 0) {
@@ -254,13 +278,18 @@ window.RiderController = class RiderController {
         this.isGrounded = false;
       }
     } else if (!this.isGrounded) {
-      this.verticalVelocity -= this.GRAVITY * dt;
+      this.verticalVelocity -= this.GRAVITY * (this.activeAntigravity ? tuning.antigravityGravity : 1) * dt;
+      if (this.activeAntigravity && input.isJumpHeld && this.verticalVelocity < 0) {
+        this.verticalVelocity = Math.max(-tuning.glideFallSpeed, this.verticalVelocity);
+        this.isGliding = true;
+      }
       this.y += this.verticalVelocity * dt;
 
-      if (this.y <= 0) {
-        this.y = 0;
+      if (this.y <= this.hoverOffset) {
+        this.y = this.hoverOffset;
         this.verticalVelocity = 0;
         this.isGrounded = true;
+        this.isGliding = false;
       }
     }
 
@@ -361,8 +390,8 @@ window.RiderController = class RiderController {
       const footEntry=foot0+(foot1-foot0)*enter;
       const onFootprint=this.s>=minS&&this.s<=maxS&&this.laneX>=minX&&this.laneX<=maxX;
       if(this.activeSkyFlight || footEntry>=top-.035){
-        if(onFootprint && foot1<=top+.04 && (this.verticalVelocity<=0 || this.supportId===d.id)){
-          this.y=top-this.trackGen.getTrackPoint(this.s).y;this.verticalVelocity=0;this.isGrounded=true;support=d.id;
+        if(onFootprint && foot1<=top+this.hoverOffset+.04 && (this.verticalVelocity<=0 || this.supportId===d.id)){
+          this.y=top-this.trackGen.getTrackPoint(this.s).y+this.hoverOffset;this.verticalVelocity=0;this.isGrounded=true;this.isGliding=false;support=d.id;
           if(!d.roofAwarded){d.roofAwarded=true;if(onEvent)onEvent('roof_landing');}
         } else if(!d.roofAwarded && this.s>d.s+c.halfLength){
           d.roofAwarded=true;if(onEvent)onEvent('jump_challenge');
@@ -389,6 +418,7 @@ window.RiderController = class RiderController {
       'invulnerableTimer','isInvulnerable','wobbleTimer','activeShield','shieldTimer','activeMagnet','magnetTimer',
       'activeDouble','doubleTimer','activeOverdrive','overdriveTimer','activeMagicRush','magicRushTimer','faultGuardCharges',
       'activeSkyFlight','skyFlightTimer','skyFlightDuration','furthestS','lastCheckpointS','recentDamageCount',
+      'activeAntigravity','antigravityTimer','hoverOffset','isGliding',
       'jumpAttempts','jumpSuccesses','steerCorrections','coinsCollectedInWindow','leanAngle','downhillIntensity','wheelRotation','idleTime']) saved[key]=this[key];
     return saved;
   }
@@ -396,6 +426,7 @@ window.RiderController = class RiderController {
     this.reset();
     for(const key of Object.keys(this.captureState()))if(typeof saved[key]==='boolean'||Number.isFinite(saved[key]))this[key]=saved[key];
     this.supportId=typeof saved.supportId==='string'?saved.supportId:null;
+    this.updateProceduralAnimations(0);
     this.updateMeshTransform();
   }
 
@@ -419,6 +450,10 @@ window.RiderController = class RiderController {
       this.activeOverdrive = true;
       this.overdriveTimer = Math.max(this.overdriveTimer, 10.0);
       if (onEvent) onEvent('magic_fruit');
+    } else if (type === 'antigravity') {
+      this.activeAntigravity = true;
+      this.antigravityTimer = window.ScooterTuning.antigravityDuration;
+      if (onEvent) onEvent('antigravity_launch');
     } else if (type === 'propulsor') {
       this.activeSkyFlight = true;
       this.skyFlightDuration = 3.6;
@@ -448,10 +483,22 @@ window.RiderController = class RiderController {
     // 1. Wheel spin based on forward travel
     this.wheelRotation += (this.forwardSpeed * dt) / 0.18;
     if (this.mesh.userData.frontWheel) {
+      this.mesh.userData.frontWheel.rotation.order = 'ZYX';
       this.mesh.userData.frontWheel.rotation.x = this.wheelRotation;
+      this.mesh.userData.frontWheel.rotation.z = this.hoverOffset / window.ScooterTuning.hoverHeight * Math.PI / 2;
     }
     if (this.mesh.userData.backWheel) {
+      this.mesh.userData.backWheel.rotation.order = 'ZYX';
       this.mesh.userData.backWheel.rotation.x = this.wheelRotation;
+      this.mesh.userData.backWheel.rotation.z = -this.hoverOffset / window.ScooterTuning.hoverHeight * Math.PI / 2;
+    }
+    const ring = this.mesh.userData.hoverRing;
+    if (ring) {
+      const blend = this.hoverOffset / window.ScooterTuning.hoverHeight;
+      const pulse = this.reducedMotion ? 1 : .9 + Math.sin(this.idleTime * 1.6) * .1;
+      ring.visible = blend > .01;
+      ring.scale.setScalar(this.reducedMotion ? 1 : 1 + Math.sin(this.idleTime) * .035);
+      for (const part of ring.children) part.material.opacity = part.userData.baseOpacity * blend * pulse;
     }
 
     // 2. Smooth Banking / Lean in turns

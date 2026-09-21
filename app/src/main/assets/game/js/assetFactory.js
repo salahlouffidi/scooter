@@ -108,6 +108,12 @@ window.AssetFactory = class AssetFactory {
       roughness: .16
     });
 
+    this.materials.antigravityRing = new THREE.MeshStandardMaterial({
+      color: 0xbb70ff, emissive: 0x8e26ed, emissiveIntensity: 1.5,
+      metalness: .45, roughness: .22
+    });
+    this.materials.antigravityCore = new THREE.MeshBasicMaterial({color: 0xf0d7ff});
+
     this.materials.heartPowerup = new THREE.MeshLambertMaterial({
       color: 0xff1744,
       emissive: 0x550011
@@ -134,6 +140,7 @@ window.AssetFactory = class AssetFactory {
       const root = window.louffiKit.getObjectByName('RiderScooter').clone(true);
       root.userData = {};
       ['scooter','rider','frontWheel','backWheel','headGroup','leftLeg','rightLeg'].forEach(name => root.userData[name] = root.getObjectByName(name));
+      this.addHoverRing(root);
       return root;
     }
     const THREE = this.THREE;
@@ -288,7 +295,25 @@ window.AssetFactory = class AssetFactory {
       rightLeg: rightLeg
     };
 
+    this.addHoverRing(root);
     return root;
+  }
+
+  addHoverRing(root) {
+    const T = this.THREE, ring = new T.Group();
+    ring.name = 'scooterHoverRing';
+    ring.position.set(0, .04, -.12);
+    for (const [tube, opacity] of [[.03, .85], [.085, .16]]) {
+      const mesh = new T.Mesh(new T.TorusGeometry(.62, tube, 6, 40),
+        new T.MeshBasicMaterial({color: 0xbf78ff, transparent: true, opacity, depthWrite: false}));
+      mesh.rotation.x = Math.PI / 2;
+      mesh.scale.y = 1.65;
+      mesh.userData.baseOpacity = opacity;
+      ring.add(mesh);
+    }
+    ring.visible = false;
+    root.add(ring);
+    root.userData.hoverRing = ring;
   }
 
   // Procedural Gold Coin
@@ -370,6 +395,18 @@ window.AssetFactory = class AssetFactory {
       for (let i = 0; i < 3; i++) {
         const flame = new THREE.Mesh(new THREE.ConeGeometry(.12, .55, 6), this.materials.warningWhite);
         const a = i * Math.PI * 2 / 3; flame.position.set(Math.cos(a) * .4, -.52, Math.sin(a) * .4); flame.rotation.x = Math.PI; group.add(flame);
+      }
+    } else if (type === 'antigravity') {
+      const core = new THREE.Mesh(new THREE.IcosahedronGeometry(.28, 1), this.materials.antigravityCore);
+      group.add(core);
+      // Named pivots survive cloning and streaming without Object3D references in userData.
+      for (const [name, radius, tilt] of [['antigravityOuterRing', .68, .65], ['antigravityInnerRing', .49, -.75]]) {
+        const pivot = new THREE.Group(); pivot.name = name;
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, .055, 8, 32), this.materials.antigravityRing);
+        ring.rotation.x = tilt;
+        pivot.add(ring); group.add(pivot);
+        const node = new THREE.Mesh(new THREE.SphereGeometry(.09, 8, 6), this.materials.antigravityCore);
+        node.position.x = radius; ring.add(node);
       }
     } else if (type === 'heart') {
       // Heart shape with spheres + cone

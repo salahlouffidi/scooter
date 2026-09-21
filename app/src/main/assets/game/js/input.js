@@ -7,6 +7,7 @@ window.InputManager = class InputManager {
     this.isBraking = false;
     this.buttonBraking = false;
     this.isJumpPressed = false;
+    this.jumpPointerId = null;
     this.jumpBufferTimer = 0.0;
     this.onPauseRequested = null;
 
@@ -108,12 +109,21 @@ window.InputManager = class InputManager {
     if (btnJump) {
       btnJump.addEventListener('pointerdown', (e) => {
         e.preventDefault();
+        if (this.jumpPointerId !== null) return;
+        this.jumpPointerId = e.pointerId;
+        btnJump.setPointerCapture(e.pointerId);
         this.triggerJump();
       });
-      btnJump.addEventListener('pointerup', (e) => {
-        e.preventDefault();
-        this.isJumpPressed = false;
-      });
+      const releaseJump = (e) => {
+        if (e.type !== 'lostpointercapture' && this.jumpPointerId !== null && e.pointerId !== this.jumpPointerId) return;
+        this.jumpPointerId = null;
+        this.isJumpPressed = !!this.keys.Space;
+      };
+      window.addEventListener('pointerup', releaseJump);
+      window.addEventListener('pointercancel', releaseJump);
+      btnJump.addEventListener('pointerup', releaseJump);
+      btnJump.addEventListener('pointercancel', releaseJump);
+      btnJump.addEventListener('lostpointercapture', releaseJump);
     }
 
     // 3. Brake Button (Independent Pointer)
@@ -182,12 +192,19 @@ window.InputManager = class InputManager {
     this.jumpBufferTimer = 0.22; // 220ms jump buffering
   }
 
+  // A held button is independent of the one-shot jump buffer. Consuming a
+  // jump never releases the glider, and holding never triggers another jump.
+  get isJumpHeld() {
+    return this.jumpPointerId !== null || !!this.keys.Space;
+  }
+
   initKeyboard() {
     window.addEventListener('keydown', (e) => {
+      const wasDown = !!this.keys[e.code];
       this.keys[e.code] = true;
       if (e.code === 'Space') {
         e.preventDefault();
-        this.triggerJump();
+        if (!wasDown && !e.repeat) this.triggerJump();
       } else if (e.code === 'KeyS' || e.code === 'ArrowDown') {
         e.preventDefault();
         this.refreshBrakeState();
@@ -200,7 +217,7 @@ window.InputManager = class InputManager {
     window.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
       if (e.code === 'Space') {
-        this.isJumpPressed = false;
+        this.isJumpPressed = this.jumpPointerId !== null;
       } else if (e.code === 'KeyS' || e.code === 'ArrowDown') {
         this.refreshBrakeState();
       }
@@ -243,6 +260,10 @@ window.InputManager = class InputManager {
   }
 
   resetAll() {
+    const jumpPointerId = this.jumpPointerId;
+    this.jumpPointerId = null;
+    const jumpButton = document.getElementById('btn-jump');
+    if (jumpPointerId !== null && jumpButton?.hasPointerCapture(jumpPointerId)) jumpButton.releasePointerCapture(jumpPointerId);
     this.joystickPointerId = null;
     this.horizontalSteer = 0.0;
     this.verticalSteer = 0.0;

@@ -311,6 +311,9 @@ html, body {
   top: 68px;
   left: 16px;
   display: flex;
+  flex-wrap: wrap;
+  max-width: calc(100% - 32px);
+  align-items: flex-start;
   gap: 8px;
   pointer-events: none;
 }
@@ -330,6 +333,8 @@ html, body {
 .powerup-badge.overdrive { background: #ffeb3b; }
 .powerup-badge.magic { background: #ff65d4; color: #2b0b2b; }
 .powerup-badge.sky-lift { background: #67efff; color: #053348; }
+.powerup-badge.antigravity { background: #472065; color: #f5e7ff; border: 1px solid #d29bff; }
+.powerup-badge.antigravity small { display: block; font-size: 9px; letter-spacing: .04em; margin-top: 2px; }
 
 /* --- Touch Controls (Landscape-first, responsive portrait fallback) --- */
 #touch-controls {

@@ -462,6 +462,7 @@ window.SkyScooterGame = class SkyScooterGame {
       }
       if (window.GameAudio) window.GameAudio.playPowerup();
     } else if (eventType === 'powerup') {
+      if (param === 'antigravity') return; // Dedicated launch label/effect below.
       const name = param === 'overdrive' ? 'STAR TURBO · 5s' : String(param).toUpperCase();
       this.arcadeEffects.burst(this.riderCtrl.mesh.position, settings.reducedMotion ? 4 : 32);
       this.showFloatingLabel(`${name}!`, this.riderCtrl.mesh.position, '#ffeb3b');
@@ -477,6 +478,13 @@ window.SkyScooterGame = class SkyScooterGame {
       this.arcadeEffects.burst(this.riderCtrl.mesh.position, settings.reducedMotion ? 3 : 18);
       if (window.GameAudio) window.GameAudio.playShield();
       this.vibrate(55);
+    } else if (eventType === 'antigravity_launch') {
+      this.arcadeEffects.burst(this.riderCtrl.mesh.position, settings.reducedMotion ? 4 : 32, 0xc18aff);
+      this.showFloatingLabel('ANTIGRAVITY · HOLD JUMP TO GLIDE', this.riderCtrl.mesh.position, '#dec1ff');
+      if (window.GameAudio) window.GameAudio.playPowerup();
+      this.vibrate(45);
+    } else if (eventType === 'antigravity_end') {
+      this.showFloatingLabel('GRAVITY RESTORED', this.riderCtrl.mesh.position, '#dec1ff');
     } else if (eventType === 'sky_launch') {
       this.arcadeEffects.burst(this.riderCtrl.mesh.position, settings.reducedMotion ? 8 : 64);
       this.showFloatingLabel('SKY LAUNCH!', this.riderCtrl.mesh.position, '#72f5ff');
@@ -642,6 +650,7 @@ window.SkyScooterGame = class SkyScooterGame {
     // 1. Process Gameplay Simulation
     if (this.state === 'PLAYING') {
       this.input.update(dt);
+      this.riderCtrl.reducedMotion = !!settings.reducedMotion;
 
       const roundData = this.trackGen.roundData;
       this.riderCtrl.update(dt, this.input, roundData.baseSpeed * this.trackGen.speedMultiplierAt(this.riderCtrl.s), roundData.roadWidth, (ev, p) => this.onGameplayEvent(ev, p));
@@ -762,6 +771,10 @@ window.SkyScooterGame = class SkyScooterGame {
     const powBar = document.getElementById('hud-powerups');
     if (powBar) {
       let html = '';
+      if (this.riderCtrl.activeAntigravity) {
+        const hint = this.riderCtrl.isGliding ? 'GLIDING' : 'HOLD JUMP TO GLIDE';
+        html += `<span class="powerup-badge antigravity">ANTIGRAVITY ${this.riderCtrl.antigravityTimer.toFixed(1)}s<small>${hint}</small></span>`;
+      }
       if (this.riderCtrl.activeShield) {
         html += `<span class="powerup-badge shield">SHIELD ${Math.ceil(this.riderCtrl.shieldTimer)}s</span>`;
       }
