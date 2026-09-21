@@ -154,6 +154,7 @@ window.SkyScooterGame = class SkyScooterGame {
     }
     if (this.sky) this.sky.setQuality(quality);
     if (this.container) this.container.classList.toggle('candy-grade', quality !== 'low');
+    document.body.classList.toggle('reduced-motion', !!window.GameStorage.getSettings().reducedMotion);
   }
 
   applyRoundAtmosphere(roundData) {
@@ -703,6 +704,7 @@ window.SkyScooterGame = class SkyScooterGame {
       this.gameCam.update(dt, this.riderCtrl.mesh, this.trackGen, this.riderCtrl.activeOverdrive || this.riderCtrl.downhillIntensity > .65, settings);
     }
 
+    document.getElementById('hud-speed')?.classList.toggle('effects-paused', this.state !== 'PLAYING');
     this.arcadeEffects.update(dt, this.riderCtrl, this.trackGen, settings, this.state === 'PLAYING');
     const sceneryS=(this.state==='MENU'||this.state==='ROUND_SELECT')?this.camera.position.z:this.riderCtrl.s;
     this.worldMagic.update(this.state==='PAUSED'?0:dt,sceneryS,this.trackGen,settings);

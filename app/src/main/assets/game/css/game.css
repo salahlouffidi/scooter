@@ -26,7 +26,7 @@ html, body {
   z-index: 1;
 }
 
-/* CTR-inspired candy grade: punchier saturation/contrast on the rendered frame. */
+/* Brighter arcade color grade, enabled for medium/high graphics only. */
 #canvas-container.candy-grade canvas {
   filter: saturate(1.16) contrast(1.06) brightness(1.03);
 }
@@ -691,7 +691,15 @@ html, body {
   color: #d6ffe9; border-color: #6affb0;
   background: linear-gradient(180deg, rgba(10, 78, 54, .92), rgba(4, 40, 30, .92));
 }
-@keyframes turbo-pulse { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.06); } }
+#hud-speed.effects-paused { animation-play-state: paused; }
+body.reduced-motion #hud-speed { animation: none; }
+@keyframes turbo-pulse {
+  from { transform: translateX(-50%) scale(1); }
+  to { transform: translateX(-50%) scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #hud-speed.turbo { animation: none; }
+}
 @media (max-height: 480px) { #hud-speed { top: 90px; font-size: 10px; padding: 5px 12px; } }
 #hud-world {
   position: absolute; right: 16px; top: 68px; max-width: 48%;

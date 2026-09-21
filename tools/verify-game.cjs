@@ -60,7 +60,26 @@ global.fetch=async()=>({ok:true,arrayBuffer:async()=>{const b=fs.readFileSync(ba
  assert(Math.abs(rider.mesh.position.y-track.getTrackPoint(31).y)<.001);
  const fx=new ArcadeEffects(scene,THREE);fx.burst(rider.mesh.position,32);
  fx.update(1/60,rider,track,{graphicsQuality:'high'},true);assert(fx.stars.count>0);assert.equal(fx.wind.geometry.drawRange.count,96);
+ assert(fx.flames.every(f=>f.visible));
+ const forward=new THREE.Vector3(0,0,1).applyQuaternion(rider.mesh.quaternion);
+ for(const flame of fx.flames){
+  assert(flame.position.clone().sub(rider.mesh.position).dot(forward)<0,'exhaust stays behind the scooter');
+  assert(new THREE.Vector3(0,0,-1).applyQuaternion(flame.quaternion).dot(forward)<-.99,'flame tip points backward');
+ }
+ for(let i=0;i<24;i++)fx.update(1/60,rider,track,{graphicsQuality:'high'},true);
+ const trails=fx.pool.filter(p=>p.life>0&&p.trail);
+ assert(trails.length>1);assert(new Set(trails.map(p=>p.color.getHex())).size>1,'individual trail stars keep rainbow colors');
+ assert(fx.pool.filter(p=>p.life>0&&!p.trail).every(p=>p.color.getHex()===0xffdd55),'pickup bursts stay gold during turbo');
+ const pausedTime=fx.time;fx.update(1,rider,track,{graphicsQuality:'high'},false);
+ assert.equal(fx.time,pausedTime);assert(!fx.root.visible);assert(fx.flames.every(f=>!f.visible));
  fx.update(1/60,rider,track,{reducedMotion:true},true);assert.equal(fx.wind.geometry.drawRange.count,0);
+ assert(fx.flames.every(f=>!f.visible));assert(!fx.pool.some(p=>p.life>0&&p.trail),'reduced motion clears the continuous trail');
+ fx.reset();rider.activeOverdrive=true;
+ for(let i=0;i<24;i++)fx.update(1/60,rider,track,{graphicsQuality:'low'},true);
+ assert.equal(fx.wind.geometry.drawRange.count,32);
+ assert(fx.pool.filter(p=>p.life>0&&p.trail).length<trails.length,'low quality reduces trail emission');
+ rider.activeOverdrive=false;fx.update(1/60,rider,track,{graphicsQuality:'high'},true);
+ assert(fx.flames.every(f=>!f.visible),'exhaust turns off when turbo ends');
  fx.reset();assert.equal(fx.stars.count,0);assert(!fx.root.visible);
  const ml=new AdaptiveDifficultyML();assert.equal(ml.selectCandidate(ROUNDS_DATA[0],{hearts:3},validator).speedMultiplier,1);
  const features=new Array(10).fill(.5);for(let i=0;i<32;i++)ml.examples.push({features,label:i%4?1:0});

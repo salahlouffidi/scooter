@@ -419,24 +419,23 @@ window.ROUNDS_DATA = [
   }
 ];
 
-// Candy-grade saturation pass (CTR-inspired): boost every world palette once
-// so skies, roads, rails and islands read bolder and more playful at speed.
+// Adapted from scooter2's arcade palette pass. Apply once when the round
+// definitions load; replaying or resuming a city never compounds the grade.
 (function () {
   if (!window.THREE) return;
-  const pop = (hex, f = 1.2, lift = 0.01) => {
-    const c = new window.THREE.Color(hex);
-    const h = {};
-    c.getHSL(h);
-    c.setHSL(h.h, Math.min(1, h.s * f), Math.min(0.95, h.l + lift));
-    return c.getHex();
+  const pop = (hex, factor, lift) => {
+    const color = new window.THREE.Color(hex), hsl = {};
+    color.getHSL(hsl);
+    color.setHSL(hsl.h, Math.min(1, hsl.s * factor), Math.min(1, hsl.l + lift));
+    return color.getHex();
   };
-  window.ROUNDS_DATA.forEach(r => {
-    r.skyColor = pop(r.skyColor, 1.16, 0.01);
-    r.fogColor = pop(r.fogColor, 1.12, 0.03);
-    r.roadColor = pop(r.roadColor, 1.1, 0);
-    r.railColor = pop(r.railColor, 1.22, 0.02);
-    r.islandGrassColor = pop(r.islandGrassColor, 1.2, 0.02);
-    r.islandRockColor = pop(r.islandRockColor, 1.08, 0);
-    r.ambientLight = pop(r.ambientLight, 1.04, 0.02);
+  window.ROUNDS_DATA.forEach(round => {
+    round.skyColor = pop(round.skyColor, 1.16, .01);
+    round.fogColor = pop(round.fogColor, 1.12, .03);
+    round.roadColor = pop(round.roadColor, 1.1, 0);
+    round.railColor = pop(round.railColor, 1.22, .02);
+    round.islandGrassColor = pop(round.islandGrassColor, 1.2, .02);
+    round.islandRockColor = pop(round.islandRockColor, 1.08, 0);
+    round.ambientLight = pop(round.ambientLight, 1.04, .02);
   });
 })();
