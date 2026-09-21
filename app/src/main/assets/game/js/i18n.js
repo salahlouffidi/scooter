@@ -1,10 +1,10 @@
-// SKY SCOOTER — LOUFFI EDITION
+// LOUFFI CITY RUSH — LOUFFI EDITION
 // Internationalization & UI String Dictionary
 window.I18N = {
   currentLang: 'en',
   strings: {
     en: {
-      appName: 'SKY SCOOTER',
+      appName: 'LOUFFI CITY RUSH',
       edition: 'LOUFFI EDITION',
       play: 'PLAY',
       roundSelect: 'ROUND SELECT',
@@ -26,7 +26,7 @@ window.I18N = {
       menu: 'MENU',
       gameOver: 'GAME OVER',
       roundComplete: 'ROUND COMPLETE!',
-      campaignComplete: 'CAMPAIGN COMPLETE! YOU ARE A SKY LEGEND!',
+      campaignComplete: 'CAMPAIGN COMPLETE! YOU ARE A CITY LEGEND!',
       starsEarned: 'Stars Earned',
       scoreBreakdown: 'Score Breakdown',
       distancePts: 'Distance Points',
@@ -73,7 +73,7 @@ window.I18N = {
       ]
     },
     fr: {
-      appName: 'SKY SCOOTER',
+      appName: 'LOUFFI CITY RUSH',
       edition: 'ÉDITION LOUFFI',
       play: 'JOUER',
       roundSelect: 'CHOIX DU NIVEAU',
@@ -99,7 +99,7 @@ window.I18N = {
       back: 'RETOUR'
     },
     ar: {
-      appName: 'سماوي سكوتر',
+      appName: 'لوفي سيتي راش',
       edition: 'نسخة لوفي',
       play: 'ابدأ اللعب',
       roundSelect: 'اختيار المرحلة',

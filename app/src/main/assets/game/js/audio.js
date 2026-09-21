@@ -1,4 +1,4 @@
-// SKY SCOOTER — LOUFFI EDITION
+// LOUFFI CITY RUSH — LOUFFI EDITION
 // Pure Web Audio API Sound Synthesizer & Music Engine (Zero External Audio Files)
 window.GameAudio = {
   ctx: null,

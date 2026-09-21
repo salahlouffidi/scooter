@@ -1,4 +1,4 @@
-/* SKY SCOOTER — LOUFFI EDITION Stylesheet */
+/* LOUFFI CITY RUSH — LOUFFI EDITION Stylesheet */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -323,6 +323,8 @@ html, body {
 .powerup-badge.magnet { background: #ff5252; color: #fff; }
 .powerup-badge.double { background: #ffd700; }
 .powerup-badge.overdrive { background: #ffeb3b; }
+.powerup-badge.magic { background: #ff65d4; color: #2b0b2b; }
+.powerup-badge.sky-lift { background: #67efff; color: #053348; }
 
 /* --- Touch Controls (Landscape-first, responsive portrait fallback) --- */
 #touch-controls {
@@ -334,45 +336,102 @@ html, body {
   pointer-events: none;
 }
 
-/* Horizontal Joystick (Left thumb area) */
+/* ArmaSnake-style circular four-way left-thumb stick. */
 #joystick-zone {
   position: absolute;
-  bottom: 20px;
+  bottom: 18px;
   left: 24px;
-  width: 130px;
-  height: 70px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  border-radius: 35px;
+  width: 136px;
+  height: 136px;
+  background: radial-gradient(circle at 50% 45%, rgba(90, 125, 155, 0.48), rgba(10, 28, 45, 0.78) 68%);
+  border: 3px solid rgba(255, 255, 255, 0.42);
+  border-radius: 50%;
   pointer-events: auto;
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: none;
+  user-select: none;
+  box-shadow: inset 0 0 0 8px rgba(0, 0, 0, 0.14), 0 8px 22px rgba(0, 0, 0, 0.32);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+#joystick-zone::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  top: 50%;
+  height: 42px;
+  transform: translateY(-50%);
+  background:
+    linear-gradient(90deg, transparent 49%, rgba(255, 255, 255, 0.14) 50%, transparent 51%),
+    linear-gradient(0deg, transparent 49%, rgba(255, 255, 255, 0.14) 50%, transparent 51%);
+  border-top: 2px solid rgba(255, 255, 255, 0.17);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.17);
+  border-radius: 22px;
+  pointer-events: none;
+}
+
+#joystick-zone::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  text-align: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.joystick-arrows {
+  position: absolute;
+  inset: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  font-weight: 900;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.joystick-arrow { position: absolute; line-height: 1; text-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
+.arrow-up { top: 17px; left: 50%; transform: translateX(-50%); }
+.arrow-down { bottom: 17px; left: 50%; transform: translateX(-50%); }
+.arrow-left { left: 17px; top: 50%; transform: translateY(-50%); }
+.arrow-right { right: 17px; top: 50%; transform: translateY(-50%); }
+
+#joystick-zone.active {
+  border-color: rgba(255, 214, 74, 0.9);
+  box-shadow: inset 0 0 0 8px rgba(255, 193, 7, 0.12), 0 8px 26px rgba(255, 193, 7, 0.22);
 }
 
 #joystick-thumb {
   position: absolute;
-  width: 50px;
-  height: 50px;
-  background: radial-gradient(circle, #ffca28 0%, #ff8f00 100%);
-  border: 2px solid #ffffff;
+  width: 58px;
+  height: 58px;
+  background: radial-gradient(circle at 35% 30%, #ffe082 0%, #ffca28 30%, #ef8500 100%);
+  border: 3px solid #ffffff;
   border-radius: 50%;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  z-index: 2;
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.45);
+  transition: transform 0.08s ease-out;
 }
 
 .joystick-label {
   position: absolute;
-  bottom: -18px;
+  bottom: -19px;
   left: 0;
   right: 0;
   text-align: center;
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.7);
-  letter-spacing: 1px;
+  font-size: 0.62rem;
+  color: rgba(255, 255, 255, 0.82);
+  letter-spacing: 0.09rem;
+  font-weight: 800;
 }
 
 /* Jump & Brake Buttons (Right thumb area) */
@@ -623,122 +682,14 @@ html, body {
   padding: 7px 12px; font-size: 12px; font-weight: 700; pointer-events: none;
 }
 
-/* --- Professional Systems: Achievements, Leaderboard, Combo --- */
-
-/* Achievements Grid */
-#achievements-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin: 20px 0;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.achievement-card {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
-  padding: 12px;
-  text-align: center;
-  cursor: default;
-  transition: transform 0.2s, background 0.2s;
-}
-
-.achievement-card.unlocked {
-  background: rgba(0, 255, 100, 0.15);
-  border-color: rgba(0, 255, 100, 0.4);
-  transform: scale(1.02);
-}
-
-.achievement-icon {
-  font-size: 2rem;
-  margin-bottom: 6px;
-  filter: grayscale(1);
-}
-
-.achievement-card.unlocked .achievement-icon {
-  filter: grayscale(0);
-  animation: achievementPop 0.4s ease-out;
-}
-
-.achievement-name {
-  font-size: 0.8rem;
-  font-weight: 800;
-  color: #ffeb3b;
-}
-
-.achievement-desc {
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.6);
-  margin-top: 4px;
-}
-
-@keyframes achievementPop {
-  0% { transform: scale(0.5) rotate(-180deg); opacity: 0; }
-  100% { transform: scale(1) rotate(0deg); opacity: 1; }
-}
-
-/* Leaderboard */
-#leaderboard-list {
-  background: rgba(0, 0, 0, 0.3);
-  padding: 12px;
-  border-radius: 8px;
-  max-height: 350px;
-  overflow-y: auto;
-  font-size: 0.85rem;
-  font-family: monospace;
-}
-
-.lb-entry {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  color: #e0e0e0;
-}
-
-.lb-entry:last-child {
-  border-bottom: none;
-}
-
-.lb-rank {
-  font-weight: 800;
-  color: #ffeb3b;
-  min-width: 25px;
-}
-
-.lb-rank.gold { color: #ffd700; }
-.lb-rank.silver { color: #c0c0c0; }
-.lb-rank.bronze { color: #cd7f32; }
-
-.lb-score {
-  font-weight: 800;
-  color: #81d4fa;
-}
-
-/* Combo Display */
-#combo-display {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 3rem;
-  font-weight: bold;
-  color: #ffeb3b;
-  text-shadow: 2px 2px 4px #000, 0 0 20px rgba(255, 235, 59, 0.6);
-  z-index: 100;
-  pointer-events: none;
-  animation: comboScale 0.3s ease-out;
-}
-
-@keyframes comboScale {
-  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
-  50% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
-}
-
-@keyframes comboFade {
-  0% { opacity: 1; }
-  100% { opacity: 0; }
+/* Keep the resumed-run menu usable on short landscape phone screens. */
+.menu-title-main { font-size: clamp(1.65rem, 4vw, 2.5rem); letter-spacing: 1px; }
+.menu-card { max-height: calc(100dvh - 24px); overflow-y: auto; }
+#btn-menu-continue { font-size: .95rem; }
+@media (max-height: 500px) {
+  .menu-card { padding: 12px 24px; }
+  .menu-title-main { margin-bottom: 8px; }
+  .menu-stats-row { margin-bottom: 9px; padding: 6px; }
+  .menu-buttons { gap: 7px; }
+  .menu-buttons button { padding: 9px 15px; }
 }

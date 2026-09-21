@@ -1,78 +1,69 @@
-# SKY SCOOTER — LOUFFI EDITION
+# LOUFFI CITY RUSH — LOUFFI EDITION
 
-Android WebView + offline Three.js scooter runner. This update adds a reference-inspired warm stone bridge, wooden rails, a rounded helmeted rider, blue scooter, floating islands, leafy trees, castle towers, clouds and waterfalls. It is original stylized geometry, not an exact reconstruction of the reference illustration.
+Offline 3D scooter runner for Android WebView and desktop browsers. The launcher label, menu, intro and translations now use **LOUFFI CITY RUSH**. Package identity and existing save keys are preserved, so the rename does not reset scores or settings.
 
-## Painterly summer pass
+## Resume your run
 
-Inspired by a cozy painterly delivery-game clip, the road now carries small-town summer details: white picket fence sections, flower tufts on the rails, black lamp posts with warm glowing heads, and broadleaf canopy trees that lean over the road and dapple it with shadow. The sky gained larger cumulus clouds, a hazy horizon cloud bank and a warm painterly glow near the horizon, with a slightly warmer sun. All charm props are instanced per segment and recycle with the track; the CPU and browser smoke tests still pass.
+Use **RESUME** in the pause screen, or **RESUME · city · distance** in the main menu. **NEW RUN**, Retry and selecting another round deliberately start a new run.
 
-## Sixteen magical environments
+- Menu navigation saves the current position, height, velocity, score, hearts, combo, collected items, power-up timers, checkpoint, traffic motion time and ML window.
+- Track generation restores each visible segment's RNG state and difficulty, then continues the same future sequence. Collected items and hit obstacles are preserved.
+- Saves occur every two seconds of play and immediately on pause, menu, visibility loss, page exit and native Android background callbacks.
+- Android mirrors the snapshot in private SharedPreferences. WebView reload or Activity recreation offers the saved run from the menu.
+- Returning from another app stays paused. Only an explicit Resume starts the countdown. Backgrounding during a countdown cancels it.
+- Completed or failed runs clear the snapshot; the existing transaction ID prevents duplicate wallet rewards.
 
-Every round now selects its own cached scenery geometry, nearby landmarks, distant skyline, road materials and rails. `js/biomeArt.js` builds original theme assets and merges static geometry by material before cloning them. The existing single GLB still supplies the rider, scooter and shared gameplay props.
+## Solid traffic and rooftop jumps
 
-| Round | World scenery |
-| --- | --- |
-| 1 | Flower gardens, pink arches and round trees |
-| 2 | Lavender-roofed castles and stone battlements |
-| 3 | Turquoise waterfalls and tall floating mesas |
-| 4 | Giant forest trees, pink mushrooms and fireflies |
-| 5 | Sandstone pyramids and glowing oasis ruins |
-| 6 | Lavender/cyan crystals and cave arches |
-| 7 | Snowy peaks, frosted pines and snowmen |
-| 8 | Floating sailboats and sunset lighthouses |
-| 9 | Pastel neon towers, glowing windows and rings |
-| 10 | Golden gears, mint cranes and toy factories |
-| 11 | Lilac clouds and steady lightning sculptures |
-| 12 | Peach-glowing volcanoes and gentle magic embers |
-| 13 | Moon rings and luminous mushroom gardens |
-| 14 | Blue citadels, lavender banners and columns |
-| 15 | Layered rainbow arches and pink cloud islands |
-| 16 | Golden palaces, pink flags and sky portals |
+Vehicle collision bounds come from the actual factory mesh. Physics uses substeps up to 1/120 second with swept lateral/forward checks and height-aware landing. A front or side hit blocks the scooter; invulnerability and shields do not let it pass through the vehicle. Jump above the roof to clear it or descend onto it, ride briefly on top, then drop back onto the road. A rooftop landing gives 50 points once per vehicle.
 
-Floating light crystals move gently beside the road; Reduced Motion freezes their animation. Only Moon Garden and Neon Skyline use night lighting, with enough fill light to keep the roadway readable. No flashing lightning is used. The How to Play panel is unchanged.
+The four-way joystick remains: left/right steer, up accelerates, down brakes. Jump and the dedicated brake button remain available. Desktop: A/D or arrows, W/up, S/down, Space and Escape.
 
-Run `node tools/biome-preview.cjs` with Playwright and Chromium to render all 16 worlds, check theme resets and low-quality visibility, and regenerate `docs/worlds-overview.png`. These are actual game screenshots. The CPU test checks that all 16 worlds have distinct geometry and matching road colors. Browser smoke also verifies the existing controls and round access. Android device performance has not been measured.
+## Sixteen city districts
 
-## Arcade test update
+`cityArt.js` builds cached architecture and merges it by material. Streets now have textured asphalt, lane markings, broad sidewalks, shopfront glass, awnings, balconies, lamps, crosswalks, traffic signals, trees, layered skyline blocks and authored landmarks. Beveled traffic meshes have bumpers, lights, mirrors and wheel hubs. The sky supplies a generated environment reflection map for glass and metal; the renderer uses tone mapping, fog and shadow mapping. These are original stylized city assets, with magical elements above the urban route.
 
-All 16 campaign rounds are selectable immediately, including on existing saves. Scores, stars and normal campaign progress are preserved; test access is controlled by `ScooterTuning.testAllRounds` in `js/arcadeEffects.js`. The Play button still starts your current campaign round.
+| Round | City | Street and skyline cues |
+| --- | --- | --- |
+| 1 | Kyoto | Tea shops, lanterns, cherry trees, pagoda roofs and torii |
+| 2 | London | Brick terraces, red phone boxes, red buses, clock tower |
+| 3 | Singapore | Garden storefronts, palms, elevated skypark towers |
+| 4 | Vancouver | Glass buildings, coffee shops, observation tower |
+| 5 | Marrakech | Terracotta markets, striped awnings, minarets |
+| 6 | Prague | Gabled houses and gothic twin towers |
+| 7 | Sapporo | Snow roofs, ramen shops and winter pagoda |
+| 8 | Rio de Janeiro | Pastel shops, palms and a hilltop landmark |
+| 9 | Tokyo | Neon storefronts, tall signs and illuminated towers |
+| 10 | Amsterdam | Gabled canal houses, bicycles and windmill |
+| 11 | New York | Deli shops, taxis and stepped skyscraper |
+| 12 | Naples | Balconies, gelato shops, coastal towers and distant volcano |
+| 13 | Paris | Mansard roofs, boulangeries, iron balconies and Eiffel-inspired tower |
+| 14 | Istanbul | Bazaar frontage, domes and minarets |
+| 15 | Barcelona | Mosaic details, balconies and sculptural spires |
+| 16 | LOUFFI City | Festive world-city shops, towers and golden ring |
 
-- Cruise speed increased by 25%; steering now targets 9 m/s with rapid reversal and release damping. Brake reduces the capped target speed to 65%, including during turbo. Pointer capture keeps touch controls working when your finger leaves a button.
-- The bridge has continuous hills (9 m peak-to-valley over 190 m). Descents add up to 4.5 m/s. Road tiles, rails, collectibles, obstacles, finish gate and rider follow the surface, and the camera looks along the slope.
-- Gold star pickups activate five seconds of 1.55× turbo, capped at 28 m/s (about 101 km/h). A guaranteed star appears at 31 m, then every 96 m outside gap sections. Coins and gems emit gold stars; turbo leaves a star trail, while wind streaks intensify downhill and during boost.
-- A speed/status HUD distinguishes cruise, downhill rush and star turbo. Two pooled effect draw calls keep particle counts bounded. Reduced Motion disables wind streaks, continuous turbo stars and FOV changes, and reduces pickup bursts; Low quality uses fewer wind lines.
-- Route validation uses the new maximum speed and steering limit. Swept pickup height is relative to the sloping road. Distant sky towers now have valid placement data, and round changes reset clouds and reapply graphics quality.
+All rounds stay unlocked for testing. Street gameplay follows the continuous runner route; intersections are scenery, not branching navigation.
 
-Validation: CPU checks cover all 16 generators, quick steering/reversal/release, downhill acceleration, turbo/brake behavior, pickups on slopes, pooled effects and Reduced Motion, in addition to existing GLB/jump/ML tests. Browser smoke checks fresh/existing-save round access, starts round 16, checks controls and turbo rendering, and captures `docs/gameplay.png`. Android device performance still needs testing.
+## Magic and adaptive difficulty
 
-## Sky & lighting polish
+Gold stars give five-second turbo. Magic fruit gives ten seconds of turbo and two protected faults during that period. Sky Lift carries the rider above traffic and returns to the street. Wind and star particles are pooled; Reduced Motion reduces or disables continuous effects.
 
-`js/skyAtmosphere.js` adds a camera-following gradient sky dome, a world-space sun/moon glow sprite, canvas stars for night rounds, drifting cloud sprites and distant recycled floating islands. `game.js` applies per-round atmosphere: fog density, hemisphere and directional light color/intensity, and tone-mapping exposure are derived from each round's `skyColor`, `fogColor`, `ambientLight` and `theme` (night, warm sunset, storm, and default day). The sky respects the graphics quality setting — low quality hides clouds and distant islands, keeping only the dome, sun and stars.
+The local logistic model persists and chooses bounded difficulty for future segments. Its predicted clearance probability adjusts moving traffic and recovery pickup chances. It does not generate graphics or 3D models. Cold start and Adaptive OFF use fixed designer defaults. There are no cloud AI calls during gameplay.
 
-## One reusable Blender-compatible asset file
+## Assets and verification
 
-`app/src/main/assets/game/models/louffi-world.glb` is a real binary glTF 2.0 asset containing named RiderScooter, Island, Castle, Tree, Cloud, Waterfall and Crate groups. In Blender use **File → Import → glTF 2.0** to edit it. There are not sixteen duplicate level files. The game loads and clones these shared assets. This is a GLB, not a native `.blend` project.
+The existing `models/louffi-world.glb` remains the single reusable Blender-compatible glTF asset for the rider and shared props. City architecture is generated from code. The bundled loader supports the static uncompressed format produced by `tools/build-visual-kit.cjs`.
 
-`node tools/build-visual-kit.cjs` rebuilds the asset deterministically from `visualKit.js` using the bundled Three.js, without downloading packages. `kitLoader.js` supports the uncompressed static mesh/material/TRS subset emitted by that builder; it is not a general-purpose glTF loader. Blender exports with textures, skins or compression require a full GLTFLoader integration. Android reads the single fixed bundled asset through the existing bridge; web previews use fetch. If loading fails the same original procedural kit is used and the console records that fallback.
+Serve `app/src/main/assets/game` with a local HTTP server. Run:
 
-## Run and verify
+```sh
+node tools/verify-game.cjs
+node tools/resume-physics.cjs
+node tools/browser-smoke.cjs
+node tools/session-browser.cjs
+node tools/biome-preview.cjs
+```
 
-Serve `app/src/main/assets/game` with a local HTTP server, for example `python -m http.server 8765 --directory app/src/main/assets/game`. Open localhost:8765. Touch joystick steers; right buttons jump/brake. Desktop A/D or arrows, Space, S/down, Escape. Android requests landscape orientation.
+Browser scripts require Playwright and Chromium; set `CHROMIUM_EXECUTABLE_PATH` for an installed browser. They test controls and GLB loading, menu/app-switch/reload resume, all 16 city districts, finite transforms and rendering errors. The physics test covers solid bodies, rooftop landings, steering escape, turbo sweeps and exact track/RNG restoration. Preview images are actual game renders.
 
-Run `node tools/verify-game.cjs`. It checks real GLB parsing and geometry, all sixteen round generators, bounded active objects, short-gap jump physics, applied difficulty parameters, ML weight changes, persistence and adaptive OFF. These CPU checks do not establish Android frame rate or visual quality on a device.
-
-`node tools/browser-smoke.cjs` runs a real headless-browser pass (Playwright, now a devDependency): it loads the GLB, plays, steers, jumps, pauses/resumes, and asserts no page errors. Set `CHROMIUM_EXECUTABLE_PATH` to use a system Chrome/Edge instead of downloading browsers.
-
-Open the Android project in Android Studio to build/test on a device. This change does not include a signed release APK/AAB.
-
-## Gameplay corrections
-
-- Full-width gap hazards are 2.4m instead of the previous ~20m. Concrete lane layouts are checked before placing obstacles, using steering limits and actual jump constants. This is a conservative validator for the present static obstacles, not a proof for future moving hazards.
-- Difficulty selection changes the density of new, unseen segments. Their speed multiplier takes effect when the rider enters that segment; already visible obstacle positions do not move.
-- Model weights and the bounded example buffer persist. Cold start uses fixed designer difficulty until sufficient success/failure examples exist. Features use current segment parameters rather than treating an unplayed future candidate as the current experience. Personal-model efficacy still needs playtesting; the target probability is not a measured success guarantee.
-- Collection checks use lane coordinates consistently; stars count spawned coins. Checkpoint reconstruction remembers collected IDs.
-
-## Limits and follow-up
-
-The existing sixteen rounds remain configuration-driven. Each round now has its own scenery geometry and palette while sharing the runner mechanics. The decorative waterfalls are static stylized meshes. Physics still uses the existing capped variable timestep. Moving hazards, richer animations, more biome-specific assets, broad device testing and statistical evaluation of adaptation remain future work. No cloud AI calls occur during gameplay.
-
+This is a Three.js mobile visual upgrade, not a PS5-class renderer. Real Android frame rate, memory pressure recovery and native Activity lifecycle still require device testing. No signed APK/AAB is included in this commit.
