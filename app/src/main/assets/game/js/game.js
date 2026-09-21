@@ -153,6 +153,7 @@ window.SkyScooterGame = class SkyScooterGame {
       this.renderer.shadowMap.enabled = true;
     }
     if (this.sky) this.sky.setQuality(quality);
+    if (this.container) this.container.classList.toggle('candy-grade', quality !== 'low');
   }
 
   applyRoundAtmosphere(roundData) {
@@ -728,6 +729,7 @@ window.SkyScooterGame = class SkyScooterGame {
       const rider = this.riderCtrl;
       speed.textContent = `${Math.round(rider.forwardSpeed * 3.6)} km/h · ${rider.activeOverdrive ? '★ STAR TURBO' : rider.downhillIntensity > .4 ? '↓ DOWNHILL RUSH' : 'CITY CRUISE'}`;
       speed.classList.toggle('turbo', rider.activeOverdrive);
+      speed.classList.toggle('downhill', !rider.activeOverdrive && rider.downhillIntensity > .4);
     }
     // Score
     const scoreVal = document.getElementById('hud-score-val');

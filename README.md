@@ -2,6 +2,10 @@
 
 Offline 3D scooter runner for Android WebView and desktop browsers. The launcher label, menu, intro and translations now use **LOUFFI CITY RUSH**. Package identity and existing save keys are preserved, so the rename does not reset scores or settings.
 
+## Candy-grade arcade pass
+
+Inspired by a saturated kart-racer clip, the game now reads bolder and more playful at speed: every round palette gets a one-time saturation boost (`rounds.js`), the rendered frame gets a subtle candy color grade on high/medium quality, the speed badge is a chunky outlined pill with turbo pulse and downhill states, and Star Turbo gained twin pulsing exhaust flames plus a rainbow sparkle trail with smaller, tamer particles so the rider stays readable.
+
 ## Resume your run
 
 Use **RESUME** in the pause screen, or **RESUME · city · distance** in the main menu. **NEW RUN**, Retry and selecting another round deliberately start a new run.

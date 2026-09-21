@@ -28,7 +28,16 @@ window.ArcadeEffects = class ArcadeEffects {
     const geometry = new T.BufferGeometry();
     geometry.setAttribute('position', new T.BufferAttribute(this.linesArray, 3).setUsage(T.DynamicDrawUsage));
     this.wind = new T.LineSegments(geometry, new T.LineBasicMaterial({color: 0xc5f7ff, transparent: true, opacity: .65, depthWrite: false}));
-    this.wind.frustumCulled = false; this.root.add(this.wind); this.time = 0; this.reset();
+    this.wind.frustumCulled = false; this.root.add(this.wind); this.time = 0;
+    // Twin exhaust flames for Star Turbo, pointing backward like a kart racer.
+    const flameGeo = new T.ConeGeometry(.16, .65, 8);
+    flameGeo.rotateX(-Math.PI / 2);
+    this.flames = [0, 1].map(() => {
+      const m = new T.Mesh(flameGeo, new T.MeshBasicMaterial({color: 0xffa030, transparent: true, opacity: .9, depthWrite: false}));
+      m.visible = false; this.root.add(m); return m;
+    });
+    this.tmpVec = new T.Vector3();
+    this.reset();
   }
   reset() {
     this.pool.forEach(p => p.life = 0); this.emission = 0; this.root.visible = false;
@@ -59,17 +68,37 @@ window.ArcadeEffects = class ArcadeEffects {
       this.linesArray.set([x, y, z, x - tan.x * length, y + .03, z - tan.z * length], j);
     }
     this.wind.geometry.setDrawRange(0, count * 2); this.wind.geometry.attributes.position.needsUpdate = true;
+    // Twin exhaust flames during Star Turbo, pulsing like a kart racer.
+    const turboOn = rider.activeOverdrive && !settings.reducedMotion;
+    this.flames.forEach(f => { f.visible = turboOn; });
+    if (turboOn) {
+      const yaw = Math.atan2(tan.x, tan.z), flicker = .85 + Math.sin(this.time * 34) * .15;
+      this.flames.forEach((f, i) => {
+        const side = i === 0 ? -1 : 1;
+        f.position.set(pos.x - tan.x * .95 - tan.z * side * .16, pos.y + .32, pos.z - tan.z * .95 + tan.x * side * .16);
+        f.rotation.set(0, yaw + Math.PI, side * .22);
+        f.scale.setScalar(flicker);
+        f.material.opacity = .75 + flicker * .2;
+        f.material.color.set(i === 0 ? 0xffa030 : 0xff7a1a);
+      });
+    }
+    // Rainbow sparkle trail while boosting.
+    this.stars.material.color.set(rider.activeOverdrive ? `hsl(${Math.round((this.time * 90) % 360)},95%,62%)` : 0xffdd55);
     if (rider.activeOverdrive && !settings.reducedMotion) {
-      this.emission += dt * 22;
-      while (this.emission >= 1) { this.burst(pos, 1); this.emission--; }
+      this.emission += dt * 10;
+      while (this.emission >= 1) {
+        this.tmpVec.copy(pos).addScaledVector(tan, -1.3); this.tmpVec.y += .55;
+        this.burst(this.tmpVec, 1); this.emission--;
+      }
     }
     let visible = 0;
+    const turboScale = rider.activeOverdrive ? .42 : 1;
     for (const p of this.pool) {
       if (p.life <= 0) continue;
       p.life -= dt; if (p.life <= 0) continue;
       p.p.addScaledVector(p.v, dt); p.v.y -= dt * 3;
       this.dummy.position.copy(p.p); this.dummy.rotation.set(0, this.time * 2 + p.spin, this.time * 4 + p.spin);
-      this.dummy.scale.setScalar(Math.min(1, p.life / p.maxLife * 2)); this.dummy.updateMatrix();
+      this.dummy.scale.setScalar(Math.min(1, p.life / p.maxLife * 2) * turboScale); this.dummy.updateMatrix();
       this.stars.setMatrixAt(visible++, this.dummy.matrix);
     }
     this.stars.count = visible; this.stars.instanceMatrix.needsUpdate = true;

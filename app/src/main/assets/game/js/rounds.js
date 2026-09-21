@@ -418,3 +418,25 @@ window.ROUNDS_DATA = [
     }
   }
 ];
+
+// Candy-grade saturation pass (CTR-inspired): boost every world palette once
+// so skies, roads, rails and islands read bolder and more playful at speed.
+(function () {
+  if (!window.THREE) return;
+  const pop = (hex, f = 1.2, lift = 0.01) => {
+    const c = new window.THREE.Color(hex);
+    const h = {};
+    c.getHSL(h);
+    c.setHSL(h.h, Math.min(1, h.s * f), Math.min(0.95, h.l + lift));
+    return c.getHex();
+  };
+  window.ROUNDS_DATA.forEach(r => {
+    r.skyColor = pop(r.skyColor, 1.16, 0.01);
+    r.fogColor = pop(r.fogColor, 1.12, 0.03);
+    r.roadColor = pop(r.roadColor, 1.1, 0);
+    r.railColor = pop(r.railColor, 1.22, 0.02);
+    r.islandGrassColor = pop(r.islandGrassColor, 1.2, 0.02);
+    r.islandRockColor = pop(r.islandRockColor, 1.08, 0);
+    r.ambientLight = pop(r.ambientLight, 1.04, 0.02);
+  });
+})();
