@@ -2,6 +2,12 @@
 
 Offline 3D scooter runner for Android WebView and desktop browsers. The launcher label, menu, intro and translations now use **LOUFFI CITY RUSH**. Package identity and existing save keys are preserved, so the rename does not reset scores or settings.
 
+## Arcade colors and turbo effects
+
+The visual pass from [`scooter2` commit 7f60b85](https://github.com/salahlouffidi/scooter2/commit/7f60b8529a1996285172cfa60cbdf55de853cafb) is adapted into the official game: richer city palettes, a subtle canvas color grade, a bold speed badge with turbo/downhill states, twin exhaust flames and a small rainbow star trail. Flames follow the scooter's lean and slope; pickup bursts retain their gold color and normal size. All particles reuse the existing fixed pool.
+
+Low graphics disables the canvas filter and halves trail emission. Reduced Motion disables the flames, continuous trail and HUD pulse; pausing freezes the pulse. OS Reduced Motion also disables the HUD pulse. No additional GLB or runtime download is required.
+
 ## Resume your run
 
 Use **RESUME** in the pause screen, or **RESUME · city · distance** in the main menu. **NEW RUN**, Retry and selecting another round deliberately start a new run.
