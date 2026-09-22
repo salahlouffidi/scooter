@@ -13,6 +13,12 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     // placeholder bridge, while the round-specific floating world remains in
     // the skyline and roadside scenery.
     this.cityRoad=this.cityArt.asphalt();
+    this.routeSurface=new T.MeshStandardMaterial({color:0xd7ccc8,roughness:.92});
+    this.routeEdge=new T.MeshStandardMaterial({color:0x81c784,roughness:.86});
+    this.routeAccent=new T.MeshStandardMaterial({color:0xffd36b,emissive:0x000000,roughness:.7});
+    this.routeHazard=new T.MeshStandardMaterial({color:0xff7043,emissive:0x000000,roughness:.72});
+    this.routeWater=new T.MeshStandardMaterial({color:0x67d9e8,emissive:0x0b5e69,emissiveIntensity:.25,transparent:true,opacity:.88,roughness:.35});
+    this.routeSurfaceByStyle={};
     this.citySidewalk=new T.MeshStandardMaterial({color:0x818b96,roughness:.9});
     this.cityRail=new T.MeshStandardMaterial({color:0x334552,roughness:.65,metalness:.35});
     this.cityRailDark=new T.MeshStandardMaterial({color:0x202d38,roughness:.72,metalness:.4});
@@ -57,7 +63,12 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
       neon:0x303b59,workshop:0x535e67,storm:0x344650,volcano:0x614743,
       moon:0x424b64,citadel:0x4d6068,rainbow:0x59627a,grand_run:0x4c596e
     };
-    this.cityRoad.color.set(roadTones[round.theme]||0x4b5663);
+    const routeTones={garden_path:0x9f8a70,sand_dunes:0xd7a85d,jungle_roots:0x6b492f,mountain_bridge:0x8e949c,canyon_ledges:0x667a82,crystal_floor:0x4e4b74,glacier_ice:0x9adce9,lava_plates:0x3f3544,mushroom_bounce:0x79566b,temple_stone:0x8d806b,island_crossings:0x8f665c,clockwork_belts:0x4f5b63,storm_skyway:0x6f8e9e,moon_rocks:0x555e91,rainbow_rapids:0x667493,sky_arena:0xcfc1ad};
+    this.routeSurface.color.set(routeTones[round.routeStyle]||round.roadColor);
+    this.routeEdge.color.set(round.routeStyle==='glacier_ice'?0xdffaff:round.railColor);
+    this.routeAccent.color.set(round.routeStyle==='lava_plates'?0xff7a45:round.routeStyle==='crystal_floor'?0x9af4ff:round.routeStyle==='storm_skyway'?0x8be7ff:0xffd36b);
+    this.routeHazard.color.set(round.routeStyle==='lava_plates'?0xff5b2f:round.routeStyle==='glacier_ice'?0x45bde8:0xff7043);
+    this.cityRoad.color.set(round.roadColor);
     this.citySidewalk.color.set(round.theme==='snow'?0xb7c4ca:0x818b96);
     this.cityRail.color.set(round.theme==='neon'?0x3a5a79:0x334552);
     this.cityRailDark.color.set(round.theme==='neon'?0x1a2a42:0x202d38);
@@ -77,6 +88,7 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     propulsorChance:Math.max(.04,Math.min(.18,c.propulsorChance??this.difficulty.propulsorChance??.08))
   };}
   speedMultiplierAt(s){return this.activeSegments.find(g=>s>=g.userData.sStart&&s<g.userData.sEnd)?.userData.speedMultiplier||1;}
+  surfaceAt(s){return this.activeSegments.find(g=>s>=g.userData.sStart&&s<g.userData.sEnd)?.userData.surface||'normal';}
   getTrackPoint(s){const p=super.getTrackPoint(s);p.y=4.5*(Math.cos(s*Math.PI/95)-1);return p;}
   getTrackGrade(s){return -4.5*Math.PI/95*Math.sin(s*Math.PI/95);}
   frame(s,lateral=0,y=0){const p=this.getTrackPoint(s),t=this.getTrackTangent(s);return {x:p.x-t.z*lateral,y:p.y+y,z:p.z+t.x*lateral};}
@@ -127,6 +139,58 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     ]);
   }
   spawnNextSegment(){
+    return this.spawnAuthoredSegment();
+  }
+  spawnAuthoredSegment(){
+    const T=this.THREE,s=this.nextSpawnS,w=this.roundData.roadWidth,g=new T.Group(),style=this.roundData.routeStyle;
+    const gap=!!this.roundData.features.hasGaps&&s>this.roundData.firstSafeDistance&&s%144===96;
+    const surface=(this.roundData.challenge==='sand'&&s%72===24)?'sand':this.roundData.challenge==='ice'?'ice':this.roundData.challenge==='wind'?'wind':this.roundData.challenge==='lava'?'lava':this.roundData.challenge==='low_gravity'?'moon':this.roundData.challenge==='boost_glide'?'rapids':'normal';
+    g.userData={sStart:s,sEnd:s+24,isGap:gap,gapStart:s+10.8,gapEnd:s+13.2,speedMultiplier:this.difficulty.speedMultiplier,densityMult:this.difficulty.obstacleDensityMultiplier,surface,routeStyle:style,generation:{s,rngState:this.rngState,lastSafeLane:this.lastSafeLane,difficulty:{...this.difficulty}}};
+    this.scene.add(g);this.activeSegments.push(g);
+    for(let i=0;i<12;i++){
+      const mid=s+i*2+1;if(gap&&mid>s+10&&mid<s+14)continue;
+      this.addBox(g,this.routeSurface,mid,0,-.27,w,.5,2.05);
+      if(style==='sand_dunes'&&i%3===0)this.addBox(g,this.routeAccent,mid,-w*.26,.02,w*.34,.035,1.7,true);
+      if(style==='glacier_ice'&&i%2===0)this.addBox(g,this.routeAccent,mid,(i%4<2?-1:1)*w*.25,.02,.08,.025,1.8,true);
+      if(style==='lava_plates'&&i%4===1)this.addBox(g,this.routeHazard,mid,0,.03,w*.32,.06,.42,true);
+      if(style==='clockwork_belts'&&i%3===1)this.addBox(g,this.routeAccent,mid,0,.04,.28,.08,1.8,true);
+    }
+    if(gap){this.addBox(g,this.routeEdge,s+10.4,0,-.27,w,.5,.8);this.addBox(g,this.routeEdge,s+13.6,0,-.27,w,.5,.8);this.addBox(g,this.routeAccent,s+9.8,0,.05,w,.06,.4,true);}
+    if(style==='storm_skyway'||style==='rainbow_rapids')for(const side of [-1,1])this.addBox(g,this.routeAccent,s+8,side*(w/2+.55),.9,.12,.12,2.6,true,side*.35);
+    this.populateAuthoredSegment(s,s+24,gap,w,g);
+    for(const side of [-1,1]){
+      const art=this.biomeArt.create(this.roundData),p=this.frame(s+12,side*(w/2+7),0);
+      art.position.set(p.x,p.y,p.z);art.scale.setScalar(style==='sky_arena'?1.3:1.0);art.rotation.y=Math.atan2(this.getTrackTangent(s+12).x,this.getTrackTangent(s+12).z)+(side>0?Math.PI:0);this.addScenery(art,s);
+    }
+    if(s%72===24&&['garden_path','crystal_floor','moon_rocks','rainbow_rapids','sky_arena'].includes(style)){
+      const portal=this.biomeArt.portal(this.roundData),p=this.frame(s+12);portal.position.set(p.x,p.y,p.z);portal.rotation.y=Math.atan2(this.getTrackTangent(s+12).x,this.getTrackTangent(s+12).z);this.addScenery(portal,s);
+    }
+    if(!this.finishGate&&s+24>=this.roundData.length){this.finishGate=this.factory.createFinishGate(this.roundData.name);const p=this.frame(this.roundData.length);this.finishGate.position.set(p.x,p.y,p.z);this.scene.add(this.finishGate);}
+    const batches=new Map();for(const m of [...g.children])if(m.isMesh&&!m.isInstancedMesh){m.updateMatrix();const list=batches.get(m.material)||[];list.push(m.matrix.clone());batches.set(m.material,list);g.remove(m);}for(const [material,matrices] of batches){const batch=new T.InstancedMesh(this.boxGeometry,material,matrices.length);matrices.forEach((m,i)=>batch.setMatrixAt(i,m));batch.castShadow=true;batch.receiveShadow=true;g.add(batch);}
+    this.nextSpawnS=s+24;
+  }
+  populateAuthoredSegment(s,end,gap,w,g){
+    const safe=s<this.roundData.firstSafeDistance||s>=this.roundData.length,lanes=[-w*.28,0,w*.28];
+    const possible=[0,1,2].filter(i=>Math.abs(lanes[i]-this.lastSafeLane)<=4.5);const safeIndex=possible[Math.floor(this.rng()*possible.length)],safeLane=lanes[safeIndex],hazards=[];
+    const special=this.roundData.challenge;
+    if(!safe&&!gap)for(let i=0;i<3;i++)if(i!==safeIndex&&this.rng()<.62*this.difficulty.obstacleDensityMultiplier){
+      const jumpable=['logs','boulders','ledge_jumps','moving_crystals','bounce','timed_traps','machinery','final_mix'].includes(special);
+      hazards.push({laneX:lanes[i],type:jumpable&&this.rng()<.5?'barrier':(special==='lava'?'barrel':'crate')});
+    }
+    const plan={roadWidth:w,speed:window.ScooterTuning.maxSpeed,minSpeed:this.roundData.baseSpeed*.9*window.ScooterTuning.cruiseMultiplier*window.ScooterTuning.brakeFactor,length:24,previousLane:this.lastSafeLane,safeLane,hazards,gapWidth:gap?2.4:0};
+    if(!this.validator.validateLayout(plan))hazards.length=0;this.lastSafeLane=safeLane;
+    for(const h of hazards){const m=this.factory.createObstacle(h.type),at=s+18,p=this.frame(at,h.laneX);m.position.set(p.x,p.y,p.z);m.rotation.y=Math.atan2(this.getTrackTangent(at).x,this.getTrackTangent(at).z);m.userData={id:`obs_${at}_${h.laneX}`,s:at,laneX:h.laneX,type:h.type,hit:false,isJumpable:h.type==='barrier',isMoving:this.roundData.features.movingObstacles&&special!=='logs',baseLaneX:h.laneX,motionPhase:this.rng()*Math.PI*2,motionRate:.7,motionAmplitude:special==='moving_crystals'?.5:.25};m.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});this.scene.add(m);this.activeObstacles.push(m);}
+    if(s<this.roundData.length){
+      for(let i=0;i<5;i++){const at=s+3+i*4;if(gap&&at>s+9&&at<s+15)continue;this.addItem(this.factory.createCoin(),at,safeLane,['bounce','ledge_jumps','boost_glide'].includes(special)?1.7:1.05,{id:`coin_${at}`});this.totalCoins++;}
+      if(!gap&&s%96===24)this.addItem(this.factory.createPowerup('overdrive'),s+7,safeLane,1.25,{id:`boost_${s}`,isPowerup:true,type:'overdrive'});
+      else if(!gap&&!safe&&this.rng()<.25){const type=['shield','magnet','double','heart','overdrive','magic_fruit','propulsor'][Math.floor(this.rng()*7)];this.addItem(this.factory.createPowerup(type),s+7,safeLane,1.25,{id:`power_${s}`,isPowerup:true,type});}
+      if(!gap&&!safe&&this.rng()<this.difficulty.magicPickupChance)this.addItem(this.factory.createPowerup('magic_fruit'),s+11,safeLane,1.25,{id:`fruit_${s}`,isPowerup:true,type:'magic_fruit'});
+      if(!gap&&!safe&&this.rng()<this.difficulty.propulsorChance)this.addItem(this.factory.createPowerup('propulsor'),s+15,safeLane,1.35,{id:`lift_${s}`,isPowerup:true,type:'propulsor'});
+      if(!gap&&this.rng()<.16)this.addItem(this.factory.createGem(),s+9,safeLane,1.15,{id:`gem_${s}`,isGem:true});
+    }
+  }
+  /* Legacy city generator retained below for save compatibility; unreachable. */
+  legacySpawnNextSegment(){
     const T=this.THREE,s=this.nextSpawnS,w=this.roundData.roadWidth,g=new T.Group();
     const street=this.cityRoad,sidewalk=this.citySidewalk,rail=this.cityRail,railDark=this.cityRailDark;
     const gap=!!this.roundData.features.hasGaps&&s>this.roundData.firstSafeDistance&&s%144===96;
@@ -172,6 +236,8 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     this.nextSpawnS=s+24;
   }
   populateSegment(s,end,gap,w,g){
+    return this.populateAuthoredSegment(s,end,gap,w,g);
+    /* legacy city population retained for save compatibility; unreachable */
     const safe=s<this.roundData.firstSafeDistance||s>=this.roundData.length,lanes=[-w*.28,0,w*.28];
     const possible=[0,1,2].filter(i=>Math.abs(lanes[i]-this.lastSafeLane)<=4.5);
     const safeIndex=possible[Math.floor(this.rng()*possible.length)],safeLane=lanes[safeIndex],hazards=[];

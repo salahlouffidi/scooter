@@ -1,6 +1,6 @@
-# LOUFFI CITY RUSH — LOUFFI EDITION
+# SKY SCOOTER — LOUFFI EDITION
 
-Offline 3D scooter runner for Android WebView and desktop browsers. The launcher label, menu, intro and translations now use **LOUFFI CITY RUSH**. Package identity and existing save keys are preserved, so the rename does not reset scores or settings.
+Offline 3D magical scooter runner for Android WebView and desktop browsers. The existing rider, scooter, four-way joystick, Jump, braking and camera behavior remain intact. Package identity, scores, settings and save keys are preserved.
 
 ## Arcade colors and turbo effects
 
@@ -18,7 +18,7 @@ The HUD shows the remaining time and a glide hint. Pause, menu Resume and saved-
 
 ## Resume your run
 
-Use **RESUME** in the pause screen, or **RESUME · city · distance** in the main menu. **NEW RUN**, Retry and selecting another round deliberately start a new run.
+Use **RESUME** in the pause screen, or **RESUME · world · distance** in the main menu. **NEW RUN**, Retry and selecting another round deliberately start a new run.
 
 - Menu navigation saves the current position, height, velocity, score, hearts, combo, collected items, power-up timers, checkpoint, traffic motion time and ML window.
 - Track generation restores each visible segment's RNG state and difficulty, then continues the same future sequence. Collected items and hit obstacles are preserved.
@@ -33,30 +33,30 @@ Vehicle collision bounds come from the actual factory mesh. Physics uses substep
 
 The four-way joystick remains: left/right steer, up accelerates, down brakes. Jump and the dedicated brake button remain available. Desktop: A/D or arrows, W/up, S/down, Space and Escape.
 
-## Sixteen city districts
+## Sixteen authored magical places
 
-`cityArt.js` builds cached architecture and merges it by material. Streets now have textured asphalt, lane markings, broad sidewalks, shopfront glass, awnings, balconies, lamps, crosswalks, traffic signals, trees, layered skyline blocks and authored landmarks. Beveled traffic meshes have bumpers, lights, mirrors and wheel hubs. The sky supplies a generated environment reflection map for glass and metal; the renderer uses tone mapping, fog and shadow mapping. These are original stylized city assets, with magical elements above the urban route.
+Each round has a distinct route surface, foreground silhouette, landmark family, lighting palette and gameplay profile. The repeated asphalt/shopfront layer has been removed.
 
-| Round | City | Street and skyline cues |
+| Round | Place | Main challenge |
 | --- | --- | --- |
-| 1 | Kyoto | Tea shops, lanterns, cherry trees, pagoda roofs and torii |
-| 2 | London | Brick terraces, red phone boxes, red buses, clock tower |
-| 3 | Singapore | Garden storefronts, palms, elevated skypark towers |
-| 4 | Vancouver | Glass buildings, coffee shops, observation tower |
-| 5 | Marrakech | Terracotta markets, striped awnings, minarets |
-| 6 | Prague | Gabled houses and gothic twin towers |
-| 7 | Sapporo | Snow roofs, ramen shops and winter pagoda |
-| 8 | Rio de Janeiro | Pastel shops, palms and a hilltop landmark |
-| 9 | Tokyo | Neon storefronts, tall signs and illuminated towers |
-| 10 | Amsterdam | Gabled canal houses, bicycles and windmill |
-| 11 | New York | Deli shops, taxis and stepped skyscraper |
-| 12 | Naples | Balconies, gelato shops, coastal towers and distant volcano |
-| 13 | Paris | Mansard roofs, boulangeries, iron balconies and Eiffel-inspired tower |
-| 14 | Istanbul | Bazaar frontage, domes and minarets |
-| 15 | Barcelona | Mosaic details, balconies and sculptural spires |
-| 16 | LOUFFI City | Festive world-city shops, towers and golden ring |
+| 1 | Enchanted Garden | Gentle steering and simple obstacles |
+| 2 | Golden Desert | Dunes and visible slowing sand patches |
+| 3 | Giant Jungle | Fallen logs and winding paths |
+| 4 | Mountain Pass | Narrow bridges and moving boulders |
+| 5 | Waterfall Canyon | Marked jumps between ledges |
+| 6 | Crystal Cavern | Crystal formations and moving obstacles |
+| 7 | Frozen Glacier | Slippery steering on marked ice |
+| 8 | Volcano Valley | Telegraphing lava hazards |
+| 9 | Mushroom Forest | Bounce pads and aerial collectibles |
+| 10 | Ancient Temple | Timed traps and stone platforms |
+| 11 | Sunset Archipelago | Island crossings and landing accuracy |
+| 12 | Clockwork Workshop | Moving machinery and timing |
+| 13 | Storm Skyway | Bounded visible wind gusts |
+| 14 | Moon Realm | Low-gravity jumps and floating rocks |
+| 15 | Rainbow Rapids | Boost and glide combinations |
+| 16 | Final Sky Arena | Fair combinations of learned challenges |
 
-All rounds stay unlocked for testing. Street gameplay follows the continuous runner route; intersections are scenery, not branching navigation.
+All rounds stay unlocked for testing. The continuous route remains authored and reachable; adaptive ML can only make bounded local adjustments inside each round's limits.
 
 ## Magic and adaptive difficulty
 
@@ -66,7 +66,7 @@ The local logistic model persists and chooses bounded difficulty for future segm
 
 ## Assets and verification
 
-The existing `models/louffi-world.glb` remains the single reusable Blender-compatible glTF asset for the rider and shared props. City architecture is generated from code. The bundled loader supports the static uncompressed format produced by `tools/build-visual-kit.cjs`.
+The existing `models/louffi-world.glb` remains the single reusable Blender-compatible glTF asset for the rider and shared props. Magical scenery and route construction are generated from code. When layouts change, older active saves are deliberately migrated to the last safe checkpoint while scores, health, power-up inventory and run identity are preserved.
 
 Serve `app/src/main/assets/game` with a local HTTP server. Run:
 

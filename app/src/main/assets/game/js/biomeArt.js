@@ -57,7 +57,8 @@ window.BiomeArt = class BiomeArt {
     };
     // Theme-colored floating land: no green grass baked into every world.
     const tops={desert:0xeab875,crystal:0x6658a1,snow:0xf2fbff,sunset:0xbd8768,neon:0x20234c,
-      workshop:0x628694,storm:0x829bc9,volcano:0x524066,moon:0x555d9c,citadel:0x789080,rainbow:0xe9bdf3,grand_run:0xffedba};
+      workshop:0x628694,storm:0x829bc9,volcano:0x524066,moon:0x555d9c,citadel:0x789080,
+      mushroom:0x7d8c65,temple:0x9d805c,rapids:0x78c9d4,rainbow:0xe9bdf3,grand_run:0xffedba};
     const top=tops[theme]??round.islandGrassColor;
     part('cone',round.islandRockColor,0,-3,0,6,6,5,false,Math.PI);
     part('cylinder',top,0,.1,0,6,.7,5);
@@ -118,6 +119,19 @@ window.BiomeArt = class BiomeArt {
         part('cone',0x705678,0,4,0,5,8,5);part('cylinder',0xffa776,0,7.3,0,1.2,.25,1.2,true);
         for(let i=0;i<4;i++){const a=i*Math.PI/2;part('box',0xffbb73,Math.cos(a)*1.9,4.8,Math.sin(a)*1.9,.45,5,.4,true,.24);}
         for(let i=0;i<4;i++)orb(0xffd3ac,Math.sin(i*2)*1.1,9+i*1.1,0,.5+i*.15,true);
+        break;
+      case 'mushroom':
+        for(const [x,z,c] of [[-2,-1,0xff7a9b],[2,1,0xffb86b],[-3,2,0xd97bdc]]){pillar(0x76503f,x,1.8,z,.28,3.6);part('sphere',c,x,3.8,z,1.45,.7,1.45);for(let i=0;i<4;i++)orb(0xfff0b5,x-1+i*.65,3.92,z-.35,.12,true);}
+        box(0x6dbb73,0,.25,0,8,.25,5);part('ring',0xffc6ef,0,1.1,1.5,1.3,.25,1.3,true);
+        break;
+      case 'temple':
+        for(const x of [-3.2,3.2]){pillar(0xb49a70,x,3,0,.7,6);part('roof',0x6d503f,x,6.3,0,1.25,1.2,1.25);}
+        box(0xc7ae7b,0,2.6,0,6.7,.55,2.5);part('arch',0xf0c775,0,4.4,-1.3,2.5,3,1,true);
+        for(let i=0;i<5;i++)box(0xd7bb86,-2+i,1.0,1.5,.7,2.0,.35);
+        break;
+      case 'rapids':
+        for(let i=0;i<5;i++){const x=-4+i*2;box(i%2?0x7de7f1:0x4cb8df,x,1.3,0,1.4,.28,5,true);orb(0xffffff,x,2.0,-1.8,.3,true);}
+        part('arch',0xff8fba,0,5,1,4,5,1,true);part('arch',0xffe796,0,5.3,1,3.4,4.3,1,true);
         break;
       case 'moon':
         part('ring',0xfff2b8,0,7,0,2.6,2.6,1,true);orb(0x8ba6eb,-3,2,1,1.4);

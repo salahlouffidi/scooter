@@ -211,9 +211,9 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   applyEnvironment(round) {
-    if(this.environmentCity===round.city)return;
+    if(this.environmentCity===round.theme)return;
     // A small sky panorama produces soft material reflections without six
-    // full-resolution scene captures every time the player changes city.
+    // full-resolution scene captures every time the player changes world.
     const T=this.THREE,w=256,h=128,pixels=new Uint8Array(w*h*4);
     const top=new T.Color(round.skyColor),horizon=new T.Color(round.fogColor),ground=new T.Color(0x827462);
     for(let row=0;row<h;row++){
@@ -222,7 +222,7 @@ window.SkyScooterGame = class SkyScooterGame {
     }
     const texture=new T.DataTexture(pixels,w,h);texture.mapping=T.EquirectangularReflectionMapping;texture.needsUpdate=true;
     const pmrem=new T.PMREMGenerator(this.renderer),map=pmrem.fromEquirectangular(texture);
-    this.environmentMap?.dispose();this.environmentMap=map;this.scene.environment=map.texture;this.environmentCity=round.city;
+    this.environmentMap?.dispose();this.environmentMap=map;this.scene.environment=map.texture;this.environmentCity=round.theme;
     texture.dispose();pmrem.dispose();
   }
 
@@ -291,7 +291,7 @@ window.SkyScooterGame = class SkyScooterGame {
     this.currentRunTxId = `run_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
 
     const roundData = isEndless
-      ? { ...window.ROUNDS_DATA[15], id: 99, name: 'Endless City Tour', length: 999999, baseSpeed: 12 }
+      ? { ...window.ROUNDS_DATA[15], id: 99, name: 'Endless Sky Tour', length: 999999, baseSpeed: 12 }
       : window.ROUNDS_DATA.find(r => r.id === roundId) || window.ROUNDS_DATA[0];
 
     // Reset scoring & health
@@ -382,7 +382,10 @@ window.SkyScooterGame = class SkyScooterGame {
 
   resume() {
     if (this.state !== 'PAUSED') return;
-    if (this.backgrounded || document.hidden) return;
+    // An explicit Resume tap is the user's foreground acknowledgement. Clear
+    // a stale blur flag, but never resume while the document is actually hidden.
+    if (document.hidden) return;
+    this.backgrounded = false;
     const pauseMenu = document.getElementById('pause-modal');
     if (pauseMenu) pauseMenu.classList.add('hidden');
     this.startCountdown(); // Resume with smooth countdown
@@ -491,7 +494,7 @@ window.SkyScooterGame = class SkyScooterGame {
       if (window.GameAudio) window.GameAudio.playJump();
       this.vibrate(90);
     } else if (eventType === 'sky_return') {
-      this.showFloatingLabel('CITY RETURN!', this.riderCtrl.mesh.position, '#72f5ff');
+      this.showFloatingLabel('SKY LIFT RETURN!', this.riderCtrl.mesh.position, '#72f5ff');
       if (window.GameAudio) window.GameAudio.playFinish();
       this.vibrate(35);
     } else if (eventType === 'checkpoint') {
@@ -738,7 +741,7 @@ window.SkyScooterGame = class SkyScooterGame {
     const speed = document.getElementById('hud-speed');
     if (speed) {
       const rider = this.riderCtrl;
-      speed.textContent = `${Math.round(rider.forwardSpeed * 3.6)} km/h · ${rider.activeOverdrive ? '★ STAR TURBO' : rider.downhillIntensity > .4 ? '↓ DOWNHILL RUSH' : 'CITY CRUISE'}`;
+      speed.textContent = `${Math.round(rider.forwardSpeed * 3.6)} km/h · ${rider.activeOverdrive ? '★ STAR TURBO' : rider.downhillIntensity > .4 ? '↓ DOWNHILL RUSH' : 'SKY CRUISE'}`;
       speed.classList.toggle('turbo', rider.activeOverdrive);
       speed.classList.toggle('downhill', !rider.activeOverdrive && rider.downhillIntensity > .4);
     }

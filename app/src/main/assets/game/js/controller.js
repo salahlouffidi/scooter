@@ -205,7 +205,9 @@ window.RiderController = class RiderController {
     const tuning = window.ScooterTuning;
     const grade = this.trackGen.getTrackGrade(this.s);
     this.downhillIntensity = Math.min(1, Math.max(0, -grade / .14));
-    let targetSpeed = baseSpeed * tuning.cruiseMultiplier + this.downhillIntensity * 4.5;
+    const surface=this.trackGen.surfaceAt?.(this.s)||'normal';
+    const surfaceSpeed=surface==='sand'?.72:surface==='lava'?.9:surface==='rapids'?1.08:1;
+    let targetSpeed = (baseSpeed * tuning.cruiseMultiplier + this.downhillIntensity * 4.5) * surfaceSpeed;
     if (this.activeOverdrive) {
       targetSpeed *= tuning.boostMultiplier;
     }
@@ -225,16 +227,19 @@ window.RiderController = class RiderController {
 
     // 3. Lateral Steering
     const steerInput = Math.max(-1, Math.min(1, input.horizontalSteer));
+    const slippery=surface==='ice';
+    const gust=(surface==='wind'||surface==='rapids') ? Math.sin((this.s+this.trackGen.simulationTime*8)*.11)*.22 : 0;
     if (Math.abs(steerInput) > 0.05) {
       if(Math.sign(steerInput)!==this.previousSteerSign)this.steerCorrections++;
       this.previousSteerSign=Math.sign(steerInput);
       const lateralSpeed = this.MAX_LATERAL_SPEED * (this.activeAntigravity ? tuning.antigravitySteer : 1);
-      const response = this.activeAntigravity ? tuning.antigravityResponse : 22;
+      const response = this.activeAntigravity ? tuning.antigravityResponse : (slippery ? 8 : 22);
       this.lateralVelocity += (steerInput * lateralSpeed - this.lateralVelocity) * (1 - Math.exp(-response * dt));
     } else {
       // Lateral drag to smoothly stop steering without snapping back to center
-      this.lateralVelocity *= Math.exp(-30 * dt);
+      this.lateralVelocity *= Math.exp(-(slippery?5:30) * dt);
     }
+    this.lateralVelocity += gust * dt * 5;
 
     this.laneX += this.lateralVelocity * dt;
     // Bound rider inside usable roadway
@@ -253,7 +258,7 @@ window.RiderController = class RiderController {
     if (jumpPressed && !this.activeSkyFlight) {
       this.jumpAttempts++;
       if (this.isGrounded || this.coyoteTimer > 0) {
-        this.verticalVelocity = this.JUMP_VELOCITY;
+        this.verticalVelocity = this.JUMP_VELOCITY * (surface==='moon' ? 1.18 : 1);
         this.isGrounded = false;
         this.supportId = null;
         this.coyoteTimer = 0;
@@ -278,7 +283,7 @@ window.RiderController = class RiderController {
         this.isGrounded = false;
       }
     } else if (!this.isGrounded) {
-      this.verticalVelocity -= this.GRAVITY * (this.activeAntigravity ? tuning.antigravityGravity : 1) * dt;
+      this.verticalVelocity -= this.GRAVITY * (this.activeAntigravity ? tuning.antigravityGravity : (surface==='moon' ? .58 : 1)) * dt;
       if (this.activeAntigravity && input.isJumpHeld && this.verticalVelocity < 0) {
         this.verticalVelocity = Math.max(-tuning.glideFallSpeed, this.verticalVelocity);
         this.isGliding = true;

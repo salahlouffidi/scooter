@@ -197,7 +197,7 @@ window.GameStorage = {
     for (const raw of candidates) {
       try {
         const s = JSON.parse(raw);
-        if (s?.version !== 1 || !Number.isInteger(s.roundId) || s.roundId < 1 || s.roundId > 16) continue;
+        if (![1, 2].includes(s?.version) || !Number.isInteger(s.roundId) || s.roundId < 1 || s.roundId > 16) continue;
         if (!s.runId || this.hasProcessedTx(s.runId) || this.hasProcessedTx(`coin_${s.runId}`)) continue;
         if (!s.rider || !Number.isFinite(s.rider.s) || s.rider.s < 0 || !Number.isFinite(s.stats?.hearts) || s.stats.hearts <= 0) continue;
         if (!s.track?.segments?.length || s.track.segments.length > 20) continue;

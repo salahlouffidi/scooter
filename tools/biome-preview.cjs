@@ -18,20 +18,20 @@ const root=path.resolve(__dirname,'../app/src/main/assets/game');
     g.renderer.render(g.scene,g.camera);
     const themes=g.trackGen.sceneryObjects.filter(o=>o.name.startsWith('world_')).map(o=>o.userData.biome);
     const districts=g.trackGen.sceneryObjects.filter(o=>o.name.startsWith('city_street_')).length;
-    const landmark=g.trackGen.sceneryObjects.some(o=>o.name===`landmark_${g.trackGen.roundData.city}`);
+    const landmark=g.trackGen.sceneryObjects.some(o=>o.name.startsWith('world_'));
     const finite=g.sky.distantItems.every(o=>o.position.toArray().every(Number.isFinite));
     return {id,name:g.trackGen.roundData.name,theme:g.trackGen.roundData.theme,themes,districts,landmark,finite,calls:g.renderer.info.render.calls};
    },id);
-   assert(result.finite);assert(result.themes.length>0);assert(result.themes.every(t=>t===result.theme));assert(result.districts>=8);assert(result.landmark);
+   assert(result.finite);assert(result.themes.length>0);assert(result.themes.every(t=>t===result.theme));assert.equal(result.districts,0);assert(result.landmark);
    const png=await page.screenshot();shots.push({name:result.name,id,png:png.toString('base64')});console.log(JSON.stringify(result));
   }
   // Settings and repeated world changes must keep distant objects hidden at low quality.
   assert(await page.evaluate(()=>{const g=gameInstance;g.sky.setQuality('low');g.startRound(1);clearInterval(g.countdownTimer);g.state='PREVIEW';return g.sky.distantItems.every(o=>!o.visible)&&g.trackGen.sceneryObjects.filter(o=>o.name.startsWith('world_')).every(o=>o.userData.biome==='garden');}));
   assert.deepEqual(errors,[]);
   const sheet=await browser.newPage({viewport:{width:1600,height:1100},deviceScaleFactor:1});
-  await sheet.setContent(`<style>body{margin:0;background:#111d37;color:white;font:16px system-ui}h1{font-size:24px;margin:16px 20px 4px}p{margin:0 20px 16px;color:#cbd9f2}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 16px 16px}.card{background:#203252;border-radius:10px;overflow:hidden}.card img{width:100%;display:block}.card b{display:block;padding:7px 10px;font-size:14px}</style><h1>LOUFFI CITY RUSH · 16 city districts</h1><p>Actual game renders · LOUFFI EDITION</p><div class="grid">${shots.map(s=>`<div class="card"><img src="data:image/png;base64,${s.png}"><b>${s.id}. ${s.name}</b></div>`).join('')}</div>`);
+  await sheet.setContent(`<style>body{margin:0;background:#111d37;color:white;font:16px system-ui}h1{font-size:24px;margin:16px 20px 4px}p{margin:0 20px 16px;color:#cbd9f2}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 16px 16px}.card{background:#203252;border-radius:10px;overflow:hidden}.card img{width:100%;display:block}.card b{display:block;padding:7px 10px;font-size:14px}</style><h1>SKY SCOOTER — 16 magical places</h1><p>Actual game renders · LOUFFI EDITION</p><div class="grid">${shots.map(s=>`<div class="card"><img src="data:image/png;base64,${s.png}"><b>${s.id}. ${s.name}</b></div>`).join('')}</div>`);
   await sheet.evaluate(()=>Promise.all([...document.images].map(i=>i.decode())));
   fs.mkdirSync(path.resolve(__dirname,'../docs'),{recursive:true});await sheet.screenshot({path:path.resolve(__dirname,'../docs/worlds-overview.png'),fullPage:true});
-  console.log('PASS: 16 rendered worlds, matching scenery, finite sky positions, low-quality reset, no page errors.');
+  console.log('PASS: 16 rendered magical worlds, matching biome scenery, finite sky positions, low-quality reset, no page errors.');
  }finally{if(browser)await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

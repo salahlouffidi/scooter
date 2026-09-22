@@ -25,7 +25,7 @@ Object.assign(window.SkyScooterGame.prototype, {
     const stats = {};
     for (const key of ['hearts','score','distanceScore','coinScore','gemScore','jumpScore',
       'consecutiveCoins','coinMultiplier','coinsCollectedThisRun','totalSpawnedCoinsEstimate']) stats[key] = this[key];
-    return window.GameStorage.saveRun({version:1,savedAt:Date.now(),roundId:this.currentRoundId,
+    return window.GameStorage.saveRun({version:2,layoutVersion:2,savedAt:Date.now(),roundId:this.currentRoundId,
       isEndless:this.isEndless,runId:this.currentRunTxId,stats,rider:this.riderCtrl.captureState(),
       track:this.trackGen.captureState(),ml:{timer:this.mlWindowTimer,hadDamage:this.mlWindowHadDamage,
         features:this.mlWindowFeaturesSnapshot ? Array.from(this.mlWindowFeaturesSnapshot) : null}});
@@ -36,16 +36,30 @@ Object.assign(window.SkyScooterGame.prototype, {
     if (!button) return;
     button.classList.toggle('hidden', !saved);
     if (saved) {
-      const city = window.ROUNDS_DATA.find(r=>r.id===saved.roundId)?.city || 'City';
-      button.textContent = `RESUME · ${city} · ${Math.floor(saved.rider.s)} m`;
+    const world = window.ROUNDS_DATA.find(r=>r.id===saved.roundId)?.name || 'Sky Tour';
+      button.textContent = `RESUME · ${world} · ${Math.floor(saved.rider.s)} m`;
     }
   },
 
   continueSavedRun() {
     const saved = window.GameStorage.getRun();
     if (!saved) { this.refreshContinueButton(); return; }
-    const round = saved.isEndless ? {...window.ROUNDS_DATA[15],id:99,name:'Endless City Tour',length:999999,baseSpeed:12}
+    const round = saved.isEndless ? {...window.ROUNDS_DATA[15],id:99,name:'Endless Sky Tour',length:999999,baseSpeed:12}
       : window.ROUNDS_DATA.find(r=>r.id===saved.roundId);
+    if(saved.version!==2 || saved.layoutVersion!==2){
+      // The authored world layouts changed. Preserve score, health, coins and
+      // run identity, but deliberately restart at the last safe checkpoint on
+      // the new route instead of restoring stale city geometry.
+      this.cancelCountdown();this.input.resetAll();this.arcadeEffects.reset();
+      this.currentRoundId=saved.roundId;this.isEndless=!!saved.isEndless;this.currentRunTxId=saved.runId;
+      for(const [key,value] of Object.entries(saved.stats||{}))if(Number.isFinite(value))this[key]=value;
+      const checkpoint=Math.max(0,Math.min(Number(saved.rider?.lastCheckpointS)||0,(round.length||999999)-80));
+      this.applyRoundAtmosphere(round);this.trackGen.buildRound(round,saved.track?.seed||Date.now());
+      this.riderCtrl.reset(checkpoint,round.baseSpeed*window.ScooterTuning.cruiseMultiplier);this.riderCtrl.lastCheckpointS=checkpoint;
+      this.gameCam.reset(this.riderCtrl.mesh,this.trackGen);this.hasActiveRun=true;this.autosaveTimer=0;this.state='PAUSED';
+      document.getElementById('hud-world').textContent=`${saved.isEndless?'∞':round.id} · ${round.name}`;
+      this.hideAllScreens();this.updateHUD();this.saveActiveRun();this.showFloatingLabel('WORLD MAP UPDATED · CHECKPOINT RESTORED',this.riderCtrl.mesh.position,'#ffe082');this.resume();return;
+    }
     this.cancelCountdown();this.input.resetAll();this.arcadeEffects.reset();
     this.currentRoundId=saved.roundId;this.isEndless=saved.isEndless;this.currentRunTxId=saved.runId;
     for (const [key,value] of Object.entries(saved.stats)) if (Number.isFinite(value)) this[key]=value;
