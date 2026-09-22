@@ -182,6 +182,9 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     for(const h of hazards){const m=this.factory.createObstacle(h.type),at=s+18,p=this.frame(at,h.laneX);m.position.set(p.x,p.y,p.z);m.rotation.y=Math.atan2(this.getTrackTangent(at).x,this.getTrackTangent(at).z);m.userData={id:`obs_${at}_${h.laneX}`,s:at,laneX:h.laneX,type:h.type,hit:false,isJumpable:h.type==='barrier',isMoving:this.roundData.features.movingObstacles&&special!=='logs',baseLaneX:h.laneX,motionPhase:this.rng()*Math.PI*2,motionRate:.7,motionAmplitude:special==='moving_crystals'?.5:.25};m.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});this.scene.add(m);this.activeObstacles.push(m);}
     if(s<this.roundData.length){
       for(let i=0;i<5;i++){const at=s+3+i*4;if(gap&&at>s+9&&at<s+15)continue;this.addItem(this.factory.createCoin(),at,safeLane,['bounce','ledge_jumps','boost_glide'].includes(special)?1.7:1.05,{id:`coin_${at}`});this.totalCoins++;}
+      // Preserve the official antigravity onboarding pickup at the same
+      // authored distance across every round, independent of ML tuning.
+      if(s===48)this.addItem(this.factory.createPowerup('antigravity'),61,safeLane,1.35,{id:'antigravity_61',isPowerup:true,type:'antigravity'});
       if(!gap&&s%96===24)this.addItem(this.factory.createPowerup('overdrive'),s+7,safeLane,1.25,{id:`boost_${s}`,isPowerup:true,type:'overdrive'});
       else if(!gap&&!safe&&this.rng()<.25){const type=['shield','magnet','double','heart','overdrive','magic_fruit','propulsor'][Math.floor(this.rng()*7)];this.addItem(this.factory.createPowerup(type),s+7,safeLane,1.25,{id:`power_${s}`,isPowerup:true,type});}
       if(!gap&&!safe&&this.rng()<this.difficulty.magicPickupChance)this.addItem(this.factory.createPowerup('magic_fruit'),s+11,safeLane,1.25,{id:`fruit_${s}`,isPowerup:true,type:'magic_fruit'});
