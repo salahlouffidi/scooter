@@ -15,6 +15,7 @@ window.SkyScooterGame = class SkyScooterGame {
     this.coinScore = 0;
     this.gemScore = 0;
     this.jumpScore = 0;
+    this.obstaclePenalty = 35;
     this.consecutiveCoins = 0;
     this.coinMultiplier = 1;
     this.coinsCollectedThisRun = 0;
@@ -391,6 +392,14 @@ window.SkyScooterGame = class SkyScooterGame {
     this.startCountdown(); // Resume with smooth countdown
   }
 
+  applyObstaclePenalty(amount = null, position = this.riderCtrl?.mesh?.position) {
+    const penalty = amount ?? this.obstaclePenalty ?? 35;
+    const currentScore = Number.isFinite(this.score) ? this.score : 0;
+    const nextScore = Math.max(0, currentScore - penalty);
+    this.score = nextScore;
+    this.showFloatingLabel(`-${penalty} POINTS!`, position || this.riderCtrl?.mesh?.position, '#ff7043');
+  }
+
   // --- Gameplay Event Handler ---
 
   onGameplayEvent(eventType, param) {
@@ -431,6 +440,7 @@ window.SkyScooterGame = class SkyScooterGame {
       this.mlWindowHadDamage = true;
       this.consecutiveCoins = 0; // breaks combo
       this.coinMultiplier = 1;
+      this.applyObstaclePenalty(this.obstaclePenalty, this.riderCtrl.mesh.position);
       this.hearts--;
       this.showFloatingLabel('-1 HEART!', this.riderCtrl.mesh.position, '#f44336');
       if (window.GameAudio) window.GameAudio.playDamage();
@@ -447,6 +457,7 @@ window.SkyScooterGame = class SkyScooterGame {
       this.mlWindowHadDamage = true;
       this.consecutiveCoins = 0;
       this.coinMultiplier = 1;
+      this.applyObstaclePenalty(Math.max(50, this.obstaclePenalty * 2), this.riderCtrl.mesh.position);
       this.hearts--;
       this.showFloatingLabel('FELL! -1 HEART', this.riderCtrl.mesh.position, '#e91e63');
       if (window.GameAudio) window.GameAudio.playDamage();
