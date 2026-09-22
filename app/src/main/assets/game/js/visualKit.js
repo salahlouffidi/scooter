@@ -91,10 +91,59 @@
     }
     for(let i=0;i<4;i++)ball(waterfall,0xe2f8ff,[(i-1.5)*.7,-15,0],[.9,.3,.65]);
 
-    const crate=group('Crate');block(crate,0x8b91a0,[0,.6,0],[1.2,1.2,1.2]);
-    for(const y of [.09,1.11])block(crate,0xb3b6bb,[0,y,-.62],[1.3,.16,.13]);
-    for(const x of [-.56,.56])block(crate,0xa3a8b2,[x,.6,-.62],[.16,1.1,.13]);
-    for(const a of [-.65,.65]){const b=block(crate,0x697482,[0,.6,-.66],[.13,1.25,.06]);b.rotation.z=a;}
+    const crate = group('Crate');
+    // Main wooden cargo crate body
+    block(crate, 0x8d5b32, [0, .6, 0], [1.14, 1.14, 1.14]);
+    // Horizontal wood plank grooves and framing on front and back
+    for (const z of [-.575, .575]) {
+      for (const y of [.32, .6, .88]) {
+        block(crate, 0x6e431f, [0, y, z], [1.02, .03, .02]);
+      }
+      // Top and bottom horizontal framing rails
+      block(crate, 0x5a3617, [0, .07, z], [1.18, .13, .07]);
+      block(crate, 0x5a3617, [0, 1.13, z], [1.18, .13, .07]);
+      // Diagonal X-bracing timbers
+      for (const a of [-.62, .62]) {
+        const b = block(crate, 0x673e1c, [0, .6, z + (z > 0 ? .01 : -.01)], [.11, 1.16, .03]);
+        b.rotation.z = a;
+      }
+      // High-visibility hazard caution plate
+      block(crate, 0xffb300, [0, .6, z + (z > 0 ? .025 : -.025)], [.82, .2, .015]);
+      // Diagonal caution hazard stripes
+      for (const ox of [-.28, -.14, 0, .14, .28]) {
+        const s = block(crate, 0x212121, [ox, .6, z + (z > 0 ? .032 : -.032)], [.05, .18, .01]);
+        s.rotation.z = .45;
+      }
+    }
+    // Side horizontal framing rails and X-braces along X
+    for (const x of [-.575, .575]) {
+      block(crate, 0x5a3617, [x, .07, 0], [.07, .13, 1.05]);
+      block(crate, 0x5a3617, [x, 1.13, 0], [.07, .13, 1.05]);
+      for (const a of [-.62, .62]) {
+        const b = block(crate, 0x673e1c, [x + (x > 0 ? .01 : -.01), .6, 0], [.03, 1.16, .11]);
+        b.rotation.x = a;
+      }
+    }
+    // 4 vertical corner posts
+    for (const x of [-.54, .54]) {
+      for (const z of [-.54, .54]) {
+        block(crate, 0x523013, [x, .6, z], [.13, 1.2, .13]);
+      }
+    }
+    // Reinforced steel corner brackets
+    for (const x of [-.55, .55]) {
+      for (const y of [.07, 1.13]) {
+        for (const z of [-.55, .55]) {
+          block(crate, mat(0x2e3b44, .7, .4), [x, y, z], [.15, .15, .15]);
+        }
+      }
+    }
+    // Top caution hazard plate
+    block(crate, 0xffb300, [0, 1.185, 0], [.65, .015, .65]);
+    for (const ox of [-.18, 0, .18]) {
+      const ts = block(crate, 0x212121, [ox, 1.192, 0], [.045, .01, .6]);
+      ts.rotation.y = .45;
+    }
     return kit;
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -38,7 +38,7 @@ for(let i=0;i<200;i++){
 assert(landed,'descending jump lands on the car roof');assert(!events.includes('hit_obstacle'));
 assert.equal(events.filter(e=>e==='roof_landing').length,1);assert(rider.s>14&&rider.y===0,'rider drops back to the road after leaving roof');
 
-for(const type of ['car','taxi','van','bus','roadroller']){
+for(const type of ['crate','car','taxi','van','bus','roadroller']){
  const o=obstacle(type,20);track.activeObstacles=[o];rider.reset(17-o.userData.collision.halfLength,28);rider.applyPowerup('overdrive');events.length=0;
  for(let i=0;i<20;i++)rider.update(.06,input,20,9,event);
  assert(rider.s<20-o.userData.collision.halfLength-.39,`${type}: no turbo tunneling`);
@@ -52,16 +52,54 @@ const session={version:1,roundId:2,runId:'test_run',stats:{hearts:2,score:420},r
 GameStorage.saveRun(session);assert.equal(GameStorage.getRun().runId,'test_run');assert.equal(GameStorage.getRun().stats.score,420);GameStorage.clearRun();assert.equal(GameStorage.getRun(),null);
 localStorage.setItem(GameStorage.KEYS.ACTIVE_RUN,'{broken');assert.equal(GameStorage.getRun(),null);
 
-// Test obstacle penalty scoring & camera shake mechanics
-let testScore = 100;
-const applyPenalty = (amount, penaltyVal = 35) => {
-  const penalty = amount ?? penaltyVal;
-  testScore = Math.max(0, testScore - penalty);
-  return testScore;
+// Verify crate visual appearance, collision bounds, shadows and hazard markings
+const crateObs = factory.createObstacle('crate');
+assert(crateObs.userData.collision, 'crate has computed collision bounds');
+assert(crateObs.userData.collision.halfWidth >= 0.55 && crateObs.userData.collision.halfWidth <= 0.65, 'crate halfWidth believable ~0.6m');
+assert(crateObs.userData.collision.halfLength >= 0.55 && crateObs.userData.collision.halfLength <= 0.65, 'crate halfLength believable ~0.6m');
+assert(crateObs.userData.collision.top >= 1.15 && crateObs.userData.collision.top <= 1.25, 'crate top height believable ~1.2m');
+let crateMeshCount = 0, crateHasYellow = false, crateHasBlack = false, crateCastCount = 0;
+crateObs.traverse(m => {
+  if (m.isMesh) {
+    crateMeshCount++;
+    if (m.castShadow) crateCastCount++;
+    const col = m.material?.color?.getHex();
+    if (col === 0xffb300) crateHasYellow = true;
+    if (col === 0x212121) crateHasBlack = true;
+  }
+});
+assert(crateMeshCount >= 10, 'crate is a detailed road hazard with multiple structural panels');
+assert.equal(crateCastCount, crateMeshCount, 'all crate components cast shadows');
+assert(crateHasYellow && crateHasBlack, 'crate features high-visibility hazard warning stripes');
+
+// Test procedural fallback crate (without louffiKit)
+const savedKit = window.louffiKit;
+window.louffiKit = null;
+const proceduralCrate = new AssetFactory(THREE).createObstacle('crate');
+window.louffiKit = savedKit;
+assert(proceduralCrate.userData.collision, 'procedural fallback crate has collision bounds');
+assert(proceduralCrate.userData.collision.halfWidth >= 0.55 && proceduralCrate.userData.collision.halfWidth <= 0.65, 'fallback crate width ~0.6m');
+assert(proceduralCrate.userData.collision.top >= 1.15 && proceduralCrate.userData.collision.top <= 1.25, 'fallback crate top ~1.2m');
+
+// Test obstacle penalty scoring, combo reset & single hit mechanics
+let testScore = 100, consecutiveCoins = 15, coinMultiplier = 2, hearts = 3;
+const simulateHitObstacle = (penaltyAmount = 35) => {
+  consecutiveCoins = 0;
+  coinMultiplier = 1;
+  testScore = Math.max(0, testScore - penaltyAmount);
+  hearts--;
 };
-assert.equal(applyPenalty(35), 65, 'hitting obstacle reduces score by 35 points');
-assert.equal(applyPenalty(50), 15, 'falling into hazard reduces score by 50 points');
-assert.equal(applyPenalty(35), 0, 'score penalty safely clamps at 0 without becoming negative');
+simulateHitObstacle(35);
+assert.equal(testScore, 65, 'hitting obstacle reduces score by 35 points');
+assert.equal(consecutiveCoins, 0, 'coin combo resets to 0 upon collision');
+assert.equal(coinMultiplier, 1, 'coin multiplier resets to 1 upon collision');
+assert.equal(hearts, 2, 'hearts reduced by 1');
+simulateHitObstacle(50);
+assert.equal(testScore, 15, 'falling into hazard reduces score by 50 points');
+simulateHitObstacle(35);
+assert.equal(testScore, 0, 'score penalty safely clamps at 0 without becoming negative');
+simulateHitObstacle(35);
+assert.equal(testScore, 0, 'subsequent penalties do not make score negative');
 
 const cam = new GameCamera(new THREE.PerspectiveCamera(), THREE);
 cam.reset(rider.mesh, track);

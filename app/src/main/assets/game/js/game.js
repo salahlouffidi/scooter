@@ -420,7 +420,7 @@ window.SkyScooterGame = class SkyScooterGame {
       setTimeout(() => scoreVal.classList.remove('hud-score-penalty'), 450);
     }
 
-    this.showFloatingLabel(`-${penalty} PTS`, position || this.riderCtrl?.mesh?.position, '#ff5252', 'penalty', 0.4);
+    this.showFloatingLabel(`-${penalty} POINTS!`, position || this.riderCtrl?.mesh?.position, '#ff5252', 'penalty', 0.4);
   }
 
   // --- Gameplay Event Handler ---

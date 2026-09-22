@@ -10,6 +10,7 @@ import android.os.VibratorManager
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -28,6 +29,12 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        init {
+            MainApplication.configureGraphicsEnvironment()
+        }
+    }
 
     private var webView: WebView? = null
     private var appResumed = false
@@ -135,7 +142,19 @@ class MainActivity : ComponentActivity() {
                             loadWithOverviewMode = true
                         }
                         webChromeClient = WebChromeClient()
-                        webViewClient = object : WebViewClient() {}
+                        webViewClient = object : WebViewClient() {
+                            override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+                                view?.let { wv ->
+                                    (wv.parent as? ViewGroup)?.removeView(wv)
+                                    wv.destroy()
+                                }
+                                if (this@MainActivity.webView === view) {
+                                    this@MainActivity.webView = null
+                                }
+                                recreate()
+                                return true
+                            }
+                        }
                         addJavascriptInterface(bridge, "AndroidBridge")
                         loadUrl("file:///android_asset/game/index.html")
                         this@MainActivity.webView = this

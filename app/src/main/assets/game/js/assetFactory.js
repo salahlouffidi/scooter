@@ -49,7 +49,11 @@ window.AssetFactory = class AssetFactory {
       emissive: 0x7b1fa2
     });
 
-    this.materials.crate = new THREE.MeshLambertMaterial({ color: 0x8d6e63 });
+    this.materials.crate = new THREE.MeshLambertMaterial({ color: 0x8d5b32 });
+    this.materials.crateFrame = new THREE.MeshLambertMaterial({ color: 0x5a3617 });
+    this.materials.crateMetal = new THREE.MeshStandardMaterial({ color: 0x2e3b44, roughness: .45, metalness: .65 });
+    this.materials.hazardYellow = new THREE.MeshLambertMaterial({ color: 0xffb300 });
+    this.materials.hazardBlack = new THREE.MeshLambertMaterial({ color: 0x212121 });
     this.materials.stone = new THREE.MeshLambertMaterial({ color: 0x90a4ae });
     this.materials.stoneDark = new THREE.MeshLambertMaterial({ color: 0x546e7a });
     this.materials.wood = new THREE.MeshLambertMaterial({ color: 0x6d4c41 });
@@ -492,17 +496,131 @@ window.AssetFactory = class AssetFactory {
   }
 
   // Obstacle mesh
+  createCrateObstacle() {
+    const THREE = this.THREE;
+    const group = new THREE.Group();
+    group.name = 'obstacle_crate';
+
+    const crateBody = new THREE.Mesh(new THREE.BoxGeometry(1.14, 1.14, 1.14), this.materials.crate);
+    crateBody.position.y = 0.6;
+    crateBody.castShadow = true; crateBody.receiveShadow = true;
+    group.add(crateBody);
+
+    const frameMat = this.materials.crateFrame || this.materials.wood;
+    const metalMat = this.materials.crateMetal || this.materials.streetMetal;
+    const warnYellow = this.materials.hazardYellow || this.materials.warningOrange;
+    const warnBlack = this.materials.hazardBlack || this.materials.vehicleTire;
+
+    // 4 vertical corner posts
+    const postGeo = new THREE.BoxGeometry(0.13, 1.2, 0.13);
+    for (const x of [-0.54, 0.54]) {
+      for (const z of [-0.54, 0.54]) {
+        const post = new THREE.Mesh(postGeo, frameMat);
+        post.position.set(x, 0.6, z);
+        post.castShadow = true; post.receiveShadow = true;
+        group.add(post);
+      }
+    }
+
+    // Horizontal rails and X-bracing along front and back (Z)
+    const railXGeo = new THREE.BoxGeometry(1.18, 0.13, 0.07);
+    const railZGeo = new THREE.BoxGeometry(0.07, 0.13, 1.05);
+    const braceGeo = new THREE.BoxGeometry(0.11, 1.16, 0.03);
+    const plateGeo = new THREE.BoxGeometry(0.82, 0.2, 0.015);
+    const stripeGeo = new THREE.BoxGeometry(0.05, 0.18, 0.01);
+    const plankGrooveGeo = new THREE.BoxGeometry(1.02, 0.03, 0.02);
+
+    for (const z of [-0.575, 0.575]) {
+      for (const y of [0.32, 0.6, 0.88]) {
+        const groove = new THREE.Mesh(plankGrooveGeo, frameMat);
+        groove.position.set(0, y, z);
+        groove.castShadow = true; groove.receiveShadow = true;
+        group.add(groove);
+      }
+      for (const y of [0.07, 1.13]) {
+        const rail = new THREE.Mesh(railXGeo, frameMat);
+        rail.position.set(0, y, z);
+        rail.castShadow = true; rail.receiveShadow = true;
+        group.add(rail);
+      }
+      for (const a of [-0.62, 0.62]) {
+        const brace = new THREE.Mesh(braceGeo, frameMat);
+        brace.position.set(0, 0.6, z + (z > 0 ? 0.01 : -0.01));
+        brace.rotation.z = a;
+        brace.castShadow = true; brace.receiveShadow = true;
+        group.add(brace);
+      }
+      const plate = new THREE.Mesh(plateGeo, warnYellow);
+      plate.position.set(0, 0.6, z + (z > 0 ? 0.025 : -0.025));
+      plate.castShadow = true; plate.receiveShadow = true;
+      group.add(plate);
+
+      for (const ox of [-0.28, -0.14, 0, 0.14, 0.28]) {
+        const stripe = new THREE.Mesh(stripeGeo, warnBlack);
+        stripe.position.set(ox, 0.6, z + (z > 0 ? 0.032 : -0.032));
+        stripe.rotation.z = 0.45;
+        stripe.castShadow = true; stripe.receiveShadow = true;
+        group.add(stripe);
+      }
+    }
+
+    // Horizontal rails and X-braces along left/right (X)
+    const braceXGeo = new THREE.BoxGeometry(0.03, 1.16, 0.11);
+    for (const x of [-0.575, 0.575]) {
+      for (const y of [0.07, 1.13]) {
+        const rail = new THREE.Mesh(railZGeo, frameMat);
+        rail.position.set(x, y, 0);
+        rail.castShadow = true; rail.receiveShadow = true;
+        group.add(rail);
+      }
+      for (const a of [-0.62, 0.62]) {
+        const brace = new THREE.Mesh(braceXGeo, frameMat);
+        brace.position.set(x + (x > 0 ? 0.01 : -0.01), 0.6, 0);
+        brace.rotation.x = a;
+        brace.castShadow = true; brace.receiveShadow = true;
+        group.add(brace);
+      }
+    }
+
+    // Steel corner brackets
+    const bracketGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+    for (const x of [-0.55, 0.55]) {
+      for (const y of [0.07, 1.13]) {
+        for (const z of [-0.55, 0.55]) {
+          const bracket = new THREE.Mesh(bracketGeo, metalMat);
+          bracket.position.set(x, y, z);
+          bracket.castShadow = true; bracket.receiveShadow = true;
+          group.add(bracket);
+        }
+      }
+    }
+
+    // Top caution plate
+    const topPlate = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.015, 0.65), warnYellow);
+    topPlate.position.set(0, 1.185, 0);
+    topPlate.castShadow = true; topPlate.receiveShadow = true;
+    group.add(topPlate);
+    for (const ox of [-0.18, 0, 0.18]) {
+      const topStripe = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.01, 0.6), warnBlack);
+      topStripe.position.set(ox, 1.192, 0);
+      topStripe.rotation.y = 0.45;
+      topStripe.castShadow = true; topStripe.receiveShadow = true;
+      group.add(topStripe);
+    }
+
+    return group;
+  }
+
   createObstacle(type, city = '') {
-    if (type === 'crate' && window.louffiKit) return window.louffiKit.getObjectByName('Crate').clone(true);
+    if (type === 'crate' && window.louffiKit && window.louffiKit.getObjectByName('Crate')) {
+      return window.louffiKit.getObjectByName('Crate').clone(true);
+    }
     const THREE = this.THREE;
     const group = new THREE.Group();
     group.name = `obstacle_${type}`;
 
     if (type === 'crate') {
-      const geo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
-      const mesh = new THREE.Mesh(geo, this.materials.crate);
-      mesh.position.y = 0.6;
-      group.add(mesh);
+      return this.createCrateObstacle();
     } else if (type === 'barrier') {
       // Low stone jump barrier (0.75m high, jumpable)
       const geo = new THREE.BoxGeometry(2.4, 0.75, 0.4);
