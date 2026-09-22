@@ -524,6 +524,7 @@ window.RiderController = class RiderController {
       }
       this.mesh.userData.rider.scale.set(1.0, squash, 1.0);
     }
+    this.mesh.userData.riderTail?.updatePose(dt, this);
   }
 
   updateMeshTransform() {

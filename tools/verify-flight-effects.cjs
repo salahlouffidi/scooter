@@ -1,0 +1,86 @@
+// Exercise the shipped rider, real flight physics, particle lifetime and accessibility.
+const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path');
+global.window = global;
+global.THREE = require('../app/src/main/assets/game/lib/three.min.js');
+global.localStorage = {getItem: () => null, setItem() {}};
+const base = path.resolve(__dirname, '../app/src/main/assets/game');
+global.fetch = async () => ({ok: true, arrayBuffer: async () => {
+  const b = fs.readFileSync(base + '/models/louffi-world.glb');
+  return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+}});
+for (const name of ['visualKit','kitLoader','storage','rounds','arcadeEffects','reachability',
+  'assetFactory','trackGenerator','biomeArt','cityArt','enhancedTrack','controller']) require(base + '/js/' + name + '.js');
+
+(async () => {
+  await loadLouffiKit(); assert.equal(louffiAssetStatus, 'GLB loaded');
+  const scene = new THREE.Scene(), factory = new AssetFactory(THREE), track = new TrackGenerator(scene, factory, THREE);
+  track.buildRound(ROUNDS_DATA[0], 123);
+  // Isolate flight/landing from streamed obstacles and pickups, using the real controller.
+  track.getTrackPoint = s => ({x: 0, y: 0, z: s}); track.getTrackGrade = () => 0;
+  track.getTrackTangent = () => ({x: 0, y: 0, z: 1});
+  track.activeObstacles = []; track.activeCollectibles = []; track.activeSegments = [];
+  const rider = new RiderController(factory.createRiderWithScooter(), track), fx = new ArcadeEffects(scene, THREE);
+  const tail = rider.mesh.userData.riderTail, nitro = fx.flightExhaust;
+  const input = {horizontalSteer: 0, verticalSteer: 0, isBraking: false, isJumpHeld: false, consumeJump: () => false};
+  const settings = {graphicsQuality: 'high', reducedMotion: false};
+  const step = (n = 1) => {for (let i = 0; i < n; i++) {
+    rider.reducedMotion = settings.reducedMotion;
+    rider.update(1 / 60, input, 10, 9); fx.update(1 / 60, rider, track, settings, true);
+  }};
+  assert.equal(tail.parent, rider.mesh.userData.rider, 'tail follows the rider, not the scene');
+  assert(!louffiKit.getObjectByName('riderTail'), 'original shared GLB is untouched');
+  const tailBuffer = tail.geometry.attributes.position.array, smokeBuffer = nitro.positions;
+  const neutral = Array.from(tailBuffer); step(15);
+  assert.notDeepEqual(Array.from(tailBuffer), neutral, 'tail sways while riding');
+  assert.equal(nitro.smoke.geometry.drawRange.count, 0, 'normal riding has no flight smoke');
+  rider.applyPowerup('antigravity'); step(15);
+  assert.equal(nitro.smoke.geometry.drawRange.count, 0, 'grounded hover has no flight exhaust');
+  rider.y = 4; rider.isGrounded = false; rider.verticalVelocity = -1.4; input.isJumpHeld = true;
+  step(40); assert(rider.isGliding && nitro.flames.every(f => f.visible), 'held antigravity glide emits blue jets');
+  const normalIntensity = nitro.intensity, normalLength = nitro.flames[0].scale.z;
+  assert(nitro.smoke.geometry.drawRange.count > 0, 'glide emits smoke without turbo');
+  const smokeParticle = nitro.pool.find(p => p.life > .5), origin = smokeParticle.p.clone();
+  rider.mesh.position.x += 3;
+  fx.update(1 / 60, rider, track, settings, true);
+  assert(smokeParticle.p.distanceTo(origin) < .1, 'existing smoke stays in world space when the rider turns');
+  rider.applyPowerup('overdrive'); input.horizontalSteer = .6; step(30);
+  assert(nitro.intensity > normalIntensity * 1.3 && nitro.flames[0].scale.z > normalLength, 'boost strengthens flight jets');
+  assert.notDeepEqual(Array.from(tailBuffer), neutral, 'tail follows airborne turns');
+  const lives = nitro.pool.map(p => p.life), time = fx.time;
+  fx.update(1, rider, track, settings, false);
+  assert.deepEqual(nitro.pool.map(p => p.life), lives); assert.equal(fx.time, time);
+  assert(!fx.root.visible && !nitro.root.visible, 'pause hides and freezes exhaust');
+  step(); assert(nitro.root.visible, 'resume restores flight effects');
+  const saved = JSON.parse(JSON.stringify(rider.captureState())); rider.restoreState(saved);
+  assert.deepEqual(rider.captureState(), saved, 'cosmetic tail leaves saved physics/powers intact');
+  input.horizontalSteer = 0; input.isJumpHeld = false;
+  rider.reset(); fx.reset(); rider.applyPowerup('propulsor'); step(80);
+  assert(rider.activeSkyFlight && nitro.smoke.geometry.drawRange.count > 0, 'Sky Lift emits smoke');
+  while (rider.activeSkyFlight) step();
+  const cursorAfterFlight = nitro.cursor; step(5);
+  assert.equal(nitro.cursor, cursorAfterFlight, 'flight ending stops new smoke');
+  assert(nitro.smoke.geometry.drawRange.count > 0, 'old smoke survives briefly after flight');
+  step(100); assert(rider.isGrounded && nitro.smoke.geometry.drawRange.count === 0);
+  assert(nitro.flames.every(f => !f.visible) && nitro.cores.every(f => !f.visible), 'landing fades blue jets');
+  rider.reset(); fx.reset(); rider.applyPowerup('antigravity'); rider.y = 20; rider.isGrounded = false; input.isJumpHeld = true;
+  step(60); const highCount = nitro.smoke.geometry.drawRange.count;
+  settings.graphicsQuality = 'low'; fx.reset(); step(60);
+  assert(nitro.smoke.geometry.drawRange.count < highCount, 'low graphics reduces smoke');
+  settings.reducedMotion = true; step(60);
+  assert(!nitro.root.visible && nitro.pool.every(p => p.life <= 0), 'Reduced Motion clears continuous smoke');
+  const quietTail = Array.from(tailBuffer); step(20);
+  assert.deepEqual(Array.from(tailBuffer), quietTail, 'Reduced Motion stops tail sway');
+  settings.reducedMotion = false; settings.graphicsQuality = 'high'; fx.reset();
+  rider.reset(); rider.applyPowerup('propulsor'); step(90);
+  rider.mesh.position.z += 100; fx.update(1 / 120, rider, track, settings, true);
+  assert.equal(nitro.smoke.geometry.drawRange.count, 0, 'teleport clears old smoke instead of bridging the map');
+  assert.equal(nitro.pool.length, 64); assert.equal(nitro.positions, smokeBuffer);
+  assert.equal(tail.geometry.attributes.position.array, tailBuffer, 'tail deforms an existing buffer');
+  assert([...tailBuffer, ...tail.geometry.attributes.normal.array, ...smokeBuffer].every(Number.isFinite));
+  fx.reset(); assert(!nitro.root.visible && nitro.pool.every(p => p.life <= 0));
+  global.louffiKit = null;
+  const fallback = new RiderController(factory.createRiderWithScooter(), track);
+  fallback.update(1 / 60, input, 10, 9);
+  assert(fallback.mesh.userData.riderTail.geometry.attributes.position.array.every(Number.isFinite), 'fallback rider also has a tail');
+  console.log('PASS flight effects: GLB/fallback tail, sway/turning, hover vs glide, Sky Lift, boost strength, world-space smoke, landing fade, pause/resume, saved physics, low graphics, Reduced Motion, teleport reset and fixed buffers.');
+})().catch(e => {console.error(e); process.exitCode = 1;});

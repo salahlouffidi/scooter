@@ -141,6 +141,7 @@ window.AssetFactory = class AssetFactory {
       root.userData = {};
       ['scooter','rider','frontWheel','backWheel','headGroup','leftLeg','rightLeg'].forEach(name => root.userData[name] = root.getObjectByName(name));
       this.addHoverRing(root);
+      this.addRiderTail(root);
       return root;
     }
     const THREE = this.THREE;
@@ -296,7 +297,68 @@ window.AssetFactory = class AssetFactory {
     };
 
     this.addHoverRing(root);
+    this.addRiderTail(root);
     return root;
+  }
+
+  addRiderTail(root) {
+    const T = this.THREE, rings = 18, sides = 10;
+    const positions = new Float32Array((rings + 1) * sides * 3);
+    const normals = new Float32Array(positions.length), colors = new Float32Array(positions.length);
+    const centers = Array.from({length: rings + 1}, () => new T.Vector3());
+    const geometry = new T.BufferGeometry(), indices = [];
+    const coat = new T.Color(0xd85b36), tip = new T.Color(0xffe5bd), color = new T.Color();
+    for (let i = 0; i <= rings; i++) {
+      const t = i / rings;
+      color.copy(coat).lerp(tip, T.MathUtils.smoothstep(t, .72, .96));
+      for (let j = 0; j < sides; j++) {
+        color.toArray(colors, (i * sides + j) * 3);
+        if (i === rings) continue;
+        const a = i * sides + j, b = (i + 1) * sides + j, next = (j + 1) % sides;
+        indices.push(a, b, i * sides + next, b, (i + 1) * sides + next, i * sides + next);
+      }
+    }
+    geometry.setAttribute('position', new T.BufferAttribute(positions, 3).setUsage(T.DynamicDrawUsage));
+    geometry.setAttribute('normal', new T.BufferAttribute(normals, 3).setUsage(T.DynamicDrawUsage));
+    geometry.setAttribute('color', new T.BufferAttribute(colors, 3));
+    geometry.setIndex(indices);
+    // One tapered mesh, deformed in place: no bones, asset download or per-frame geometry allocation.
+    const tail = new T.Mesh(geometry, new T.MeshStandardMaterial({vertexColors: true, roughness: .85}));
+    tail.name = 'riderTail'; tail.position.set(0, 1.02, -.16);
+    tail.castShadow = true; tail.receiveShadow = true;
+    const tangent = new T.Vector3(), side = new T.Vector3(), up = new T.Vector3();
+    let bend = 0, flight = 0;
+    tail.updatePose = (dt, rider) => {
+      const quiet = !!rider.reducedMotion;
+      const targetBend = quiet ? 0 : T.MathUtils.clamp((rider.lateralVelocity || 0) * .045, -.4, .4);
+      const targetFlight = rider.activeSkyFlight || rider.isGliding || rider.isGrounded === false || rider.activeOverdrive ? 1 : 0;
+      const blend = dt > 0 ? 1 - Math.exp(-dt * 9) : 1;
+      bend += (targetBend - bend) * blend; flight += (targetFlight - flight) * blend;
+      const phase = quiet ? 0 : (rider.idleTime || 0) * .65;
+      for (let i = 0; i <= rings; i++) {
+        const t = i / rings, wave = quiet ? 0 : Math.sin(phase - t * 4) * .12 * t;
+        centers[i].set(bend * t * t + wave * (1 - flight * .6),
+          Math.sin(t * Math.PI) * (.25 - flight * .13) + t * (.27 - flight * .17),
+          -t * (1.3 + flight * .28));
+      }
+      for (let i = 0; i <= rings; i++) {
+        const t = i / rings, radius = .095 * Math.pow(1 - t, .6) + .008;
+        tangent.subVectors(centers[Math.min(rings, i + 1)], centers[Math.max(0, i - 1)]).normalize();
+        side.set(-tangent.z, 0, tangent.x).normalize(); up.crossVectors(side, tangent).normalize();
+        for (let j = 0; j < sides; j++) {
+          const angle = j / sides * Math.PI * 2, c = Math.cos(angle), s = Math.sin(angle), k = (i * sides + j) * 3;
+          const nx = side.x * c + up.x * s, ny = side.y * c + up.y * s, nz = side.z * c + up.z * s;
+          positions[k] = centers[i].x + nx * radius; positions[k + 1] = centers[i].y + ny * radius; positions[k + 2] = centers[i].z + nz * radius;
+          normals[k] = nx; normals[k + 1] = ny; normals[k + 2] = nz;
+        }
+      }
+      geometry.attributes.position.needsUpdate = true; geometry.attributes.normal.needsUpdate = true;
+    };
+    tail.updatePose(0, {});
+    // Conservative bounds include every steering/flight pose.
+    geometry.boundingSphere = new T.Sphere(new T.Vector3(0, .2, -.8), 1.25);
+    root.userData.rider.add(tail);
+    root.userData.riderTail = tail;
   }
 
   addHoverRing(root) {

@@ -8,6 +8,16 @@ The visual pass from [`scooter2` commit 7f60b85](https://github.com/salahlouffid
 
 Low graphics disables the canvas filter and halves trail emission. Reduced Motion disables the flames, continuous trail and HUD pulse; pausing freezes the pulse. OS Reduced Motion also disables the HUD pulse. No additional GLB or runtime download is required.
 
+## Rider tail and flight nitro
+
+The original in-game rider now has a tapered orange tail with a cream tip, attached at the lower back. It sways while riding, bends behind turns, and extends during flight or turbo. The existing GLB is unchanged; a single mesh is added at runtime to both the GLB and fallback rider.
+
+Sky Lift and airborne antigravity/gliding emit twin blue-purple nitro jets with bright cyan cores, matching sparks, and soft smoke. Boosting strengthens and lengthens the jets. Smoke stays behind in world space, expands and fades; ending powered flight stops emission while existing smoke dissipates. Grounded antigravity keeps its existing hover effect, and ground turbo retains its orange exhaust.
+
+The smoke uses one draw call and a fixed pool of 64 particles. Low graphics reduces emission and lifetime. Reduced Motion disables flight exhaust and tail sway. Pause freezes the effects, and new runs or teleports clear stale smoke. Tail animation and exhaust do not change movement, collisions, power-up timers or saved physics.
+
+See the actual game renders: [flight nitro](docs/nitro-flight.jpg), [rider tail detail](docs/rider-tail.jpg), and the [seven-second gameplay preview](docs/nitro-flight.mp4). Run `npm run test:flight:browser -- --record` to capture a scripted run showing takeoff, turns and landing; this capture is not a device performance measurement.
+
 ## Antigravity and gliding
 
 Collect the purple gyroscope for **eight seconds of antigravity**. It first appears around 61 metres in every city, then repeats along the safe pickup lane. The scooter hovers, its wheels fold sideways, and purple rings and sparkles show the active power. Gravity drops to 22% and steering becomes quicker.
@@ -74,6 +84,8 @@ Serve `app/src/main/assets/game` with a local HTTP server. Run:
 node tools/verify-game.cjs
 node tools/resume-physics.cjs
 node tools/verify-antigravity.cjs
+node tools/verify-flight-effects.cjs
+node tools/flight-effects-browser.cjs
 node tools/browser-smoke.cjs
 node tools/session-browser.cjs
 node tools/antigravity-browser.cjs
@@ -82,6 +94,6 @@ node tools/biome-preview.cjs
 
 Browser scripts require Playwright and Chromium; set `CHROMIUM_EXECUTABLE_PATH` for an installed browser. They test controls and GLB loading, menu/app-switch/reload resume, all 16 city districts, finite transforms and rendering errors. The physics test covers solid bodies, rooftop landings, steering escape, turbo sweeps and exact track/RNG restoration. Preview images are actual game renders.
 
-`npm test` runs the game, collision/resume and antigravity physics checks. `npm run test:antigravity:browser` checks two simultaneous touch pointers, hold/release gliding, keyboard repeat, cancellation, app-switch pausing, purple effects and phone HUD layout.
+`npm test` runs the game, collision/resume, antigravity and flight-effects checks. `npm run test:antigravity:browser` checks two simultaneous touch pointers, hold/release gliding, keyboard repeat, cancellation, app-switch pausing, purple effects and phone HUD layout. `npm run test:flight:browser` renders the rider tail and nitro, checks GPU shader compilation, landing fade and Reduced Motion, and writes the two preview images above.
 
 This is a Three.js mobile visual upgrade, not a PS5-class renderer. Real Android frame rate, memory pressure recovery and native Activity lifecycle still require device testing. No signed APK/AAB is included in this commit.
