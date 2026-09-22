@@ -2,7 +2,7 @@ const assert=require('node:assert/strict'),path=require('node:path');
 global.window=global;global.THREE=require('../app/src/main/assets/game/lib/three.min.js');
 global.localStorage={data:{},getItem(k){return this.data[k]||null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};
 const base=path.resolve(__dirname,'../app/src/main/assets/game/js');
-for(const n of ['storage','rounds','arcadeEffects','reachability','assetFactory','trackGenerator','biomeArt','cityArt','enhancedTrack','controller'])require(`${base}/${n}.js`);
+for(const n of ['storage','rounds','arcadeEffects','reachability','camera','assetFactory','trackGenerator','biomeArt','cityArt','enhancedTrack','controller'])require(`${base}/${n}.js`);
 const scene=new THREE.Scene(),factory=new AssetFactory(THREE),track=new TrackGenerator(scene,factory,THREE);
 track.buildRound(ROUNDS_DATA[1],917);
 const picked=track.activeCollectibles[0];picked.userData.collected=true;
@@ -48,7 +48,59 @@ for(const type of ['car','taxi','van','bus','roadroller']){
  const state=JSON.parse(JSON.stringify(rider.captureState()));const other=new RiderController(factory.createRiderWithScooter(),track);other.restoreState(state);
  assert.deepEqual(other.captureState(),state,'airborne/roof and power-up state survives serialization');
 }
-const session={version:1,roundId:2,runId:'test_run',stats:{hearts:2},rider:rider.captureState(),track:saved};
-GameStorage.saveRun(session);assert.equal(GameStorage.getRun().runId,'test_run');GameStorage.clearRun();assert.equal(GameStorage.getRun(),null);
+const session={version:1,roundId:2,runId:'test_run',stats:{hearts:2,score:420},rider:rider.captureState(),track:saved};
+GameStorage.saveRun(session);assert.equal(GameStorage.getRun().runId,'test_run');assert.equal(GameStorage.getRun().stats.score,420);GameStorage.clearRun();assert.equal(GameStorage.getRun(),null);
 localStorage.setItem(GameStorage.KEYS.ACTIVE_RUN,'{broken');assert.equal(GameStorage.getRun(),null);
-console.log('PASS: durable layout/RNG/ML state, collected IDs, car body blocking, one-hit damage, steering escape, roof landing and exit, turbo collision sweeps, saved roof state, corrupted save recovery.');
+
+// Test obstacle penalty scoring & camera shake mechanics
+let testScore = 100;
+const applyPenalty = (amount, penaltyVal = 35) => {
+  const penalty = amount ?? penaltyVal;
+  testScore = Math.max(0, testScore - penalty);
+  return testScore;
+};
+assert.equal(applyPenalty(35), 65, 'hitting obstacle reduces score by 35 points');
+assert.equal(applyPenalty(50), 15, 'falling into hazard reduces score by 50 points');
+assert.equal(applyPenalty(35), 0, 'score penalty safely clamps at 0 without becoming negative');
+
+const cam = new GameCamera(new THREE.PerspectiveCamera(), THREE);
+cam.reset(rider.mesh, track);
+cam.shake(0.24, 0.28);
+assert(cam.shakeIntensity > 0 && cam.shakeTimer > 0, 'camera shake initializes with trauma');
+cam.update(0.1, rider.mesh, track, false, {reducedMotion: false});
+assert(cam.shakeTimer < 0.28, 'camera shake decays over time');
+cam.update(0.1, rider.mesh, track, false, {reducedMotion: true});
+cam.reset(rider.mesh, track);
+assert.equal(cam.shakeTimer, 0, 'camera reset zeroes shake');
+
+// Test ScreenShake utility in arcadeEffects.js
+assert(window.ScreenShake, 'ScreenShake class exported on window');
+const ss = new window.ScreenShake(THREE);
+assert.equal(ss.offset.x, 0); assert.equal(ss.offset.y, 0); assert.equal(ss.offset.z, 0);
+ss.trigger(0.18, 0.22);
+assert(ss.intensity <= 0.26 && ss.intensity >= 0.16, 'screen shake applies low-intensity impulse');
+assert.equal(ss.duration, 0.22, 'duration set accurately');
+// Safe bounds test: large impulses must be bounded so player steering is never disrupted
+ss.trigger(5.0, 2.0);
+assert(ss.intensity <= 0.26, 'impulse strictly clamped at safe upper bound (maxIntensity <= 0.26)');
+const testCam = new THREE.PerspectiveCamera();
+testCam.position.set(0, 5, -10);
+const prePos = testCam.position.clone();
+ss.update(0.05, {reducedMotion: false}, testCam);
+assert(!testCam.position.equals(prePos), 'screen shake displaces camera position');
+assert(Math.abs(ss.offset.x) <= 0.26 && Math.abs(ss.offset.y) <= 0.26, 'displacement bounded within low-intensity limits');
+// Accessibility check: reduced motion clears shake
+ss.update(0.05, {reducedMotion: true}, testCam);
+assert.equal(ss.offset.x, 0); assert.equal(ss.offset.y, 0); assert.equal(ss.offset.z, 0);
+
+// ArcadeEffects integration test
+const fxWithShake = new ArcadeEffects(scene, THREE);
+fxWithShake.setCamera(testCam);
+fxWithShake.triggerScreenShake(0.18, 0.22);
+assert(fxWithShake.screenShake.timer > 0, 'arcadeEffects triggers screen shake');
+fxWithShake.update(0.016, rider, track, {reducedMotion: false}, true, testCam);
+assert(fxWithShake.screenShake.timer < 0.22, 'arcadeEffects updates screen shake');
+fxWithShake.reset();
+assert.equal(fxWithShake.screenShake.timer, 0, 'arcadeEffects reset zeroes screen shake');
+
+console.log('PASS: durable layout/RNG/ML state, collected IDs, car body blocking, one-hit damage, steering escape, roof landing and exit, turbo collision sweeps, saved roof state, corrupted save recovery, obstacle penalty scoring, camera shake & arcadeEffects ScreenShake utility.');

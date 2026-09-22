@@ -123,7 +123,6 @@ class MainActivity : ComponentActivity() {
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
                         )
-                        setLayerType(View.LAYER_TYPE_HARDWARE, null)
                         settings.apply {
                             @SuppressLint("SetJavaScriptEnabled")
                             javaScriptEnabled = true

@@ -20,9 +20,18 @@ window.GameCamera = class GameCamera {
     this.isInitialized = false;
 
     this.baseFov = 60;
+    this.shakeIntensity = 0;
+    this.shakeTimer = 0;
+  }
+
+  shake(intensity = 0.22, duration = 0.28) {
+    this.shakeIntensity = Math.min(0.5, (this.shakeIntensity || 0) + intensity);
+    this.shakeTimer = Math.max(this.shakeTimer, duration);
   }
 
   reset(riderMesh, trackGen) {
+    this.shakeIntensity = 0;
+    this.shakeTimer = 0;
     const p = riderMesh.position;
     const tan = trackGen.getTrackTangent(riderMesh.position.z);
     const center = trackGen.getTrackPoint(riderMesh.position.z);
@@ -80,6 +89,15 @@ window.GameCamera = class GameCamera {
 
     this.camera.position.copy(this.currentPosition);
     this.camera.lookAt(this.currentLookAt);
+
+    // Subtle impact trauma camera shake (disabled in reduced-motion mode)
+    if (this.shakeTimer > 0 && !settings?.reducedMotion) {
+      this.shakeTimer = Math.max(0, this.shakeTimer - dt);
+      const decay = Math.max(0, this.shakeTimer / 0.28);
+      const amp = this.shakeIntensity * decay;
+      this.camera.position.x += (Math.random() - 0.5) * amp;
+      this.camera.position.y += (Math.random() - 0.5) * amp * 0.7;
+    }
 
     // FOV dynamics during Overdrive (disabled in reduced-motion mode)
     const targetFov = (isOverdrive && !settings.reducedMotion) ? 66 : this.baseFov;

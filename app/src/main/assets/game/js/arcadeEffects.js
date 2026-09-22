@@ -134,10 +134,70 @@ window.FlightExhaust = class FlightExhaust {
   }
 };
 
+// Screen Shake Utility: low-intensity physical impulse for impact feedback without disrupting player control
+window.ScreenShake = class ScreenShake {
+  constructor(T) {
+    this.T = T;
+    this.intensity = 0;
+    this.maxIntensity = 0.26; // Safe upper bound: prevents disruption of player steering
+    this.duration = 0;
+    this.timer = 0;
+    this.offset = new T.Vector3();
+    this.frequency = 36.0;
+  }
+
+  trigger(intensity = 0.16, duration = 0.22) {
+    // Low-intensity impulse: immediate physical response without disorienting player
+    const impulse = Math.min(this.maxIntensity, Math.max(0.04, intensity));
+    this.intensity = Math.min(this.maxIntensity, Math.max(this.intensity * 0.4, impulse));
+    this.duration = Math.max(0.08, duration);
+    this.timer = this.duration;
+  }
+
+  reset() {
+    this.intensity = 0;
+    this.duration = 0;
+    this.timer = 0;
+    this.offset.set(0, 0, 0);
+  }
+
+  update(dt, settings = {}, camera = null) {
+    if (this.timer <= 0 || settings.reducedMotion) {
+      if (this.timer > 0 && settings.reducedMotion) {
+        this.reset();
+      }
+      this.offset.set(0, 0, 0);
+      return this.offset;
+    }
+
+    this.timer = Math.max(0, this.timer - dt);
+    const progress = this.duration > 0 ? this.timer / this.duration : 0;
+    // Smooth quadratic decay curve
+    const decay = progress * progress;
+    const amp = this.intensity * decay;
+
+    // High-frequency low-amplitude oscillation
+    const t = (this.duration - this.timer) * this.frequency;
+    const ox = Math.sin(t * 1.35 + 0.4) * amp;
+    const oy = Math.cos(t * 1.7) * (amp * 0.65);
+    const oz = Math.sin(t * 0.85) * (amp * 0.3);
+
+    this.offset.set(ox, oy, oz);
+
+    if (camera && camera.position) {
+      camera.position.add(this.offset);
+    }
+
+    return this.offset;
+  }
+};
+
 // Fixed particle pools and exhaust meshes; no new geometry during play.
 window.ArcadeEffects = class ArcadeEffects {
   constructor(scene, T) {
     this.T = T; this.cursor = 0; this.emission = 0;
+    this.camera = null;
+    this.screenShake = new window.ScreenShake(T);
     this.root = new T.Group(); scene.add(this.root);
     this.pool = Array.from({length: 80}, () => ({life: 0, maxLife: 1, p: new T.Vector3(), v: new T.Vector3(), spin: 0, trail: false, color: new T.Color(0xffdd55)}));
     this.stars = new T.InstancedMesh(window.createScooterStar(T, .18), new T.MeshBasicMaterial({color: 0xffffff, side: T.DoubleSide, depthWrite: false}), this.pool.length);
@@ -161,11 +221,24 @@ window.ArcadeEffects = class ArcadeEffects {
     this.flightExhaust = new window.FlightExhaust(this.root, T);
     this.reset();
   }
+  setCamera(camera) {
+    this.camera = camera;
+  }
+  triggerScreenShake(intensity = 0.16, duration = 0.22) {
+    return this.screenShake.trigger(intensity, duration);
+  }
+  shake(intensity = 0.16, duration = 0.22) {
+    return this.screenShake.trigger(intensity, duration);
+  }
+  getScreenShakeOffset() {
+    return this.screenShake.offset;
+  }
   reset() {
     this.pool.forEach(p => p.life = 0); this.emission = 0; this.time = 0; this.root.visible = false;
     this.flames.forEach(f => { f.visible = false; });
     this.stars.count = 0; this.wind.geometry.setDrawRange(0, 0);
     this.flightExhaust.reset();
+    this.screenShake.reset();
   }
   burst(position, count = 16, color = 0xffdd55) {
     for (let i = 0; i < count; i++) {
@@ -184,7 +257,9 @@ window.ArcadeEffects = class ArcadeEffects {
     p.color.setHSL(p.hover ? .76 + Math.sin(this.time * 4) * .025 : flying ? .62 + Math.sin(this.time * 4) * .05 : (this.time * .45) % 1, .95, p.hover ? .75 : .62);
     p.life = p.maxLife = p.hover ? 1 : .8; p.spin = this.time * 8;
   }
-  update(dt, rider, track, settings, playing) {
+  update(dt, rider, track, settings, playing, camera = this.camera) {
+    const cam = camera || this.camera;
+    this.screenShake.update(dt, settings, cam);
     this.root.visible = playing;
     if (!playing) { this.flames.forEach(f => { f.visible = false; }); this.flightExhaust.root.visible = false; return; }
     this.time += dt;

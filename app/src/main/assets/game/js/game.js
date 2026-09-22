@@ -74,6 +74,7 @@ window.SkyScooterGame = class SkyScooterGame {
     this.riderCtrl = new window.RiderController(riderMesh, this.trackGen);
     this.gameCam = new window.GameCamera(this.camera, this.THREE);
     this.arcadeEffects = new window.ArcadeEffects(this.scene, this.THREE);
+    this.arcadeEffects.setCamera(this.camera);
 
     // Wire input pause callback
     this.input.onPauseRequested = () => {
@@ -104,7 +105,18 @@ window.SkyScooterGame = class SkyScooterGame {
     const aspect = window.innerWidth / window.innerHeight;
     this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 800);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    try {
+      this.renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference: 'default',
+        failIfMajorPerformanceCaveat: false
+      });
+    } catch (_) {
+      this.renderer = new THREE.WebGLRenderer({
+        antialias: false,
+        failIfMajorPerformanceCaveat: false
+      });
+    }
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
     this.renderer.shadowMap.enabled = true;
@@ -397,7 +409,18 @@ window.SkyScooterGame = class SkyScooterGame {
     const currentScore = Number.isFinite(this.score) ? this.score : 0;
     const nextScore = Math.max(0, currentScore - penalty);
     this.score = nextScore;
-    this.showFloatingLabel(`-${penalty} POINTS!`, position || this.riderCtrl?.mesh?.position, '#ff7043');
+
+    // Immediate HUD score feedback with pulse animation
+    const scoreVal = document.getElementById('hud-score-val');
+    if (scoreVal) {
+      scoreVal.innerText = `${Math.floor(this.score)}`;
+      scoreVal.classList.remove('hud-score-penalty');
+      void scoreVal.offsetWidth;
+      scoreVal.classList.add('hud-score-penalty');
+      setTimeout(() => scoreVal.classList.remove('hud-score-penalty'), 450);
+    }
+
+    this.showFloatingLabel(`-${penalty} PTS`, position || this.riderCtrl?.mesh?.position, '#ff5252', 'penalty', 0.4);
   }
 
   // --- Gameplay Event Handler ---
@@ -442,7 +465,13 @@ window.SkyScooterGame = class SkyScooterGame {
       this.coinMultiplier = 1;
       this.applyObstaclePenalty(this.obstaclePenalty, this.riderCtrl.mesh.position);
       this.hearts--;
-      this.showFloatingLabel('-1 HEART!', this.riderCtrl.mesh.position, '#f44336');
+      this.showFloatingLabel('-1 HEART!', this.riderCtrl.mesh.position, '#f44336', 'damage', 1.3);
+      if (this.arcadeEffects?.triggerScreenShake) {
+        this.arcadeEffects.triggerScreenShake(0.18, 0.22);
+      }
+      if (this.arcadeEffects?.burst) {
+        this.arcadeEffects.burst(this.riderCtrl.mesh.position, settings.reducedMotion ? 3 : 12, 0xff5722);
+      }
       if (window.GameAudio) window.GameAudio.playDamage();
       this.vibrate(100);
 
@@ -459,7 +488,10 @@ window.SkyScooterGame = class SkyScooterGame {
       this.coinMultiplier = 1;
       this.applyObstaclePenalty(Math.max(50, this.obstaclePenalty * 2), this.riderCtrl.mesh.position);
       this.hearts--;
-      this.showFloatingLabel('FELL! -1 HEART', this.riderCtrl.mesh.position, '#e91e63');
+      this.showFloatingLabel('FELL! -1 HEART', this.riderCtrl.mesh.position, '#e91e63', 'damage', 1.3);
+      if (this.arcadeEffects?.triggerScreenShake) {
+        this.arcadeEffects.triggerScreenShake(0.24, 0.25);
+      }
       if (window.GameAudio) window.GameAudio.playDamage();
       this.vibrate(120);
 
@@ -515,18 +547,19 @@ window.SkyScooterGame = class SkyScooterGame {
     }
   }
 
-  showFloatingLabel(text, position, color = '#ffd700') {
+  showFloatingLabel(text, position, color = '#ffd700', customClass = '', offsetY = 0) {
     const container = document.getElementById('floating-labels-layer');
     if (!container) return;
 
     const el = document.createElement('div');
-    el.className = 'floating-score-label';
+    el.className = `floating-score-label${customClass ? ' ' + customClass : ''}`;
     el.innerText = text;
     el.style.color = color;
 
     // Convert 3D world pos to screen coordinates
     if (position && this.camera) {
       const p = position.clone ? position.clone() : new this.THREE.Vector3(position.x, position.y + 1.2, position.z);
+      if (offsetY) p.y += offsetY;
       p.project(this.camera);
       const x = (p.x * 0.5 + 0.5) * window.innerWidth;
       const y = (-(p.y * 0.5) + 0.5) * window.innerHeight;
@@ -534,7 +567,7 @@ window.SkyScooterGame = class SkyScooterGame {
       el.style.top = `${y}px`;
     } else {
       el.style.left = '50%';
-      el.style.top = '40%';
+      el.style.top = `${40 + (offsetY ? offsetY * 6 : 0)}%`;
     }
 
     container.appendChild(el);
@@ -728,7 +761,7 @@ window.SkyScooterGame = class SkyScooterGame {
     }
 
     document.getElementById('hud-speed')?.classList.toggle('effects-paused', this.state !== 'PLAYING');
-    this.arcadeEffects.update(dt, this.riderCtrl, this.trackGen, settings, this.state === 'PLAYING');
+    this.arcadeEffects.update(dt, this.riderCtrl, this.trackGen, settings, this.state === 'PLAYING', this.camera);
     const sceneryS=(this.state==='MENU'||this.state==='ROUND_SELECT')?this.camera.position.z:this.riderCtrl.s;
     this.worldMagic.update(this.state==='PAUSED'?0:dt,sceneryS,this.trackGen,settings);
 
