@@ -397,8 +397,10 @@ window.RiderController = class RiderController {
       if(this.activeSkyFlight || footEntry>=top-.035){
         if(onFootprint && foot1<=top+this.hoverOffset+.04 && (this.verticalVelocity<=0 || this.supportId===d.id)){
           this.y=top-this.trackGen.getTrackPoint(this.s).y+this.hoverOffset;this.verticalVelocity=0;this.isGrounded=true;this.isGliding=false;support=d.id;
-          if(!d.roofAwarded){d.roofAwarded=true;if(onEvent)onEvent('roof_landing');}
-        } else if(!d.roofAwarded && this.s>d.s+c.halfLength){
+          // Landing on an obstacle is still contact. Support prevents clipping,
+          // but only a completely clear jump earns a bonus.
+          this.registerObstacleHit(d,onEvent);
+        } else if(!d.roofAwarded && this.s>maxS){
           d.roofAwarded=true;if(onEvent)onEvent('jump_challenge');
         }
         continue;
@@ -407,14 +409,19 @@ window.RiderController = class RiderController {
       // the body so the scooter cannot disappear through an invulnerable car.
       if(zs[0]>=xs[0])this.s=ds>=0?minS-.015:maxS+.015;
       else {this.laneX=dx>=0?minX-.015:maxX+.015;this.lateralVelocity=0;}
-      if(!d.hit && !this.isInvulnerable){
-        d.hit=true;this.recentDamageCount++;
-        if(this.activeShield){this.activeShield=false;this.shieldTimer=0;this.grantInvulnerability(1.2);if(onEvent)onEvent('shield_absorbed');}
-        else if(!this.consumeFaultGuard(onEvent)){this.forwardSpeed*=.4;this.grantInvulnerability(1.5);if(onEvent)onEvent('hit_obstacle');}
-      }
+      this.registerObstacleHit(d,onEvent);
     }
     if(this.supportId && !support && this.isGrounded){this.isGrounded=false;this.verticalVelocity=0;}
     this.supportId=support;
+  }
+
+  registerObstacleHit(obstacle,onEvent){
+    // One contact cannot drain all hearts or turn into a jump-clear reward.
+    obstacle.roofAwarded=true;
+    if(obstacle.hit || this.isInvulnerable)return;
+    obstacle.hit=true;this.recentDamageCount++;
+    if(this.activeShield){this.activeShield=false;this.shieldTimer=0;this.grantInvulnerability(1.2);if(onEvent)onEvent('shield_absorbed');}
+    else if(!this.consumeFaultGuard(onEvent)){this.forwardSpeed*=.4;this.grantInvulnerability(1.5);if(onEvent)onEvent('hit_obstacle');}
   }
 
   captureState(){

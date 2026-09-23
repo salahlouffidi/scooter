@@ -2,6 +2,7 @@
 window.ScooterTuning = Object.freeze({
   testAllRounds: true, cruiseMultiplier: 1.25, boostMultiplier: 1.55,
   maxSpeed: 28, lateralSpeed: 9, brakeFactor: .65, jumpVelocity: 10.5, gravity: 22,
+  obstacleHitPenalty: 50,
   antigravityDuration: 8, antigravityGravity: .22, antigravitySteer: 1.45,
   antigravityResponse: 38, glideFallSpeed: 1.4, hoverHeight: .32
 });

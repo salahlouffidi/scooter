@@ -15,7 +15,8 @@ window.SkyScooterGame = class SkyScooterGame {
     this.coinScore = 0;
     this.gemScore = 0;
     this.jumpScore = 0;
-    this.obstaclePenalty = 35;
+    this.obstaclePenaltyScore = 0;
+    this.obstaclePenalty = window.ScooterTuning.obstacleHitPenalty;
     this.consecutiveCoins = 0;
     this.coinMultiplier = 1;
     this.coinsCollectedThisRun = 0;
@@ -315,6 +316,7 @@ window.SkyScooterGame = class SkyScooterGame {
     this.coinScore = 0;
     this.gemScore = 0;
     this.jumpScore = 0;
+    this.obstaclePenaltyScore = 0;
     this.consecutiveCoins = 0;
     this.coinMultiplier = 1;
     this.coinsCollectedThisRun = 0;
@@ -405,13 +407,14 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   applyObstaclePenalty(amount = null, position = this.riderCtrl?.mesh?.position) {
-    const penalty = amount ?? this.obstaclePenalty ?? 35;
+    const penalty = amount ?? this.obstaclePenalty ?? window.ScooterTuning.obstacleHitPenalty;
     const currentScore = Number.isFinite(this.score) ? this.score : 0;
     const nextScore = Math.max(0, currentScore - penalty);
+    const lostPoints = Math.max(0, currentScore - nextScore);
     this.score = nextScore;
 
     // Immediate HUD score feedback with pulse animation
-    const scoreVal = document.getElementById('hud-score-val');
+    const scoreVal = typeof document !== 'undefined' ? document.getElementById('hud-score-val') : null;
     if (scoreVal) {
       scoreVal.innerText = `${Math.floor(this.score)}`;
       scoreVal.classList.remove('hud-score-penalty');
@@ -420,12 +423,15 @@ window.SkyScooterGame = class SkyScooterGame {
       setTimeout(() => scoreVal.classList.remove('hud-score-penalty'), 450);
     }
 
-    this.showFloatingLabel(`-${penalty} POINTS!`, position || this.riderCtrl?.mesh?.position, '#ff5252', 'penalty', 0.4);
+    if (lostPoints > 0) this.showFloatingLabel(`-${lostPoints} POINTS!`, position || this.riderCtrl?.mesh?.position, '#ff5252', 'penalty', 0.4);
+    return lostPoints;
   }
 
   // --- Gameplay Event Handler ---
 
   onGameplayEvent(eventType, param) {
+    // A lethal hit ends rewards immediately, even within a physics substep.
+    if (this.state === 'GAME_OVER') return;
     const settings = window.GameStorage.getSettings();
 
     if (eventType === 'coin') {
@@ -451,11 +457,11 @@ window.SkyScooterGame = class SkyScooterGame {
       this.arcadeEffects.burst(param, settings.reducedMotion ? 3 : 18);
       if (window.GameAudio) window.GameAudio.playGem();
       this.vibrate(40);
-    } else if (eventType === 'jump_challenge' || eventType === 'roof_landing') {
+    } else if (eventType === 'jump_challenge') {
       const pts = 50;
       this.jumpScore += pts;
       this.score += pts;
-      this.showFloatingLabel(eventType==='roof_landing'?'+50 ROOFTOP RIDE!':'+50 JUMP CLEAR!', this.riderCtrl.mesh.position);
+      this.showFloatingLabel('+50 JUMP CLEAR!', this.riderCtrl.mesh.position);
       if (window.GameAudio) window.GameAudio.playGem();
     } else if (eventType === 'jump') {
       if (window.GameAudio) window.GameAudio.playJump();
@@ -463,8 +469,9 @@ window.SkyScooterGame = class SkyScooterGame {
       this.mlWindowHadDamage = true;
       this.consecutiveCoins = 0; // breaks combo
       this.coinMultiplier = 1;
-      this.applyObstaclePenalty(this.obstaclePenalty, this.riderCtrl.mesh.position);
-      this.hearts--;
+      const lostPoints = this.applyObstaclePenalty(this.obstaclePenalty, this.riderCtrl.mesh.position);
+      this.hearts = Math.max(0, this.hearts - 1);
+      this.obstaclePenaltyScore += lostPoints;
       this.showFloatingLabel('-1 HEART!', this.riderCtrl.mesh.position, '#f44336', 'damage', 1.3);
       if (this.arcadeEffects?.triggerScreenShake) {
         this.arcadeEffects.triggerScreenShake(0.18, 0.22);
@@ -486,7 +493,7 @@ window.SkyScooterGame = class SkyScooterGame {
       this.mlWindowHadDamage = true;
       this.consecutiveCoins = 0;
       this.coinMultiplier = 1;
-      this.applyObstaclePenalty(Math.max(50, this.obstaclePenalty * 2), this.riderCtrl.mesh.position);
+      this.applyObstaclePenalty(70, this.riderCtrl.mesh.position);
       this.hearts--;
       this.showFloatingLabel('FELL! -1 HEART', this.riderCtrl.mesh.position, '#e91e63', 'damage', 1.3);
       if (this.arcadeEffects?.triggerScreenShake) {
@@ -656,6 +663,7 @@ window.SkyScooterGame = class SkyScooterGame {
     document.getElementById('rc-distance-pts').innerText = `+${Math.floor(this.distanceScore)}`;
     document.getElementById('rc-coin-pts').innerText = `+${Math.floor(this.coinScore)}`;
     document.getElementById('rc-gem-pts').innerText = `+${Math.floor(this.gemScore)}`;
+    document.getElementById('rc-obstacle-penalty-pts').innerText = `-${Math.floor(this.obstaclePenaltyScore)}`;
     document.getElementById('rc-bonus-pts').innerText = `+${finishBonus} (Hearts: ${this.hearts})`;
 
     // Stars display
@@ -704,7 +712,7 @@ window.SkyScooterGame = class SkyScooterGame {
 
       // Distance score: 1 point per new forward meter
       const newDistance = Math.floor(this.riderCtrl.furthestS);
-      if (newDistance > this.distanceScore) {
+      if (this.state === 'PLAYING' && newDistance > this.distanceScore) {
         const delta = newDistance - this.distanceScore;
         this.distanceScore = newDistance;
         this.score += delta;

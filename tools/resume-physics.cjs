@@ -35,8 +35,10 @@ for(let i=0;i<200;i++){
  rider.update(1/120,input,10,9,event);
  if(rider.supportId){landed=true;assert(Math.abs(rider.y-car.userData.collision.top)<1e-6,'wheels rest on mesh roof');}
 }
-assert(landed,'descending jump lands on the car roof');assert(!events.includes('hit_obstacle'));
-assert.equal(events.filter(e=>e==='roof_landing').length,1);assert(rider.s>14&&rider.y===0,'rider drops back to the road after leaving roof');
+assert(landed,'descending jump lands on the car roof');
+assert.equal(events.filter(e=>e==='hit_obstacle').length,1,'landing on an obstacle counts as one hit');
+assert(!events.includes('jump_challenge'),'touching the roof cannot award a clean-jump bonus');
+assert(rider.s>14&&rider.y===0,'rider drops back to the road after leaving roof');
 
 for(const type of ['crate','car','taxi','van','bus','roadroller']){
  const o=obstacle(type,20);track.activeObstacles=[o];rider.reset(17-o.userData.collision.halfLength,28);rider.applyPowerup('overdrive');events.length=0;
@@ -81,25 +83,7 @@ assert(proceduralCrate.userData.collision, 'procedural fallback crate has collis
 assert(proceduralCrate.userData.collision.halfWidth >= 0.55 && proceduralCrate.userData.collision.halfWidth <= 0.65, 'fallback crate width ~0.6m');
 assert(proceduralCrate.userData.collision.top >= 1.15 && proceduralCrate.userData.collision.top <= 1.25, 'fallback crate top ~1.2m');
 
-// Test obstacle penalty scoring, combo reset & single hit mechanics
-let testScore = 100, consecutiveCoins = 15, coinMultiplier = 2, hearts = 3;
-const simulateHitObstacle = (penaltyAmount = 35) => {
-  consecutiveCoins = 0;
-  coinMultiplier = 1;
-  testScore = Math.max(0, testScore - penaltyAmount);
-  hearts--;
-};
-simulateHitObstacle(35);
-assert.equal(testScore, 65, 'hitting obstacle reduces score by 35 points');
-assert.equal(consecutiveCoins, 0, 'coin combo resets to 0 upon collision');
-assert.equal(coinMultiplier, 1, 'coin multiplier resets to 1 upon collision');
-assert.equal(hearts, 2, 'hearts reduced by 1');
-simulateHitObstacle(50);
-assert.equal(testScore, 15, 'falling into hazard reduces score by 50 points');
-simulateHitObstacle(35);
-assert.equal(testScore, 0, 'score penalty safely clamps at 0 without becoming negative');
-simulateHitObstacle(35);
-assert.equal(testScore, 0, 'subsequent penalties do not make score negative');
+// Production scoring/combo/health coverage lives in verify-obstacle-damage.cjs.
 
 const cam = new GameCamera(new THREE.PerspectiveCamera(), THREE);
 cam.reset(rider.mesh, track);
@@ -141,4 +125,4 @@ assert(fxWithShake.screenShake.timer < 0.22, 'arcadeEffects updates screen shake
 fxWithShake.reset();
 assert.equal(fxWithShake.screenShake.timer, 0, 'arcadeEffects reset zeroes screen shake');
 
-console.log('PASS: durable layout/RNG/ML state, collected IDs, car body blocking, one-hit damage, steering escape, roof landing and exit, turbo collision sweeps, saved roof state, corrupted save recovery, obstacle penalty scoring, camera shake & arcadeEffects ScreenShake utility.');
+console.log('PASS: durable layout/RNG/ML state, collected IDs, car body blocking, one-hit damage, steering escape, roof landing and exit, turbo collision sweeps, saved roof state, corrupted save recovery, camera shake & arcadeEffects ScreenShake utility.');

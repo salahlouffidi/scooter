@@ -243,6 +243,7 @@ window.TrackGenerator = class TrackGenerator {
         obsMesh.position.set(p.x + normal.x * obsLaneX, 0, p.z + normal.z * obsLaneX);
         obsMesh.rotation.y = Math.atan2(tan.x, tan.z);
         obsMesh.userData = {
+          ...obsMesh.userData,
           id: `obs_${obsS}_${idx}`,
           s: obsS,
           laneX: obsLaneX,

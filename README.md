@@ -37,9 +37,11 @@ Use **RESUME** in the pause screen, or **RESUME · world · distance** in the ma
 - Returning from another app stays paused. Only an explicit Resume starts the countdown. Backgrounding during a countdown cancels it.
 - Completed or failed runs clear the snapshot; the existing transaction ID prevents duplicate wallet rewards.
 
-## Solid traffic and rooftop jumps
+## Solid obstacles and collision penalties
 
-Vehicle collision bounds come from the actual factory mesh. Physics uses substeps up to 1/120 second with swept lateral/forward checks and height-aware landing. A front or side hit blocks the scooter; invulnerability and shields do not let it pass through the vehicle. Jump above the roof to clear it or descend onto it, ride briefly on top, then drop back onto the road. A rooftop landing gives 50 points once per vehicle.
+All generated obstacles retain collision bounds from their actual factory meshes, including boxes, barriers, barrels and traffic. Physics uses substeps up to 1/120 second with swept lateral/forward checks and height-aware landing. Unprotected contact from the front, side or top costs **one heart and 50 points**, resets the coin combo, and shows the loss in the HUD. Scores stop at zero. Shields and magic guards absorb contact; obstacles remain solid during protection. Each obstacle charges once, including after saving and resuming, so staying against a box cannot drain every heart.
+
+Clear the entire obstacle without touching it to earn the 50-point jump bonus. Landing on its roof counts as a hit. The round summary records actual obstacle deductions, and saved runs preserve them. The existing 70-point fall penalty is unchanged.
 
 The four-way joystick remains: left/right steer, up accelerates, down brakes. Jump and the dedicated brake button remain available. Desktop: A/D or arrows, W/up, S/down, Space and Escape.
 
@@ -85,6 +87,8 @@ node tools/verify-game.cjs
 node tools/resume-physics.cjs
 node tools/verify-antigravity.cjs
 node tools/verify-flight-effects.cjs
+node tools/verify-obstacle-damage.cjs
+node tools/obstacle-damage-browser.cjs
 node tools/flight-effects-browser.cjs
 node tools/browser-smoke.cjs
 node tools/session-browser.cjs
@@ -94,6 +98,6 @@ node tools/biome-preview.cjs
 
 Browser scripts require Playwright and Chromium; set `CHROMIUM_EXECUTABLE_PATH` for an installed browser. They test controls and GLB loading, menu/app-switch/reload resume, all 16 city districts, finite transforms and rendering errors. The physics test covers solid bodies, rooftop landings, steering escape, turbo sweeps and exact track/RNG restoration. Preview images are actual game renders.
 
-`npm test` runs the game, collision/resume, antigravity and flight-effects checks. `npm run test:antigravity:browser` checks two simultaneous touch pointers, hold/release gliding, keyboard repeat, cancellation, app-switch pausing, purple effects and phone HUD layout. `npm run test:flight:browser` renders the rider tail and nitro, checks GPU shader compilation, landing fade and Reduced Motion, and writes the two preview images above.
+`npm test` runs the game, collision/resume, antigravity, flight-effects and obstacle-damage checks. Obstacle coverage includes generated hazards in all 16 worlds, all 12 GLB/fallback types, front/side/top/turbo contact, shields, guards, score floors, clean jumps and saved hit state. `npm run test:obstacles:browser` verifies generated boxes, moving barriers/barrels, HUD penalties, reloads, game over and the phone-sized round summary. `npm run test:antigravity:browser` checks two simultaneous touch pointers, hold/release gliding, keyboard repeat, cancellation, app-switch pausing, purple effects and phone HUD layout. `npm run test:flight:browser` renders the rider tail and nitro, checks GPU shader compilation, landing fade and Reduced Motion, and writes the two preview images above.
 
 This is a Three.js mobile visual upgrade, not a PS5-class renderer. Real Android frame rate, memory pressure recovery and native Activity lifecycle still require device testing. No signed APK/AAB is included in this commit.

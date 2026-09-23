@@ -179,7 +179,15 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     }
     const plan={roadWidth:w,speed:window.ScooterTuning.maxSpeed,minSpeed:this.roundData.baseSpeed*.9*window.ScooterTuning.cruiseMultiplier*window.ScooterTuning.brakeFactor,length:24,previousLane:this.lastSafeLane,safeLane,hazards,gapWidth:gap?2.4:0};
     if(!this.validator.validateLayout(plan))hazards.length=0;this.lastSafeLane=safeLane;
-    for(const h of hazards){const m=this.factory.createObstacle(h.type),at=s+18,p=this.frame(at,h.laneX);m.position.set(p.x,p.y,p.z);m.rotation.y=Math.atan2(this.getTrackTangent(at).x,this.getTrackTangent(at).z);m.userData={id:`obs_${at}_${h.laneX}`,s:at,laneX:h.laneX,type:h.type,hit:false,isJumpable:h.type==='barrier',isMoving:this.roundData.features.movingObstacles&&special!=='logs',baseLaneX:h.laneX,motionPhase:this.rng()*Math.PI*2,motionRate:.7,motionAmplitude:special==='moving_crystals'?.5:.25};m.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});this.scene.add(m);this.activeObstacles.push(m);}
+    for(const h of hazards){
+      const m=this.factory.createObstacle(h.type),at=s+18,p=this.frame(at,h.laneX);
+      m.position.set(p.x,p.y,p.z);m.rotation.y=Math.atan2(this.getTrackTangent(at).x,this.getTrackTangent(at).z);
+      // Keep the factory's mesh-derived collision bounds when adding route metadata.
+      m.userData={...m.userData,id:`obs_${at}_${h.laneX}`,s:at,laneX:h.laneX,type:h.type,hit:false,
+        isJumpable:h.type==='barrier',isMoving:this.roundData.features.movingObstacles&&special!=='logs',
+        baseLaneX:h.laneX,motionPhase:this.rng()*Math.PI*2,motionRate:.7,motionAmplitude:special==='moving_crystals'?.5:.25};
+      m.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});this.scene.add(m);this.activeObstacles.push(m);
+    }
     if(s<this.roundData.length){
       for(let i=0;i<5;i++){const at=s+3+i*4;if(gap&&at>s+9&&at<s+15)continue;this.addItem(this.factory.createCoin(),at,safeLane,['bounce','ledge_jumps','boost_glide'].includes(special)?1.7:1.05,{id:`coin_${at}`});this.totalCoins++;}
       // Preserve the official antigravity onboarding pickup at the same

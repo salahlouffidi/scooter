@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node tools/verify-game.cjs && node tools/resume-physics.cjs && node tools/verify-antigravity.cjs && node tools/verify-flight-effects.cjs",
+    "test": "node tools/verify-game.cjs && node tools/resume-physics.cjs && node tools/verify-antigravity.cjs && node tools/verify-flight-effects.cjs && node tools/verify-obstacle-damage.cjs",
+    "test:obstacles:browser": "node tools/obstacle-damage-browser.cjs",
     "test:flight:browser": "node tools/flight-effects-browser.cjs",
     "test:antigravity:browser": "node tools/antigravity-browser.cjs",
     "build:assets": "node tools/build-visual-kit.cjs"
