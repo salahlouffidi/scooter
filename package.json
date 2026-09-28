@@ -8,7 +8,12 @@
     "test:obstacles:browser": "node tools/obstacle-damage-browser.cjs",
     "test:flight:browser": "node tools/flight-effects-browser.cjs",
     "test:antigravity:browser": "node tools/antigravity-browser.cjs",
-    "build:assets": "node tools/build-visual-kit.cjs"
+    "build:assets": "node tools/build-visual-kit.cjs",
+    "build:fonts": "node tools/build-fonts.cjs",
+    "shots": "node tools/render-shots.cjs",
+    "test:controls:browser": "node tools/controls-browser.cjs",
+    "test:graphics:browser": "node tools/graphics-browser.cjs",
+    "test:browser": "node tools/browser-smoke.cjs && node tools/controls-browser.cjs && node tools/graphics-browser.cjs && node tools/antigravity-browser.cjs && node tools/obstacle-damage-browser.cjs && node tools/session-browser.cjs"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +22,8 @@
     "three": "^0.160.0"
   },
   "devDependencies": {
+    "@fontsource/lilita-one": "^5.3.0",
+    "@fontsource/nunito": "^5.3.0",
     "playwright": "^1.63.0"
   }
 }

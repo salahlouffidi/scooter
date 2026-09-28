@@ -57,7 +57,10 @@ window.FlightExhaust = class FlightExhaust {
     this.smoke = new T.Points(geometry, material); this.smoke.name = 'flightNitroSmoke';
     this.smoke.frustumCulled = false; this.root.add(this.smoke);
     const viewport = new T.Vector2();
-    this.smoke.onBeforeRender = renderer => { renderer.getDrawingBufferSize(viewport); material.uniforms.pixelHeight.value = viewport.y; };
+    this.smoke.onBeforeRender = renderer => {
+      if (window.viewportPixelHeight) material.uniforms.pixelHeight.value = window.viewportPixelHeight(renderer, viewport);
+      else { renderer.getDrawingBufferSize(viewport); material.uniforms.pixelHeight.value = viewport.y; }
+    };
     const flameGeometry = new T.ConeGeometry(.16, 1, 10);
     flameGeometry.rotateX(-Math.PI / 2); flameGeometry.translate(0, 0, -.5);
     this.flames = []; this.cores = [];
@@ -200,6 +203,7 @@ window.ArcadeEffects = class ArcadeEffects {
     this.camera = null;
     this.screenShake = new window.ScreenShake(T);
     this.root = new T.Group(); scene.add(this.root);
+    this.hdr = new T.Color();
     this.pool = Array.from({length: 80}, () => ({life: 0, maxLife: 1, p: new T.Vector3(), v: new T.Vector3(), spin: 0, trail: false, color: new T.Color(0xffdd55)}));
     this.stars = new T.InstancedMesh(window.createScooterStar(T, .18), new T.MeshBasicMaterial({color: 0xffffff, side: T.DoubleSide, depthWrite: false}), this.pool.length);
     this.stars.setColorAt(0, this.pool[0].color);
@@ -304,7 +308,7 @@ window.ArcadeEffects = class ArcadeEffects {
       p.p.addScaledVector(p.v, dt); p.v.y -= dt * (p.hover ? .15 : 3);
       this.dummy.position.copy(p.p); this.dummy.rotation.set(0, this.time * 2 + p.spin, this.time * 4 + p.spin);
       this.dummy.scale.setScalar(Math.min(1, p.life / p.maxLife * 2) * (p.trail ? .42 : 1)); this.dummy.updateMatrix();
-      this.stars.setColorAt(visible, p.color);
+      this.stars.setColorAt(visible, this.hdr.copy(p.color).multiplyScalar(p.trail ? 1.5 : 2.2));
       this.stars.setMatrixAt(visible++, this.dummy.matrix);
     }
     this.stars.count = visible; this.stars.instanceMatrix.needsUpdate = true; this.stars.instanceColor.needsUpdate = true;

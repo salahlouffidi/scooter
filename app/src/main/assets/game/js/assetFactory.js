@@ -35,19 +35,30 @@ window.AssetFactory = class AssetFactory {
     this.materials.scooterTire = new THREE.MeshLambertMaterial({ color: 0x111111 });
     this.materials.scooterGrip = new THREE.MeshLambertMaterial({ color: 0x263238 });
 
+    // Collectibles are lit like small studio props: high env-map response for glints and a
+    // controlled emissive floor so bloom picks them out from the scenery.
     this.materials.goldCoin = new THREE.MeshStandardMaterial({
-      color: 0xffd700,
-      metalness: 0.35,
-      roughness: 0.25,
-      emissive: 0x664400
+      color: 0xffc21a,
+      metalness: 1.0,
+      roughness: 0.28,
+      emissive: 0xff8a00,
+      emissiveIntensity: 0.22,
+      envMapIntensity: 1.5
+    });
+    this.materials.goldCoinDark = new THREE.MeshStandardMaterial({
+      color: 0xd58a00, metalness: 1.0, roughness: 0.45, emissive: 0x7a3a00, emissiveIntensity: 0.18, envMapIntensity: 1.2
     });
 
     this.materials.gem = new THREE.MeshStandardMaterial({
-      color: 0xba68c8,
-      metalness: 0.15,
-      roughness: 0.15,
-      emissive: 0x7b1fa2
+      color: 0xc26bff,
+      metalness: 0.2,
+      roughness: 0.12,
+      emissive: 0x8a25d8,
+      emissiveIntensity: 0.55,
+      envMapIntensity: 2.0,
+      flatShading: true
     });
+    this.materials.gemCore = new THREE.MeshBasicMaterial({ color: 0xf6dcff, toneMapped: false });
 
     this.materials.crate = new THREE.MeshLambertMaterial({ color: 0x8d5b32 });
     this.materials.crateFrame = new THREE.MeshLambertMaterial({ color: 0x5a3617 });
@@ -136,6 +147,44 @@ window.AssetFactory = class AssetFactory {
       roughness: 0.1,
       metalness: 0.1
     });
+  }
+
+  // Concatenate non-indexed geometries (position/normal/uv) into one draw call.
+  mergeParts(parts) {
+    const T = this.THREE, geos = parts.map(g => (g.index ? g.toNonIndexed() : g));
+    const out = new T.BufferGeometry();
+    for (const key of ['position', 'normal', 'uv']) {
+      const size = geos[0].attributes[key].itemSize;
+      const arr = new Float32Array(geos.reduce((n, g) => n + g.attributes[key].array.length, 0));
+      let o = 0;
+      for (const g of geos) { arr.set(g.attributes[key].array, o); o += g.attributes[key].array.length; }
+      out.setAttribute(key, new T.BufferAttribute(arr, size));
+    }
+    geos.forEach(g => g.dispose && g.dispose());
+    return out;
+  }
+
+  // Soft additive glow used behind gems and power-ups. Skipped when there is no DOM (headless tests).
+  haloSprite(color, scale = 2.4, opacity = 0.75) {
+    if (typeof document === 'undefined') return null;
+    const T = this.THREE;
+    if (!this._haloTex) {
+      const c = document.createElement('canvas'); c.width = c.height = 128;
+      const g = c.getContext('2d'), grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grad.addColorStop(0, 'rgba(255,255,255,1)'); grad.addColorStop(0.18, 'rgba(255,255,255,0.75)');
+      grad.addColorStop(0.5, 'rgba(255,255,255,0.18)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
+      this._haloTex = new T.CanvasTexture(c); this._haloTex.colorSpace = T.SRGBColorSpace;
+      this._haloMats = new Map();
+    }
+    const key = color + ':' + opacity;
+    if (!this._haloMats.has(key)) {
+      this._haloMats.set(key, new T.SpriteMaterial({ map: this._haloTex, color, transparent: true, opacity, depthWrite: false,
+        blending: T.AdditiveBlending, fog: false, toneMapped: false }));
+    }
+    const sprite = new T.Sprite(this._haloMats.get(key));
+    sprite.scale.set(scale, scale, 1); sprite.name = 'halo'; sprite.raycast = () => {};
+    return sprite;
   }
 
   // Creates the iconic Adult Rider in Red Hoodie + Helmet with Scooter
@@ -382,36 +431,55 @@ window.AssetFactory = class AssetFactory {
     root.userData.hoverRing = ring;
   }
 
-  // Procedural Gold Coin
+  // Beveled gold coin with an embossed star on both faces: one merged mesh, one draw call.
   createCoin() {
     const THREE = this.THREE;
     const group = new THREE.Group();
     group.name = 'coin';
-
-    const coinGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.1, 14);
-    coinGeo.rotateZ(Math.PI / 2);
-    const mesh = new THREE.Mesh(coinGeo, this.materials.goldCoin);
+    if (!this._coinGeo) {
+      const R = 0.46, half = 0.055;
+      const profile = [[0, -half], [R * 0.78, -half], [R * 0.93, -half * 0.8], [R, -half * 0.3], [R, half * 0.3], [R * 0.93, half * 0.8], [R * 0.78, half], [0, half]]
+        .map(([x, y]) => new THREE.Vector2(x, y));
+      const parts = [new THREE.LatheGeometry(profile, 28)];
+      const outline = [];
+      for (let i = 0; i < 10; i++) {
+        const a = Math.PI / 2 + i * Math.PI / 5, r = R * 0.5 * (i % 2 ? 0.45 : 1);
+        outline.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r));
+      }
+      const starShape = new THREE.Shape(outline);
+      for (const side of [-1, 1]) {
+        const ring = new THREE.TorusGeometry(R * 0.72, 0.028, 6, 28);
+        ring.rotateX(Math.PI / 2); ring.translate(0, side * (half + 0.004), 0);
+        parts.push(ring);
+        const star = new THREE.ExtrudeGeometry(starShape, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 1, steps: 1 });
+        star.rotateX(-Math.PI / 2);          // extrusion axis -> +Y, star lies in the XZ plane
+        if (side < 0) star.rotateX(Math.PI); // bottom face extrudes downward
+        star.translate(0, side * (half - 0.002), 0);
+        parts.push(star);
+      }
+      const geo = this.mergeParts(parts);
+      geo.rotateZ(Math.PI / 2);              // face normal along X so the Y-axis spin shows the face
+      geo.computeBoundingSphere();
+      this._coinGeo = geo;
+    }
+    const mesh = new THREE.Mesh(this._coinGeo, this.materials.goldCoin);
+    mesh.castShadow = true;
     group.add(mesh);
-
-    // Star / inner bevel accent
-    const innerGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.12, 6);
-    innerGeo.rotateZ(Math.PI / 2);
-    const innerMesh = new THREE.Mesh(innerGeo, this.materials.goldCoin);
-    group.add(innerMesh);
-
     return group;
   }
 
-  // Procedural 3D Gem (Octahedron crystal)
+  // Faceted crystal gem with a hot core and a violet halo.
   createGem() {
     const THREE = this.THREE;
     const group = new THREE.Group();
     group.name = 'gem';
-
-    const gemGeo = new THREE.OctahedronGeometry(0.5, 0);
-    const mesh = new THREE.Mesh(gemGeo, this.materials.gem);
-    group.add(mesh);
-
+    if (!this._gemGeo) {
+      this._gemGeo = new THREE.OctahedronGeometry(0.42, 0); this._gemGeo.scale(1, 1.45, 1);
+      this._gemCore = new THREE.OctahedronGeometry(0.2, 0); this._gemCore.scale(1, 1.45, 1);
+    }
+    group.add(new THREE.Mesh(this._gemGeo, this.materials.gem));
+    group.add(new THREE.Mesh(this._gemCore, this.materials.gemCore));
+    const halo = this.haloSprite(0xb45cff, 2.2, 0.6); if (halo) group.add(halo);
     return group;
   }
 
@@ -492,6 +560,10 @@ window.AssetFactory = class AssetFactory {
       group.add(hGroup);
     }
 
+    const haloColors = { shield: 0x25e6ff, magnet: 0xff4a4a, double: 0xffcf3a, overdrive: 0xffc93a, magic_fruit: 0xff5fc8,
+      propulsor: 0x59e6ff, antigravity: 0xb86bff, heart: 0xff3d5a };
+    const halo = haloColors[type] ? this.haloSprite(haloColors[type], type === 'antigravity' ? 3.0 : 2.7, 0.7) : null;
+    if (halo) group.add(halo);
     return group;
   }
 

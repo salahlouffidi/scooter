@@ -19,6 +19,11 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     this.routeHazard=new T.MeshStandardMaterial({color:0xff7043,emissive:0x000000,roughness:.72});
     this.routeWater=new T.MeshStandardMaterial({color:0x67d9e8,emissive:0x0b5e69,emissiveIntensity:.25,transparent:true,opacity:.88,roughness:.35});
     this.routeSurfaceByStyle={};
+    // Procedural surface art, glowing edge inlay and curbs give the route a finished, game-ready read.
+    // Canvas-backed art only exists in a browser; headless logic tests run without it.
+    this.roadArt=(window.RoadArt&&typeof document!=='undefined')?new window.RoadArt(T,8):null;
+    this.routeGlow=new T.MeshBasicMaterial({color:0xffd36b,toneMapped:false});
+    this.routeCurb=new T.MeshStandardMaterial({color:0x81c784,roughness:.72,metalness:.05});
     this.citySidewalk=new T.MeshStandardMaterial({color:0x818b96,roughness:.9});
     this.cityRail=new T.MeshStandardMaterial({color:0x334552,roughness:.65,metalness:.35});
     this.cityRailDark=new T.MeshStandardMaterial({color:0x202d38,roughness:.72,metalness:.4});
@@ -64,10 +69,21 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
       moon:0x424b64,citadel:0x4d6068,rainbow:0x59627a,grand_run:0x4c596e
     };
     const routeTones={garden_path:0x9f8a70,sand_dunes:0xd7a85d,jungle_roots:0x6b492f,mountain_bridge:0x8e949c,canyon_ledges:0x667a82,crystal_floor:0x4e4b74,glacier_ice:0x9adce9,lava_plates:0x3f3544,mushroom_bounce:0x79566b,temple_stone:0x8d806b,island_crossings:0x8f665c,clockwork_belts:0x4f5b63,storm_skyway:0x6f8e9e,moon_rocks:0x555e91,rainbow_rapids:0x667493,sky_arena:0xcfc1ad};
-    this.routeSurface.color.set(routeTones[round.routeStyle]||round.roadColor);
+    const routeBase=routeTones[round.routeStyle]||round.roadColor;
+    this.routeSurface.color.set(routeBase);
     this.routeEdge.color.set(round.routeStyle==='glacier_ice'?0xdffaff:round.railColor);
     this.routeAccent.color.set(round.routeStyle==='lava_plates'?0xff7a45:round.routeStyle==='crystal_floor'?0x9af4ff:round.routeStyle==='storm_skyway'?0x8be7ff:0xffd36b);
     this.routeHazard.color.set(round.routeStyle==='lava_plates'?0xff5b2f:round.routeStyle==='glacier_ice'?0x45bde8:0xff7043);
+    // Textured surface: colours live in the texture, the material tint stays neutral.
+    const art=this.roadArt?this.roadArt.create(round.routeStyle,{base:routeBase,accent:this.routeAccent.color.getHex(),rail:round.railColor}):null;
+    if(art){
+      Object.assign(this.routeSurface,{map:art.map,bumpMap:art.bumpMap,bumpScale:art.bumpScale,emissiveMap:art.emissiveMap,
+        emissiveIntensity:art.emissiveIntensity,roughness:art.roughness,metalness:art.metalness,envMapIntensity:art.envMapIntensity});
+      this.routeSurface.color.set(0xffffff);this.routeSurface.emissive.set(art.emissiveMap?0xffffff:0x000000);this.routeSurface.needsUpdate=true;
+      this.roadArt.disposeExcept(art);
+    }
+    this.routeCurb.color.set(round.railColor).multiplyScalar(.85);
+    this.routeGlow.color.copy(this.routeAccent.color).multiplyScalar(['crystal_floor','lava_plates','moon_rocks','storm_skyway','rainbow_rapids'].includes(round.routeStyle)?2.6:1.9);
     this.cityRoad.color.set(round.roadColor);
     this.citySidewalk.color.set(round.theme==='snow'?0xb7c4ca:0x818b96);
     this.cityRail.color.set(round.theme==='neon'?0x3a5a79:0x334552);
@@ -150,6 +166,10 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     for(let i=0;i<12;i++){
       const mid=s+i*2+1;if(gap&&mid>s+10&&mid<s+14)continue;
       this.addBox(g,this.routeSurface,mid,0,-.27,w,.5,2.05);
+      for(const side of [-1,1]){
+        this.addBox(g,this.routeCurb,mid,side*(w/2+.02),.05,.34,.26,2.05);
+        this.addBox(g,this.routeGlow,mid,side*(w/2-.2),.006,.09,.03,2.05);
+      }
       if(style==='sand_dunes'&&i%3===0)this.addBox(g,this.routeAccent,mid,-w*.26,.02,w*.34,.035,1.7,true);
       if(style==='glacier_ice'&&i%2===0)this.addBox(g,this.routeAccent,mid,(i%4<2?-1:1)*w*.25,.02,.08,.025,1.8,true);
       if(style==='lava_plates'&&i%4===1)this.addBox(g,this.routeHazard,mid,0,.03,w*.32,.06,.42,true);
@@ -166,7 +186,7 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
       const portal=this.biomeArt.portal(this.roundData),p=this.frame(s+12);portal.position.set(p.x,p.y,p.z);portal.rotation.y=Math.atan2(this.getTrackTangent(s+12).x,this.getTrackTangent(s+12).z);this.addScenery(portal,s);
     }
     if(!this.finishGate&&s+24>=this.roundData.length){this.finishGate=this.factory.createFinishGate(this.roundData.name);const p=this.frame(this.roundData.length);this.finishGate.position.set(p.x,p.y,p.z);this.scene.add(this.finishGate);}
-    const batches=new Map();for(const m of [...g.children])if(m.isMesh&&!m.isInstancedMesh){m.updateMatrix();const list=batches.get(m.material)||[];list.push(m.matrix.clone());batches.set(m.material,list);g.remove(m);}for(const [material,matrices] of batches){const batch=new T.InstancedMesh(this.boxGeometry,material,matrices.length);matrices.forEach((m,i)=>batch.setMatrixAt(i,m));batch.castShadow=true;batch.receiveShadow=true;g.add(batch);}
+    const batches=new Map();for(const m of [...g.children])if(m.isMesh&&!m.isInstancedMesh){m.updateMatrix();const list=batches.get(m.material)||[];list.push(m.matrix.clone());batches.set(m.material,list);g.remove(m);}for(const [material,matrices] of batches){const batch=new T.InstancedMesh(this.boxGeometry,material,matrices.length);matrices.forEach((m,i)=>batch.setMatrixAt(i,m));batch.castShadow=material!==this.routeGlow;batch.receiveShadow=material!==this.routeGlow;g.add(batch);}
     this.nextSpawnS=s+24;
   }
   populateAuthoredSegment(s,end,gap,w,g){

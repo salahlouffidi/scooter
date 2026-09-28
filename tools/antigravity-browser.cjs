@@ -39,7 +39,12 @@ const root = path.resolve(__dirname, '../app/src/main/assets/game');
     await cdp.send('Input.dispatchTouchEvent', {type: 'touchMove', touchPoints: [stick]});
     await cdp.send('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [stick, button]});
     await page.waitForFunction(() => gameInstance.input.isJumpHeld && gameInstance.input.horizontalSteer < -.2);
-    await page.evaluate(() => {const r = gameInstance.riderCtrl; r.y = 5; r.verticalVelocity = -5; r.isGrounded = false; r.supportId = null;});
+    // Inject an airborne state. The Jump touch above also buffered a jump (220 ms) that a slow software-GL
+    // frame may not have consumed yet; with coyote time it would launch the rider upward and race the glide check.
+    await page.evaluate(() => {
+      const r = gameInstance.riderCtrl; gameInstance.input.jumpBufferTimer = 0; r.coyoteTimer = 0;
+      r.y = 5; r.verticalVelocity = -5; r.isGrounded = false; r.supportId = null;
+    });
     await page.waitForFunction(() => gameInstance.riderCtrl.isGliding && gameInstance.riderCtrl.verticalVelocity >= -1.4);
     assert.equal(await page.locator('.antigravity small').textContent(), 'GLIDING');
     // Release only the Jump finger. CDP touchEnd identifies the ending touch;

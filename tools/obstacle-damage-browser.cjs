@@ -52,7 +52,7 @@ const root = path.resolve(__dirname, '../app/src/main/assets/game');
         window.damageStats = () => ({hearts: g.hearts, score: g.score, penalty: g.obstaclePenaltyScore,
           distance: g.distanceScore, state: g.state, multiplier: g.coinMultiplier,
           hudScore: +document.getElementById('hud-score-val').innerText,
-          hudHearts: document.getElementById('hud-hearts-val').innerText,
+          hudHearts: [...document.querySelectorAll('#hud-hearts-val .heart')].map(h => h.classList.contains('full') ? 'full' : 'empty').join(','),
           labels: document.getElementById('floating-labels-layer').innerText});
       });
     }
@@ -64,7 +64,7 @@ const root = path.resolve(__dirname, '../app/src/main/assets/game');
         shake: gameInstance.arcadeEffects.screenShake.timer > 0};
     });
     assert.equal(hit.hearts, 2); assert.equal(hit.penalty, 50); assert.equal(hit.score, 250 + hit.distanceGain);
-    assert.equal(hit.hudScore, hit.score); assert.equal(hit.hudHearts, '❤️❤️🖤'); assert.equal(hit.multiplier, 1);
+    assert.equal(hit.hudScore, hit.score); assert.equal(hit.hudHearts, 'full,full,empty'); assert.equal(hit.multiplier, 1);
     assert(hit.labels.includes('-50 POINTS!') && hit.labels.includes('-1 HEART!')); assert(hit.pulse);
     if (process.env.OBSTACLE_SCREENSHOT) await page.screenshot({path: process.env.OBSTACLE_SCREENSHOT});
     console.log('PASS browser: generated box blocks the rider, removes one heart and 50 points, and updates the HUD.');

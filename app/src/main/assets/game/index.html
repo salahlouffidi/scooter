@@ -3,10 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1230">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1236'/%3E%3Cpath d='M12 44h30l8-24M46 18h8' fill='none' stroke='%23ffc233' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='16' cy='46' r='6' fill='none' stroke='%2338e1ff' stroke-width='4'/%3E%3Ccircle cx='50' cy='46' r='6' fill='none' stroke='%2338e1ff' stroke-width='4'/%3E%3C/svg%3E">
   <title>SKY SCOOTER — LOUFFI EDITION</title>
+  <link rel="stylesheet" href="css/fonts.css">
   <link rel="stylesheet" href="css/game.css">
 </head>
 <body>
+  <!-- Inline SVG icon sprite (no image files, crisp at any density) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="g-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2a6"/><stop offset="1" stop-color="#ffb01f"/></linearGradient>
+      <linearGradient id="g-heart" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8aa1"/><stop offset="1" stop-color="#ff2f56"/></linearGradient>
+    </defs>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-7.6-4.7-9.7-9.5C.8 8.1 2.9 4.4 6.5 4.4c2 0 3.7 1.1 5.5 3.3 1.8-2.2 3.5-3.3 5.5-3.3 3.6 0 5.7 3.7 4.2 7.1C19.6 16.3 12 21 12 21z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.4l2.9 6.2 6.7.9-4.9 4.7 1.2 6.7L12 17.6l-5.9 3.3 1.2-6.7L2.4 9.5l6.7-.9z"/></symbol>
+    <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path fill="rgba(140,70,0,.55)" d="M12 5.6l1.7 3.8 4.1.5-3 2.8.8 4.1L12 14.8 8.4 16.8l.8-4.1-3-2.8 4.1-.5z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 4.5h3.6v15H7zM13.4 4.5H17v15h-3.6z"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.2l13 7.8-13 7.8z"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 2.5h2v19H5zM8 4h11l-2.6 4.2L19 12.4H8z"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.5 1.8L4.2 14h6l-1.2 8.2L19.8 9.6h-6.3z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 1.8l8.2 3v6.3c0 5.2-3.5 9.3-8.2 11.1-4.7-1.8-8.2-5.9-8.2-11.1V4.8z"/></symbol>
+    <symbol id="i-magnet" viewBox="0 0 24 24"><path d="M4 3h5.4v9.2a2.6 2.6 0 005.2 0V3H20v9.2a8 8 0 01-16 0z"/><path fill="rgba(255,255,255,.75)" d="M4 3h5.4v3.6H4zM14.6 3H20v3.6h-5.4z"/></symbol>
+    <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M12 1.6c3.4 2.4 5.3 6.2 5.3 10.4l-2.2 3.4H8.9L6.7 12c0-4.2 1.9-8 5.3-10.4zM8.6 14.4L4.8 18l3 .6zM15.4 14.4l3.8 3.6-3 .6zM10.4 17h3.2L12 22z"/></symbol>
+    <symbol id="i-orbit" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(-28 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(28 12 12)"/></g><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-fruit" viewBox="0 0 24 24"><circle cx="12" cy="14" r="7.4"/><path d="M12 7.6c-.2-3 1.8-5.2 5.4-5.4-.2 3.4-2 5.4-5.4 5.4z"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M5.5 12.5l6.5-6.5 6.5 6.5M5.5 19l6.5-6.5 6.5 6.5"/></symbol>
+    <symbol id="i-brake" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M8.6 7.6h2.2v8.8H8.6zM13.2 7.6h2.2v8.8h-2.2z"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><path d="M3.5 3.5h7.3v7.3H3.5zM13.2 3.5h7.3v7.3h-7.3zM3.5 13.2h7.3v7.3H3.5zM13.2 13.2h7.3v7.3h-7.3z"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M9.3 9.4a2.8 2.8 0 115 1.6c-.8 1-2.3 1.4-2.3 3.1M12 17.4v.2"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M4 7h9M19 7h1M4 17h1M11 17h9M16 4v6M8 14v6"/></g></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><path d="M5.5 10.5h13v10h-13z"/><path fill="none" stroke="currentColor" stroke-width="2.4" d="M8.2 10.5V7.8a3.8 3.8 0 117.6 0v2.7"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M6 3.5h12v4.2a6 6 0 01-4.6 5.8V17H16v2.6H8V17h2.6v-3.5A6 6 0 016 7.7z"/><path fill="none" stroke="currentColor" stroke-width="2" d="M6 5H3.4v2a3.2 3.2 0 003.3 3.2M18 5h2.6v2a3.2 3.2 0 01-3.3 3.2"/></symbol>
+    <symbol id="i-scooter" viewBox="0 0 64 40"><g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="31" r="5.2"/><circle cx="52" cy="31" r="5.2"/><path d="M12 31h30l7-21M45 9h9"/></g><path fill="currentColor" d="M20 26h24l-1.2 3.2H21.2z"/></symbol>
+  </svg>
+
   <!-- 3D WebGL Canvas Viewport -->
   <div id="canvas-container"></div>
 
@@ -15,89 +46,91 @@
 
   <!-- Skippable Intro: SKY SCOOTER — LOUFFI EDITION -->
   <div id="intro-overlay" class="ui-layer">
+    <div class="intro-glow"></div>
     <div class="intro-brand">LOUFFI EDITION</div>
-    <div class="intro-scooter-icon">🛴💨</div>
+    <svg class="intro-scooter-icon" aria-hidden="true"><use href="#i-scooter"/></svg>
     <div class="intro-title">SKY SCOOTER</div>
     <div class="intro-tap">TAP TO START</div>
   </div>
 
   <!-- Main Menu -->
   <div id="main-menu" class="ui-layer hidden">
-    <div class="menu-card">
-      <div class="menu-title-brand">LOUFFI EDITION</div>
-      <div class="menu-title-main">SKY SCOOTER</div>
-
-      <div class="menu-stats-row">
-        <div class="stat-item">
-          <span class="stat-label">Total Coins</span>
-          <span class="stat-val" id="menu-total-coins">0</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">Highest Round</span>
-          <span class="stat-val" id="menu-highest-round">1 / 16</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">Best Score</span>
-          <span class="stat-val" id="menu-best-score">0</span>
+    <div class="menu-shell">
+      <div class="menu-hero">
+        <div class="menu-title-brand">LOUFFI EDITION</div>
+        <h1 class="menu-title-main"><span>SKY</span> SCOOTER</h1>
+        <p class="menu-tagline">Sixteen magical worlds. One endless sky.</p>
+        <div class="menu-stats-row">
+          <div class="stat-item"><svg class="ico gold"><use href="#i-coin"/></svg><div><span class="stat-label">Coins</span><span class="stat-val" id="menu-total-coins">0</span></div></div>
+          <div class="stat-item"><svg class="ico cyan"><use href="#i-flag"/></svg><div><span class="stat-label">World</span><span class="stat-val" id="menu-highest-round">1 / 16</span></div></div>
+          <div class="stat-item"><svg class="ico pink"><use href="#i-trophy"/></svg><div><span class="stat-label">Best</span><span class="stat-val" id="menu-best-score">0</span></div></div>
         </div>
       </div>
-
       <div class="menu-buttons">
-        <button id="btn-menu-continue" class="btn-primary hidden">RESUME RUN</button>
-        <button id="btn-menu-play" class="btn-secondary">NEW RUN</button>
-        <button id="btn-menu-rounds" class="btn-secondary">ROUND SELECT (16)</button>
-        <button id="btn-menu-how" class="btn-secondary">HOW TO PLAY</button>
-        <button id="btn-menu-settings" class="btn-secondary">SETTINGS</button>
+        <button id="btn-menu-continue" class="btn btn-hero hidden">RESUME RUN</button>
+        <button id="btn-menu-play" class="btn btn-hero"><svg class="ico"><use href="#i-play"/></svg><span>PLAY</span></button>
+        <div class="menu-row">
+          <button id="btn-menu-rounds" class="btn btn-glass"><svg class="ico"><use href="#i-grid"/></svg><span>WORLDS</span></button>
+          <button id="btn-menu-how" class="btn btn-glass"><svg class="ico"><use href="#i-help"/></svg><span>HOW TO</span></button>
+          <button id="btn-menu-settings" class="btn btn-glass"><svg class="ico"><use href="#i-sliders"/></svg><span>SETTINGS</span></button>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Gameplay In-Game HUD -->
   <div id="gameplay-hud" class="hidden">
-    <div class="hud-top-bar">
-      <!-- Hearts -->
-      <div class="hud-pill">
-        <span id="hud-hearts-val">❤️❤️❤️</span>
+    <div class="hud-top">
+      <div class="hud-left">
+        <div class="glass hud-hearts" id="hud-hearts">
+          <span id="hud-hearts-val"><svg class="heart full"><use href="#i-heart"/></svg><svg class="heart full"><use href="#i-heart"/></svg><svg class="heart full"><use href="#i-heart"/></svg></span>
+        </div>
       </div>
-
-      <!-- Progress Bar -->
-      <div class="hud-progress-container">
-        <div id="hud-progress-fill" class="hud-progress-fill"></div>
+      <div class="hud-center">
+        <div id="hud-world"></div>
+        <div class="hud-progress-container">
+          <div id="hud-progress-fill" class="hud-progress-fill"></div>
+          <i class="cp" style="left:33%"></i><i class="cp" style="left:66%"></i>
+          <svg class="hud-flag"><use href="#i-flag"/></svg>
+        </div>
       </div>
-
-      <!-- Score & Multiplier -->
-      <div class="hud-pill">
-        <span id="hud-score-val">0</span>
-        <span id="hud-multiplier-val" class="hud-multiplier">x1</span>
+      <div class="hud-right">
+        <div class="glass hud-score">
+          <svg class="ico coin"><use href="#i-coin"/></svg>
+          <span id="hud-score-val">0</span>
+          <span id="hud-multiplier-val" class="hud-multiplier">x1</span>
+        </div>
+        <button id="btn-hud-pause" class="btn-icon-pause" aria-label="Pause"><svg class="ico"><use href="#i-pause"/></svg></button>
       </div>
-
-      <!-- Pause Button -->
-      <button id="btn-hud-pause" class="btn-icon-pause">⏸</button>
     </div>
 
-    <!-- Active Powerup Badges -->
+    <!-- Active power-up chips -->
     <div id="hud-powerups"></div>
-    <div id="hud-speed" aria-live="off">0 km/h · CITY CRUISE</div>
-    <div id="hud-world"></div>
+
+    <!-- Speed read-out -->
+    <div id="hud-speed" aria-live="off">
+      <div class="spd-row"><b class="spd-num" id="spd-num">0</b><span class="spd-unit">km/h</span></div>
+      <div class="spd-bar"><i id="spd-fill"></i></div>
+      <span class="spd-mode" id="spd-mode">SKY CRUISE</span>
+    </div>
 
     <!-- Touch Controls -->
     <div id="touch-controls">
-      <!-- Left Thumb Horizontal Joystick -->
-      <div id="joystick-zone" aria-label="Four-direction movement joystick">
-        <div class="joystick-arrows" aria-hidden="true">
-          <span class="joystick-arrow arrow-up">▲</span>
-          <span class="joystick-arrow arrow-left">◀</span>
-          <span class="joystick-arrow arrow-right">▶</span>
-          <span class="joystick-arrow arrow-down">▼</span>
+      <!-- Left thumb: floating / fixed four-way stick. The whole zone is the touch target. -->
+      <div id="joystick-zone" aria-label="Movement stick: drag to steer, up to accelerate, down to brake" data-dir="none">
+        <div id="joystick-hint" aria-hidden="true"><span>DRAG TO MOVE</span></div>
+        <div id="joystick-base" aria-hidden="true">
+          <span class="js-arrow up"></span><span class="js-arrow left"></span><span class="js-arrow right"></span><span class="js-arrow down"></span>
+          <div id="joystick-thumb"></div>
         </div>
-        <div id="joystick-thumb"></div>
-        <div class="joystick-label">DRAG TO MOVE</div>
       </div>
 
-      <!-- Right Thumb Jump & Brake -->
-      <div id="action-buttons-zone">
-        <button id="btn-brake" class="btn-game-action">BRAKE</button>
-        <button id="btn-jump" class="btn-game-action">JUMP</button>
+      <!-- Right thumb: tap anywhere to jump, hold to glide. Brake is a separate button. -->
+      <div id="jump-zone" aria-label="Tap to jump">
+        <div id="action-buttons-zone">
+          <button id="btn-brake" class="btn-game-action" aria-label="Brake"><svg class="ico"><use href="#i-brake"/></svg><span>BRAKE</span></button>
+          <button id="btn-jump" class="btn-game-action" aria-label="Jump"><svg class="ico"><use href="#i-up"/></svg><span>JUMP</span><i class="glide-ring"></i></button>
+        </div>
       </div>
     </div>
   </div>
@@ -107,11 +140,11 @@
 
   <!-- Round Select Modal (16 Handcrafted Rounds) -->
   <div id="round-select-modal" class="ui-layer hidden">
-    <div class="modal-box">
-      <div class="modal-title">SELECT ROUND</div>
-      <p>All 16 rounds are open for testing. Choose a magical place!</p>
+    <div class="modal-box wide">
+      <div class="modal-title">SELECT WORLD</div>
+      <p class="modal-sub">All 16 worlds are open. Pick a magical place!</p>
       <div id="rounds-grid" class="rounds-grid"></div>
-      <button id="btn-close-rounds" class="btn-secondary">BACK TO MENU</button>
+      <button id="btn-close-rounds" class="btn btn-glass">BACK</button>
     </div>
   </div>
 
@@ -119,157 +152,158 @@
   <div id="how-to-play-modal" class="ui-layer hidden">
     <div class="modal-box">
       <div class="modal-title">HOW TO PLAY</div>
-      <div style="text-align: left; line-height: 1.6; margin-bottom: 20px; font-size: 0.95rem;">
-        <p>🛴 <strong>MOVE:</strong> Drag the four-way joystick: left/right steer, up accelerates, and down/back brakes.</p>
-        <p style="margin-top: 8px;">🚀 <strong>JUMP:</strong> Tap the green JUMP button to clear obstacles completely and cross gaps.</p>
-        <p style="margin-top: 8px;">💥 <strong>OBSTACLES:</strong> A hit, including landing on top, costs 1 heart and up to 50 points. Shields and Magic Guards block the loss. Your score never drops below zero.</p>
-        <p style="margin-top: 8px;">🛑 <strong>BRAKE:</strong> Tap the red BRAKE button to reduce forward speed by up to 25% for tight maneuvers.</p>
-        <p style="margin-top: 8px;">🟡 <strong>COINS & MULTIPLIER:</strong> Collect gold coins! Every 10 consecutive coins increases your multiplier (up to x5).</p>
-        <p style="margin-top: 8px;">💎 <strong>GEMS:</strong> Purple crystals award +100 bonus points each!</p>
-        <p style="margin-top: 8px;">⚡ <strong>POWER-UPS:</strong> Shield (absorbs 1 hit), Magnet (pulls coins), 2X Coins, Heart (+1 heart), Overdrive (speed surge), Magic Fruit (turbo + two fault guards), Sky Lift (fly and return)!</p>
-        <p style="margin-top: 8px;">🏆 <strong>CAMPAIGN:</strong> Beat all 16 rounds to unlock Endless Mode!</p>
-        <p style="margin-top: 8px;">⌨️ <strong>DESKTOP:</strong> A/D or Left/Right steer, W/Up accelerates, Space jumps, S/Down brakes, Esc pauses.</p>
+      <div class="howto">
+        <div class="howto-row"><svg class="ico cyan"><use href="#i-scooter"/></svg><p><strong>MOVE</strong> Touch the left side and drag: left/right steers, up accelerates, down brakes. The stick appears under your thumb.</p></div>
+        <div class="howto-row"><svg class="ico green"><use href="#i-up"/></svg><p><strong>JUMP</strong> Tap anywhere on the right side. Hold in the air to glide while antigravity is active.</p></div>
+        <div class="howto-row"><svg class="ico red"><use href="#i-brake"/></svg><p><strong>BRAKE</strong> Tap and hold BRAKE for tight maneuvers.</p></div>
+        <div class="howto-row"><svg class="ico pink"><use href="#i-heart"/></svg><p><strong>OBSTACLES</strong> A hit, including landing on top, costs 1 heart and up to 50 points. Shields and Magic Guards block it.</p></div>
+        <div class="howto-row"><svg class="ico gold"><use href="#i-coin"/></svg><p><strong>COINS &amp; GEMS</strong> Every 10 coins in a row raises your multiplier (up to x5). Gems give +100.</p></div>
+        <div class="howto-row"><svg class="ico cyan"><use href="#i-bolt"/></svg><p><strong>POWER-UPS</strong> Shield, Magnet, 2X Coins, Heart, Star Turbo, Magic Fruit, Sky Lift and Antigravity.</p></div>
+        <div class="howto-row"><svg class="ico"><use href="#i-sliders"/></svg><p><strong>CONTROLS</strong> Settings offer a fixed stick, tilt steering, left-handed layout and gamepad support. Keyboard: A/D, W, S, Space, Esc.</p></div>
       </div>
-      <button id="btn-close-how" class="btn-primary">GOT IT!</button>
+      <button id="btn-close-how" class="btn btn-hero">GOT IT!</button>
     </div>
   </div>
 
   <!-- Settings Modal -->
   <div id="settings-modal" class="ui-layer hidden">
-    <div class="modal-box">
+    <div class="modal-box wide">
       <div class="modal-title">SETTINGS</div>
-      <div class="settings-list">
-        <div class="setting-row">
-          <div>
-            <div class="setting-label">Music</div>
-            <div class="setting-desc">Upbeat background synthesizer</div>
+      <div class="settings-grid">
+        <section class="settings-section">
+          <h3>Controls</h3>
+          <div class="setting-row">
+            <div><div class="setting-label">Control Style</div><div class="setting-desc">Floating stick, fixed stick or tilt steering</div></div>
+            <select id="set-scheme"><option value="floating">Floating stick</option><option value="fixed">Fixed stick</option><option value="tilt">Tilt steering</option></select>
           </div>
-          <input type="checkbox" id="set-music" checked>
-        </div>
-        <div class="setting-row">
-          <div>
-            <div class="setting-label">Sound Effects</div>
-            <div class="setting-desc">Jumps, coins, impacts</div>
+          <div class="setting-row">
+            <div><div class="setting-label">Steering Sensitivity</div><div class="setting-desc">Stick responsiveness</div></div>
+            <input type="range" id="set-sensitivity" min="0.5" max="1.8" step="0.1" value="1.0">
           </div>
-          <input type="checkbox" id="set-sfx" checked>
-        </div>
-        <div class="setting-row">
-          <div>
-            <div class="setting-label">Haptic Vibration</div>
-            <div class="setting-desc">Tactile mobile feedback</div>
+          <div class="setting-row">
+            <div><div class="setting-label">Tilt Sensitivity</div><div class="setting-desc">Only for tilt steering</div></div>
+            <input type="range" id="set-tilt-sensitivity" min="0.6" max="1.8" step="0.1" value="1.0">
           </div>
-          <input type="checkbox" id="set-vibration" checked>
-        </div>
-        <div class="setting-row">
-          <div>
-            <div class="setting-label">Steering Sensitivity</div>
-            <div class="setting-desc">Joystick steering responsiveness</div>
+          <div class="setting-row">
+            <div><div class="setting-label">Stick Size</div><div class="setting-desc">Comfortable for your thumb</div></div>
+            <input type="range" id="set-stick-size" min="0.8" max="1.4" step="0.05" value="1.0">
           </div>
-          <input type="range" id="set-sensitivity" min="0.5" max="1.8" step="0.1" value="1.0">
-        </div>
-        <div class="setting-row">
-          <div>
-            <div class="setting-label">Graphics Quality</div>
-            <div class="setting-desc">Low (30fps saver) / Med / High</div>
+          <div class="setting-row">
+            <div><div class="setting-label">Control Opacity</div><div class="setting-desc">See more of the world</div></div>
+            <input type="range" id="set-stick-opacity" min="0.4" max="1" step="0.05" value="0.85">
           </div>
-          <select id="set-graphics" style="padding: 6px; border-radius: 6px; background: #37474f; color: #fff;">
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low (Performance)</option>
-          </select>
-        </div>
-        <div class="setting-row">
-          <div>
-            <div class="setting-label">Reduced Motion</div>
-            <div class="setting-desc">Disables camera shake & FOV widening</div>
+          <div class="setting-row">
+            <div><div class="setting-label">Left-handed Layout</div><div class="setting-desc">Swap stick and jump sides</div></div>
+            <input type="checkbox" id="set-left-handed">
           </div>
-          <input type="checkbox" id="set-reduced-motion">
-        </div>
-        <div class="setting-row">
-          <div>
-            <div class="setting-label">Adaptive Challenge (ML)</div>
-            <div class="setting-desc">Adapts future challenges to your play style</div>
+          <div class="setting-row">
+            <div><div class="setting-label">Haptic Vibration</div><div class="setting-desc">Tactile feedback</div></div>
+            <input type="checkbox" id="set-vibration" checked>
           </div>
-          <input type="checkbox" id="set-adaptive" checked>
-        </div>
-        <div class="setting-row" style="margin-top: 10px;">
-          <button id="btn-reset-ml" class="btn-secondary" style="font-size: 0.8rem; width: 100%;">Reset Adaptive Learning Data</button>
-        </div>
-        <div class="setting-row">
-          <button id="btn-reset-progress" class="btn-secondary" style="font-size: 0.8rem; width: 100%; border-color: #e57373; color: #ff8a80;">Reset Campaign Progress</button>
-        </div>
+          <div class="setting-row">
+            <div><div class="setting-label">Haptic Strength</div><div class="setting-desc">Light to strong</div></div>
+            <input type="range" id="set-haptic-strength" min="0.5" max="1.5" step="0.1" value="1.0">
+          </div>
+        </section>
+        <section class="settings-section">
+          <h3>Graphics</h3>
+          <div class="setting-row">
+            <div><div class="setting-label">Quality</div><div class="setting-desc">Auto picks the best for your phone</div></div>
+            <select id="set-graphics"><option value="auto">Auto</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low (Performance)</option></select>
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-label">Cinematic Effects</div><div class="setting-desc">Bloom, color grading, speed blur</div></div>
+            <input type="checkbox" id="set-postfx" checked>
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-label">Dynamic Resolution</div><div class="setting-desc">Keeps the frame rate smooth</div></div>
+            <input type="checkbox" id="set-adaptive-res" checked>
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-label">Reduced Motion</div><div class="setting-desc">No shake, blur or FOV effects</div></div>
+            <input type="checkbox" id="set-reduced-motion">
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-label">Show FPS</div><div class="setting-desc">Frame rate overlay</div></div>
+            <input type="checkbox" id="set-show-fps">
+          </div>
+          <h3>Audio &amp; Play</h3>
+          <div class="setting-row">
+            <div><div class="setting-label">Music</div><div class="setting-desc">Background synthesizer</div></div>
+            <input type="checkbox" id="set-music" checked>
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-label">Sound Effects</div><div class="setting-desc">Jumps, coins, impacts</div></div>
+            <input type="checkbox" id="set-sfx" checked>
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-label">Adaptive Challenge</div><div class="setting-desc">Learns your play style</div></div>
+            <input type="checkbox" id="set-adaptive" checked>
+          </div>
+        </section>
       </div>
-      <button id="btn-close-settings" class="btn-primary">DONE</button>
+      <div class="settings-actions">
+        <button id="btn-reset-ml" class="btn btn-glass small">Reset Adaptive Learning</button>
+        <button id="btn-reset-progress" class="btn btn-glass small danger">Reset Progress</button>
+        <button id="btn-close-settings" class="btn btn-hero">DONE</button>
+      </div>
     </div>
   </div>
 
   <!-- Pause Modal -->
   <div id="pause-modal" class="ui-layer hidden">
-    <div class="modal-box">
-      <div class="modal-title">GAME PAUSED</div>
-      <div class="menu-buttons" style="margin-top: 20px;">
-        <button id="btn-pause-resume" class="btn-primary">RESUME</button>
-        <button id="btn-pause-restart" class="btn-secondary">RESTART ROUND</button>
-        <button id="btn-pause-menu" class="btn-secondary">MAIN MENU</button>
+    <div class="modal-box compact">
+      <div class="modal-title">PAUSED</div>
+      <div class="menu-buttons">
+        <button id="btn-pause-resume" class="btn btn-hero"><svg class="ico"><use href="#i-play"/></svg><span>RESUME</span></button>
+        <div class="menu-row">
+          <button id="btn-pause-restart" class="btn btn-glass">RESTART</button>
+          <button id="btn-pause-menu" class="btn btn-glass">MENU</button>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Game Over Modal -->
   <div id="game-over-modal" class="ui-layer hidden">
-    <div class="modal-box">
-      <div class="modal-title" style="color: #ff5252;">GAME OVER</div>
-      <div style="font-size: 1.1rem; margin-bottom: 8px;">Run Score: <strong id="go-run-score" style="color: #ffeb3b;">0</strong></div>
-      <div style="font-size: 0.95rem; color: rgba(255,255,255,0.7); margin-bottom: 24px;">Best Score: <span id="go-best-score">0</span></div>
+    <div class="modal-box compact">
+      <div class="modal-title bad">GAME OVER</div>
+      <div class="go-score"><span class="go-label">SCORE</span><strong id="go-run-score">0</strong></div>
+      <div class="go-best">Best <span id="go-best-score">0</span></div>
       <div class="menu-buttons">
-        <button id="btn-go-retry" class="btn-primary">RETRY ROUND</button>
-        <button id="btn-go-menu" class="btn-secondary">MAIN MENU</button>
+        <button id="btn-go-retry" class="btn btn-hero">RETRY</button>
+        <button id="btn-go-menu" class="btn btn-glass">MAIN MENU</button>
       </div>
     </div>
   </div>
 
   <!-- Round Complete Modal -->
   <div id="round-complete-modal" class="ui-layer hidden">
-    <div class="modal-box">
-      <div class="modal-title" style="color: #00e676;">ROUND COMPLETE!</div>
-      <div id="rc-round-name" style="font-weight: 700; margin-bottom: 12px; font-size: 1.2rem;"></div>
-      <div id="rc-stars" style="font-size: 2.2rem; margin-bottom: 16px;">⭐⭐⭐</div>
-
-      <div class="score-breakdown-table">
-        <div class="score-row">
-          <span>Distance Points:</span>
-          <span id="rc-distance-pts">+0</span>
+    <div class="modal-box wide rc-box">
+      <div class="rc-grid">
+        <div class="rc-left">
+          <div class="modal-title good">WORLD COMPLETE!</div>
+          <div id="rc-round-name" class="rc-name"></div>
+          <div id="rc-stars" class="rc-stars"></div>
+          <div class="menu-buttons">
+            <button id="btn-next-round" class="btn btn-hero">NEXT WORLD</button>
+            <div class="menu-row">
+              <button id="btn-rc-replay" class="btn btn-glass">REPLAY</button>
+              <button id="btn-rc-menu" class="btn btn-glass">MENU</button>
+            </div>
+          </div>
         </div>
-        <div class="score-row">
-          <span>Coin Points:</span>
-          <span id="rc-coin-pts">+0</span>
+        <div class="rc-right">
+          <div class="score-breakdown-table">
+            <div class="score-row"><span>Distance</span><span id="rc-distance-pts">+0</span></div>
+            <div class="score-row"><span>Coins</span><span id="rc-coin-pts">+0</span></div>
+            <div class="score-row"><span>Gems</span><span id="rc-gem-pts">+0</span></div>
+            <div class="score-row"><span>Delivery</span><span id="rc-delivery-pts">+0</span></div>
+            <div class="score-row"><span>Finish &amp; Hearts</span><span id="rc-bonus-pts">+0</span></div>
+            <div class="score-row"><span>Obstacle Penalties</span><span id="rc-obstacle-penalty-pts">-0</span></div>
+            <div class="score-row total"><span>Total</span><span id="rc-total-score">0</span></div>
+          </div>
         </div>
-        <div class="score-row">
-          <span>Gem Points:</span>
-          <span id="rc-gem-pts">+0</span>
-        </div>
-        <div class="score-row">
-          <span>Delivery Points:</span>
-          <span id="rc-delivery-pts">+0</span>
-        </div>
-        <div class="score-row">
-          <span>Finish & Heart Bonus:</span>
-          <span id="rc-bonus-pts">+0</span>
-        </div>
-        <div class="score-row">
-          <span>Obstacle Penalties:</span>
-          <span id="rc-obstacle-penalty-pts">-0</span>
-        </div>
-        <div class="score-row total">
-          <span>Total Round Score:</span>
-          <span id="rc-total-score">0</span>
-        </div>
-      </div>
-
-      <div class="menu-buttons">
-        <button id="btn-next-round" class="btn-primary">NEXT ROUND</button>
-        <button id="btn-rc-replay" class="btn-secondary">REPLAY</button>
-        <button id="btn-rc-menu" class="btn-secondary">MAIN MENU</button>
       </div>
     </div>
   </div>
@@ -287,46 +321,32 @@
     <div>Track Seed: <span id="dev-track-seed">12345</span></div>
   </div>
 
-  <!-- Subtle Dev Button (bottom-left) -->
+  <!-- Subtle Dev Button (bottom-center) -->
   <button id="btn-dev-toggle">DEV</button>
+  <div id="fps-counter" class="hidden">60</div>
 
-  <!-- Achievements & Leaderboard Modal -->
+  <!-- Achievements & Leaderboard Modals (reserved) -->
   <div id="achievements-modal" class="ui-layer hidden">
     <div class="modal-box">
-      <div class="modal-title">🏆 ACHIEVEMENTS</div>
-      <div id="achievements-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 20px 0; max-height: 400px; overflow-y: auto;">
-        <!-- Achievements will be populated here -->
-      </div>
-      <div style="font-size: 0.95rem; margin: 12px 0; color: rgba(255,255,255,0.7);">
-        Unlocked: <strong id="achievements-count">0</strong> / <span id="achievements-total">10</span>
-      </div>
-      <button id="btn-close-achievements" class="btn-primary">BACK</button>
+      <div class="modal-title">ACHIEVEMENTS</div>
+      <div id="achievements-grid" class="achievements-grid"></div>
+      <div class="modal-sub">Unlocked: <strong id="achievements-count">0</strong> / <span id="achievements-total">10</span></div>
+      <button id="btn-close-achievements" class="btn btn-hero">BACK</button>
     </div>
   </div>
-
-  <!-- Leaderboard Modal -->
   <div id="leaderboard-modal" class="ui-layer hidden">
     <div class="modal-box">
-      <div class="modal-title">📊 LEADERBOARD</div>
-      <div style="margin: 16px 0; font-size: 0.9rem;">
-        <strong id="lb-player-rank">Your Rank: —</strong><br>
-        <span id="lb-total-score">Total Score: 0</span><br>
-        <span id="lb-total-coins">Total Coins: 0</span>
-      </div>
-      <div id="leaderboard-list" style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; max-height: 350px; overflow-y: auto; font-size: 0.85rem; font-family: monospace;">
-        <!-- Top scores will populate here -->
-      </div>
-      <button id="btn-close-leaderboard" class="btn-primary" style="margin-top: 16px;">BACK</button>
+      <div class="modal-title">LEADERBOARD</div>
+      <div class="modal-sub"><strong id="lb-player-rank">Your Rank: —</strong><br><span id="lb-total-score">Total Score: 0</span><br><span id="lb-total-coins">Total Coins: 0</span></div>
+      <div id="leaderboard-list" class="leaderboard-list"></div>
+      <button id="btn-close-leaderboard" class="btn btn-hero">BACK</button>
     </div>
   </div>
-
-  <!-- Combo Display (in-game) -->
-  <div id="combo-display" class="hidden" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 3rem; font-weight: bold; color: #ffeb3b; text-shadow: 2px 2px 4px #000; z-index: 100; animation: comboScale 0.3s ease-out;">
-    <!-- Combo text -->
-  </div>
+  <div id="combo-display" class="hidden"></div>
 
   <!-- Scripts in dependency order -->
   <script src="lib/three.min.js"></script>
+  <script src="js/materialFx.js"></script>
   <script src="js/visualKit.js"></script>
   <script src="js/kitLoader.js"></script>
   <script src="js/i18n.js"></script>
@@ -334,6 +354,7 @@
   <script src="js/audio.js"></script>
   <script src="js/rounds.js"></script>
   <script src="js/arcadeEffects.js"></script>
+  <script src="js/riderFx.js"></script>
   <script src="js/particleEffects.js"></script>
   <script src="js/proSystems.js"></script>
   <script src="js/adaptiveML.js"></script>
@@ -341,13 +362,17 @@
   <script src="js/assetFactory.js"></script>
   <script src="js/trackGenerator.js"></script>
   <script src="js/biomeArt.js"></script>
+  <script src="js/roadArt.js"></script>
   <script src="js/cityArt.js"></script>
   <script src="js/enhancedTrack.js"></script>
   <script src="js/input.js"></script>
   <script src="js/controller.js"></script>
   <script src="js/camera.js"></script>
   <script src="js/skyAtmosphere.js"></script>
+  <script src="js/postFx.js"></script>
+  <script src="js/graphics.js"></script>
   <script src="js/paperDelivery.js"></script>
+  <script src="js/hud.js"></script>
   <script src="js/game.js"></script>
   <script src="js/runSession.js"></script>
   <script>

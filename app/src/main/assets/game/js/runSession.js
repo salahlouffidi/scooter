@@ -35,6 +35,14 @@ Object.assign(window.SkyScooterGame.prototype, {
     const saved = window.GameStorage.getRun(), button = document.getElementById('btn-menu-continue');
     if (!button) return;
     button.classList.toggle('hidden', !saved);
+    // With a saved run the primary action is RESUME; a fresh start becomes a secondary "NEW RUN".
+    const play = document.getElementById('btn-menu-play');
+    if (play) {
+      play.classList.toggle('btn-hero', !saved);
+      play.classList.toggle('btn-glass', !!saved);
+      const label = play.querySelector('span');
+      if (label) label.textContent = saved ? 'NEW RUN' : 'PLAY';
+    }
     if (saved) {
     const world = window.ROUNDS_DATA.find(r=>r.id===saved.roundId)?.name || 'Sky Tour';
       button.textContent = `RESUME · ${world} · ${Math.floor(saved.rider.s)} m`;
@@ -60,7 +68,7 @@ Object.assign(window.SkyScooterGame.prototype, {
       this.riderCtrl.reset(checkpoint,round.baseSpeed*window.ScooterTuning.cruiseMultiplier);this.riderCtrl.lastCheckpointS=checkpoint;
       this.gameCam.reset(this.riderCtrl.mesh,this.trackGen);this.hasActiveRun=true;this.autosaveTimer=0;this.state='PAUSED';
       document.getElementById('hud-world').textContent=`${saved.isEndless?'∞':round.id} · ${round.name}`;
-      this.hideAllScreens();this.updateHUD();this.saveActiveRun();this.showFloatingLabel('WORLD MAP UPDATED · CHECKPOINT RESTORED',this.riderCtrl.mesh.position,'#ffe082');this.resume();return;
+      this.hideAllScreens();this.hud?.reset();this.updateHUD();this.saveActiveRun();this.showFloatingLabel('WORLD MAP UPDATED · CHECKPOINT RESTORED',this.riderCtrl.mesh.position,'#ffe082');this.resume();return;
     }
     this.cancelCountdown();this.input.resetAll();this.arcadeEffects.reset();
     this.currentRoundId=saved.roundId;this.isEndless=saved.isEndless;this.currentRunTxId=saved.runId;
@@ -72,7 +80,7 @@ Object.assign(window.SkyScooterGame.prototype, {
       this.ml.extractFeatures(this.riderCtrl,round.baseSpeed,{densityMult:1,spacingMult:1},round);
     this.hasActiveRun=true;this.autosaveTimer=0;this.state='PAUSED';
     document.getElementById('hud-world').textContent=`${saved.isEndless?'∞':round.id} · ${round.name}`;
-    this.hideAllScreens();this.updateHUD();this.resume();
+    this.hideAllScreens();this.hud?.reset();this.updateHUD();this.resume();
   },
 
   cancelCountdown() {

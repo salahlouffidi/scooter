@@ -24,6 +24,7 @@ window.SkyAtmosphere = class SkyAtmosphere {
     this.sunWorld = null;
 
     this.buildDome();
+    this.buildCloudSea();
     this.buildClouds();
     this.buildDistantScenery();
     this.buildSunSprite();
@@ -69,9 +70,59 @@ window.SkyAtmosphere = class SkyAtmosphere {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, 256, 128);
     }
+    // Sun-lit top, cool shaded belly: turns flat blobs into volumetric-looking puffs.
+    ctx.globalCompositeOperation = 'source-atop';
+    const shade = ctx.createLinearGradient(0, 30, 0, 118);
+    shade.addColorStop(0, 'rgba(255,255,255,0)');
+    shade.addColorStop(0.55, 'rgba(170,190,225,0.28)');
+    shade.addColorStop(1, 'rgba(110,130,185,0.55)');
+    ctx.fillStyle = shade;
+    ctx.fillRect(0, 0, 256, 128);
+    ctx.globalCompositeOperation = 'source-over';
     const tex = new this.THREE.CanvasTexture(c);
     if (this.THREE.SRGBColorSpace !== undefined) tex.colorSpace = this.THREE.SRGBColorSpace;
     return tex;
+  }
+
+  // --- Endless cloud sea below the route: hides the void and adds parallax depth ---
+  makeSeaTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 512;
+    const ctx = c.getContext('2d');
+    if (!ctx) return null;
+    let seed = 1337;
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    // Tileable: every puff is drawn at all nine wrapped offsets.
+    for (let i = 0; i < 170; i++) {
+      const x = rnd() * 512, y = rnd() * 512, r = 22 + rnd() * 62, a = 0.10 + rnd() * 0.18;
+      for (const ox of [-512, 0, 512]) for (const oy of [-512, 0, 512]) {
+        const g = ctx.createRadialGradient(x + ox, y + oy, 1, x + ox, y + oy, r);
+        g.addColorStop(0, `rgba(255,255,255,${a * 1.6})`); g.addColorStop(0.55, `rgba(255,255,255,${a})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g; ctx.fillRect(x + ox - r, y + oy - r, r * 2, r * 2);
+      }
+    }
+    const tex = new this.THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = this.THREE.RepeatWrapping;
+    tex.colorSpace = this.THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  buildCloudSea() {
+    const T = this.THREE;
+    this.seaLayers = [];
+    if (typeof document === 'undefined') return;
+    const tex = this.makeSeaTexture();
+    const layers = [{ y: -30, size: 1300, repeat: 5, opacity: 0.92, drift: 0.9 }, { y: -46, size: 1500, repeat: 3.4, opacity: 0.85, drift: 0.5 }];
+    for (const L of layers) {
+      const map = tex.clone(); map.needsUpdate = true; map.repeat.set(L.repeat, L.repeat);
+      const geo = new T.PlaneGeometry(L.size, L.size, 1, 1); geo.rotateX(-Math.PI / 2);
+      const mat = new T.MeshBasicMaterial({ map, transparent: true, opacity: L.opacity, depthWrite: false, fog: true, color: 0xffffff });
+      const mesh = new T.Mesh(geo, mat);
+      mesh.frustumCulled = false; mesh.renderOrder = -8; mesh.position.y = L.y; mesh.name = 'cloudSea';
+      this.scene.add(mesh);
+      this.seaLayers.push({ mesh, map, ...L });
+    }
   }
 
   buildClouds() {
@@ -237,10 +288,22 @@ window.SkyAtmosphere = class SkyAtmosphere {
     this.dome.material.needsUpdate = true;
 
     this.tintClouds(theme);
+    this.tintSea(theme, sky, fog);
     this.configureSun(theme);
     this.clearDistantScenery();
     this.buildDistantScenery();
     this.setQuality(this.quality);
+  }
+
+  tintSea(theme, sky, fog) {
+    const T = this.THREE;
+    let c;
+    if (this.isNight) c = fog.clone().lerp(sky, 0.35).multiplyScalar(1.15);
+    else if (theme === 'volcano') c = new T.Color(0x9a4a3a).lerp(fog, 0.25);
+    else if (theme === 'storm') c = new T.Color(0x9aa9b4);
+    else if (theme === 'sunset' || theme === 'desert') c = fog.clone().lerp(new T.Color(0xffffff), 0.35);
+    else c = fog.clone().lerp(new T.Color(0xffffff), 0.6);
+    for (const L of this.seaLayers || []) L.mesh.material.color.copy(c).multiplyScalar(L === this.seaLayers[0] ? 1.0 : 0.88);
   }
 
   // World-space sun/moon sprite that stays ahead of the camera.
@@ -281,19 +344,19 @@ window.SkyAtmosphere = class SkyAtmosphere {
       return;
     }
     if (this.isNight) {
-      this.sunSprite.material.color.set(0xdfe9ff);
+      this.sunSprite.material.color.set(0xdfe9ff).multiplyScalar(1.7);
       this.sunSprite.material.opacity = 0.9;
       this.sunSprite.scale.set(110, 110, 1);
       this.sunWorld = { lateral: -60, height: 100, distance: 420 };
     } else if (theme === 'sunset' || theme === 'volcano' || theme === 'desert') {
-      this.sunSprite.material.color.set(0xffc98a);
+      this.sunSprite.material.color.set(0xffc98a).multiplyScalar(1.6);
       this.sunSprite.material.opacity = 1.0;
-      this.sunSprite.scale.set(300, 300, 1);
+      this.sunSprite.scale.set(230, 230, 1);
       this.sunWorld = { lateral: 0, height: 42, distance: 520 };
     } else {
-      this.sunSprite.material.color.set(0xffe9b8);
+      this.sunSprite.material.color.set(0xffe9b8).multiplyScalar(1.45);
       this.sunSprite.material.opacity = 1.0;
-      this.sunSprite.scale.set(250, 250, 1);
+      this.sunSprite.scale.set(185, 185, 1);
       this.sunWorld = { lateral: 30, height: 105, distance: 450 };
     }
     this.sunSprite.visible = true;
@@ -342,6 +405,7 @@ window.SkyAtmosphere = class SkyAtmosphere {
     this.quality = quality;
     const showExtras = quality !== 'low';
     this.cloudSprites.forEach(s => { s.visible = showExtras; });
+    (this.seaLayers || []).forEach((L, i) => { L.mesh.visible = i === 0 || quality === 'high'; });
     this.distantItems.forEach(o => { o.visible = showExtras; });
   }
 
@@ -352,6 +416,13 @@ window.SkyAtmosphere = class SkyAtmosphere {
     // Dome follows the camera and drifts slowly for a living sky.
     this.domeGroup.position.set(playerPos.x * 0.25, 0, playerPos.z);
     this.domeGroup.rotation.y = this.time * 0.004;
+
+    // Cloud sea follows the focus but its texture stays pinned to the world, so it slides past.
+    for (const L of this.seaLayers || []) {
+      L.mesh.position.set(playerPos.x, L.y, playerPos.z);
+      const k = L.repeat / L.size;
+      L.map.offset.set(playerPos.x * k + this.time * 0.0009 * L.drift, -playerPos.z * k);
+    }
 
     // Sun/moon sprite stays ahead of the focus point.
     if (this.sunSprite && this.sunSprite.visible && this.sunWorld) {

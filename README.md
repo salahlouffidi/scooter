@@ -2,11 +2,78 @@
 
 Offline 3D magical scooter runner for Android WebView and desktop browsers. The existing rider, scooter, four-way joystick, Jump, braking and camera behavior remain intact. Package identity, scores, settings and save keys are preserved.
 
+## Cinematic graphics and pro controls
+
+This release rebuilds how the game looks and feels without touching its rules, physics or save format.
+
+![Enchanted Garden gameplay](docs/screens/r1.jpg)
+
+| | |
+| --- | --- |
+| ![Menu](docs/screens/menu.jpg) | ![Star turbo](docs/screens/r1_turbo.jpg) |
+| ![Crystal Cavern](docs/screens/r6.jpg) | ![Volcano Valley](docs/screens/r8.jpg) |
+| ![Storm Skyway](docs/screens/r13.jpg) | ![Final Sky Arena](docs/screens/r16.jpg) |
+| ![World select](docs/screens/rounds.jpg) | ![Settings](docs/screens/settings.jpg) |
+
+*Real renders from `tools/render-shots.cjs` (software GL, 1280×720, High tier).*
+
+### Rendering pipeline
+
+```
+scene ──► HDR target (RGBA16F, 4× MSAA on High) ──► dual-filter bloom (4–5 mips)
+      ──► Khronos PBR Neutral tone map ──► per-world colour grade ──► vignette / speed blur /
+          streaks / chromatic pulse ──► dither ──► canvas
+```
+
+| Piece | What it does | File |
+| --- | --- | --- |
+| Post-processing | Self-contained HDR pipeline (`three.min.js` ships no `EffectComposer`). Bloom keys off real HDR highlights: gems, glowing road inlays, the sun and turbo flames. 16 world grades (temperature, split-toning, contrast, saturation, vignette colour). Hit flash, pickup pulses, low-health edge pulse, sun shafts (kept off the rider so the hero always reads) and speed blur/streaks that respect **Reduced Motion**. | `js/postFx.js` |
+| Graphics manager | GPU probe (Adreno / Mali / Immortalis / Xclipse / Apple, memory, cores), quality tiers, shadow set-up, dynamic resolution, framebuffer-completeness self-test with automatic fallback (MSAA → no MSAA → 8-bit target → direct render). | `js/graphics.js` |
+| Material upgrade | One shader patch on the Standard/Lambert/Physical prototypes upgrades every material: sun-scattering atmospheric fog, height haze, sky-tinted fresnel rim, world-space colour variation and an optional curved horizon. Shared uniforms, no per-material cost. Opt out with `material.userData.noFx = true`. | `js/materialFx.js` |
+| Road art | Sixteen procedural surfaces (cobble, planks, flagstone, sand ripples, cracked ice, lava plates, crystal veins, riveted metal, glass grid, moon craters, rainbow flow, marble, spotted moss, carved temple tiles) with bump and emissive maps, seamless along the route. Every route gets glowing edge inlays and curbs. Only the active surface stays in GPU memory. | `js/roadArt.js`, `js/enhancedTrack.js` |
+| Lighting | Key light with a corrected shadow frustum (texel-snapped, so shadow edges never shimmer), hemisphere fill and a rim light that follows the visible sun. | `js/game.js` |
+| Sky | HDR sun, shaded cloud puffs and an endless cloud sea beneath the route (two parallax layers on High). | `js/skyAtmosphere.js` |
+| Rider FX | Height-aware contact shadow, state-coloured underglow (cruise, turbo, shield, antigravity, flight), take-off / landing / skid dust from a fixed particle pool. | `js/riderFx.js` |
+| Collectibles | Beveled, embossed gold coin (one merged mesh), faceted crystal gem, additive halos on gems and power-ups. | `js/assetFactory.js` |
+
+### Quality tiers and performance
+
+| | Low | Medium | High |
+| --- | --- | --- | --- |
+| Post-processing | direct render (ACES) | HDR, 4-level bloom, FXAA | HDR, 5-level bloom, 4× MSAA, grain, chromatic pulse |
+| Shadows | off (blob shadow only) | 1024 | 2048 |
+| Pixel ratio cap | 1.0 | 1.5 | 2.0 |
+| Cloud sea layers | 1 | 1 | 2 |
+
+*Auto* (the new default) picks a tier from the GPU probe. **Dynamic resolution** keeps the frame rate smooth: sustained slow frames lower the scene render scale in 10 % steps down to 60 %, fast frames raise it again, and on *Auto* a struggling High tier demotes itself to Medium. Settings expose Quality, Cinematic Effects, Dynamic Resolution and a live FPS overlay. Settings written by older versions that say *High* (the old implicit default) are read as *Auto*; an explicit Low or Medium is kept. Game saves, scores and the wallet are untouched.
+
+The three tiers are exposure-matched (a test checks their mean brightness), so switching quality never changes the art direction.
+
+### Controls
+
+- **Floating stick (default):** touch anywhere on the left half and the stick appears under your thumb. Dragging past the rim drags the base along, so overshooting never needs a long drag back.
+- **Response curve:** 7 % steering dead zone, expo blend for fine control near the centre, full output slightly before the rim. The vertical axis has a larger (24 %) dead zone, so steering never accidentally accelerates or brakes. A ~20 ms filter removes touch jitter without perceptible lag; the newest coalesced sample is used for the lowest latency.
+- **Jump anywhere on the right:** the whole right half is the jump button (hold in the air to glide). BRAKE is a separate button that never triggers a jump. Stick, jump and brake each own a pointer, so three fingers work independently; blur/app-switch releases everything.
+- **Also:** fixed stick, **tilt steering** (steering-wheel style; the screen orientation is auto-detected and calibrated at the start of each run), left-handed layout, stick size and opacity, keyboard, and **gamepad** (left stick / D-pad, A or R2 jump, B or L2 brake, Start pauses).
+- **Haptics:** light ticks for stick/jump/brake, a landing thud and pickup patterns. Strength is adjustable; on Android the pattern is played as an amplitude waveform (`AndroidBridge.vibratePattern`).
+
+### Camera
+
+Frame-rate independent smoothing, speed-driven FOV and pull-back, banking into turns, partial jump follow (the road stays in view), a damped landing-impact spring and a cinematic run-in during the countdown. **Reduced Motion** pins the classic rigid follow.
+
+### HUD and menus
+
+Glass HUD with SVG icons (no emoji), hearts that pop, a score count-up, combo pop, a progress bar with checkpoints and finish flag, timer-ring chips for every power-up, a speed read-out and a glide-ready ring on Jump. The HUD only writes changed values to the DOM and avoids `backdrop-filter` over the live canvas. Menus show a rider cruising the first world behind the logo; round cards use each world's colours; settings use proper switches and sliders. Fonts (Lilita One, Nunito; SIL OFL) are embedded as base64 (`npm run build:fonts`), so nothing loads from the network or from `file://`.
+
+### Android
+
+`MainActivity` re-applies immersive mode on focus, draws into display cutouts, excludes screen edges from system back gestures, holds the screen awake and requests sustained performance only while a run is active, plays haptic waveforms with amplitude control, locks WebView text zoom, disables the context menu, enables remote debugging in debug builds only, and declares `keyboard|navigation` config changes so connecting a gamepad does not recreate the activity. **These native changes were written without an Android SDK and have not been compiled or run on a device — build with `./gradlew assembleDebug` and test on hardware.**
+
 ## Arcade colors and turbo effects
 
-The visual pass from [`scooter2` commit 7f60b85](https://github.com/salahlouffidi/scooter2/commit/7f60b8529a1996285172cfa60cbdf55de853cafb) is adapted into the official game: richer city palettes, a subtle canvas color grade, a bold speed badge with turbo/downhill states, twin exhaust flames and a small rainbow star trail. Flames follow the scooter's lean and slope; pickup bursts retain their gold color and normal size. All particles reuse the existing fixed pool.
+The visual pass from [`scooter2` commit 7f60b85](https://github.com/salahlouffidi/scooter2/commit/7f60b8529a1996285172cfa60cbdf55de853cafb) is adapted into the official game: richer city palettes, a per-world post-processing colour grade, a bold speed badge with turbo/downhill states, twin exhaust flames and a small rainbow star trail. Flames follow the scooter's lean and slope; pickup bursts retain their gold color and normal size. All particles reuse the existing fixed pool.
 
-Low graphics disables the canvas filter and halves trail emission. Reduced Motion disables the flames, continuous trail and HUD pulse; pausing freezes the pulse. OS Reduced Motion also disables the HUD pulse. No additional GLB or runtime download is required.
+Low graphics renders without post-processing and halves trail emission. Reduced Motion disables the flames, continuous trail and HUD pulse; pausing freezes the pulse. OS Reduced Motion also disables the HUD pulse. No additional GLB or runtime download is required.
 
 ## Rider tail and flight nitro
 
@@ -78,26 +145,24 @@ The local logistic model persists and chooses bounded difficulty for future segm
 
 ## Assets and verification
 
-The existing `models/louffi-world.glb` remains the single reusable Blender-compatible glTF asset for the rider and shared props. Magical scenery and route construction are generated from code. When layouts change, older active saves are deliberately migrated to the last safe checkpoint while scores, health, power-up inventory and run identity are preserved.
+The existing `models/louffi-world.glb` remains the single reusable Blender-compatible glTF asset for the rider and shared props. Magical scenery, road surfaces and route construction are generated from code. When layouts change, older active saves are deliberately migrated to the last safe checkpoint while scores, health, power-up inventory and run identity are preserved.
 
 Serve `app/src/main/assets/game` with a local HTTP server. Run:
 
 ```sh
-node tools/verify-game.cjs
-node tools/resume-physics.cjs
-node tools/verify-antigravity.cjs
-node tools/verify-flight-effects.cjs
-node tools/verify-obstacle-damage.cjs
-node tools/obstacle-damage-browser.cjs
+npm test                    # node: geometry, generators, physics, saves, effects (no browser)
+npm run test:browser        # smoke + controls + graphics + antigravity + obstacles + session
 node tools/flight-effects-browser.cjs
-node tools/browser-smoke.cjs
-node tools/session-browser.cjs
-node tools/antigravity-browser.cjs
 node tools/biome-preview.cjs
+node tools/render-shots.cjs docs/shots 1280x720   # real renders of menu, HUD, worlds, modals
 ```
 
-Browser scripts require Playwright and Chromium; set `CHROMIUM_EXECUTABLE_PATH` for an installed browser. They test controls and GLB loading, menu/app-switch/reload resume, all 16 city districts, finite transforms and rendering errors. The physics test covers solid bodies, rooftop landings, steering escape, turbo sweeps and exact track/RNG restoration. Preview images are actual game renders.
+Browser scripts require Playwright and Chromium; set `CHROMIUM_EXECUTABLE_PATH` for an installed browser (they use SwiftShader, so frame rates in these tests say nothing about a phone).
 
-`npm test` runs the game, collision/resume, antigravity, flight-effects and obstacle-damage checks. Obstacle coverage includes generated hazards in all 16 worlds, all 12 GLB/fallback types, front/side/top/turbo contact, shields, guards, score floors, clean jumps and saved hit state. `npm run test:obstacles:browser` verifies generated boxes, moving barriers/barrels, HUD penalties, reloads, game over and the phone-sized round summary. `npm run test:antigravity:browser` checks two simultaneous touch pointers, hold/release gliding, keyboard repeat, cancellation, app-switch pausing, purple effects and phone HUD layout. `npm run test:flight:browser` renders the rider tail and nitro, checks GPU shader compilation, landing fade and Reduced Motion, and writes the two preview images above.
+- `tools/controls-browser.cjs` — CDP touch input: floating base placement, dead zone and expo curve values, follow-the-thumb, vertical dead zone, jump anywhere on the right, brake isolation, fixed/left-handed/size settings, tilt steering in both landscape orientations, keyboard, gamepad, haptic patterns and the vibration switch.
+- `tools/graphics-browser.cjs` — tier configuration, HDR/MSAA/FXAA, brightness parity between tiers, LDR and direct-render fallbacks, dynamic-resolution governor, world grades, Reduced Motion, material patch and shader compilation, 16 distinct road surfaces, camera feel.
+- The older suites (game, resume/physics, antigravity, flight effects, obstacle damage, sessions, all-16-world previews) still run unchanged apart from assertions that named the old CSS colour filter and emoji hearts.
 
-This is a Three.js mobile visual upgrade, not a PS5-class renderer. Real Android frame rate, memory pressure recovery and native Activity lifecycle still require device testing. No signed APK/AAB is included in this commit.
+`npm test` runs the game, collision/resume, antigravity, flight-effects and obstacle-damage checks. Obstacle coverage includes generated hazards in all 16 worlds, all 12 GLB/fallback types, front/side/top/turbo contact, shields, guards, score floors, clean jumps and saved hit state. `npm run test:antigravity:browser` checks two simultaneous touch pointers, hold/release gliding, keyboard repeat, cancellation, app-switch pausing, purple effects and phone HUD layout. `npm run test:flight:browser` renders the rider tail and nitro, checks GPU shader compilation, landing fade and Reduced Motion, and writes the two preview images above.
+
+This is a Three.js mobile visual upgrade, not a PS5-class renderer. Real Android frame rate, thermal behaviour, memory pressure recovery and the native Activity lifecycle still require device testing; the quality tiers and dynamic resolution exist precisely because phones differ. No signed APK/AAB is included in this commit.

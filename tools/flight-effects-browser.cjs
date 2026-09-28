@@ -60,7 +60,7 @@ const record = process.argv.includes('--record');
     await page.evaluate(() => {
       const g = gameInstance, p = g.riderCtrl.mesh.position;
       g.camera.position.set(p.x + 3.6, p.y + 2.6, p.z - 3.8);
-      g.camera.lookAt(p.x, p.y + .85, p.z - .4); g.renderer.render(g.scene, g.camera);
+      g.camera.lookAt(p.x, p.y + .85, p.z - .4); g.gfx.render(g.scene, g.camera);
     });
     await page.screenshot({path: path.join(out, 'rider-tail.jpg'), type: 'jpeg', quality: 88});
     const landed = await page.evaluate(() => {

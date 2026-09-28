@@ -76,6 +76,11 @@ window.SkyScooterGame = class SkyScooterGame {
     this.gameCam = new window.GameCamera(this.camera, this.THREE);
     this.arcadeEffects = new window.ArcadeEffects(this.scene, this.THREE);
     this.arcadeEffects.setCamera(this.camera);
+    this.riderFx = new window.RiderFx(this.scene, this.THREE);
+    this.riderFx.onLand = (power) => {
+      this.gameCam.impact(power);
+      if (power > 0.3) this.vibrate(power > 0.7 ? [0, 18, 20, 12] : 14);
+    };
 
     // Wire input pause callback
     this.input.onPauseRequested = () => {
@@ -85,8 +90,11 @@ window.SkyScooterGame = class SkyScooterGame {
 
     // Apply saved settings
     const settings = window.GameStorage.getSettings();
-    this.input.updateSensitivity(settings.steeringSensitivity);
-    this.applyGraphicsQuality(settings.graphicsQuality);
+    this.input.applySettings(settings);
+    this.input.onHaptic = (kind) => this.vibrate({ jump: 10, brake: 8, stick: 6 }[kind] || 8);
+    this.hud = new window.HudController(this);
+    this.applyGraphicsQuality();
+    this.applyFpsCounter(settings);
 
     this.initSession();
     this.initUI();
@@ -106,17 +114,16 @@ window.SkyScooterGame = class SkyScooterGame {
     const aspect = window.innerWidth / window.innerHeight;
     this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 800);
 
+    // Probe the GPU first: post-fx tiers render into an HDR target, so the canvas itself
+    // needs no MSAA (saves memory bandwidth); only the direct low tier wants it.
+    const profile = window.GraphicsManager.probe();
+    const savedQuality = window.GameStorage.getSettings().graphicsQuality;
+    const tier = ['low', 'medium', 'high'].includes(savedQuality) ? savedQuality : profile.tier;
+    const options = { antialias: tier === 'low', alpha: false, stencil: false, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false };
     try {
-      this.renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        powerPreference: 'default',
-        failIfMajorPerformanceCaveat: false
-      });
+      this.renderer = new THREE.WebGLRenderer(options);
     } catch (_) {
-      this.renderer = new THREE.WebGLRenderer({
-        antialias: false,
-        failIfMajorPerformanceCaveat: false
-      });
+      this.renderer = new THREE.WebGLRenderer({ antialias: false, failIfMajorPerformanceCaveat: false });
     }
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
@@ -124,26 +131,33 @@ window.SkyScooterGame = class SkyScooterGame {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.35;
+    this.renderer.toneMappingExposure = 1.0;
     this.container.appendChild(this.renderer.domElement);
 
-    // Lights
-    this.hemiLight = new THREE.HemisphereLight(0xc8eaff, 0xc4ad83, 2.0);
+    // Lighting rig: warm key with shadows, sky/ground hemisphere fill and a cool rim
+    // light from ahead that outlines the rider and props against the background.
+    this.hemiLight = new THREE.HemisphereLight(0xc8eaff, 0xc4ad83, 1.0);
     this.scene.add(this.hemiLight);
 
-    this.dirLight = new THREE.DirectionalLight(0xfff0da, 2.5);
+    this.dirLight = new THREE.DirectionalLight(0xfff0da, 2.4);
     this.dirLight.position.set(20, 40, 20);
     this.dirLight.castShadow = true;
-    this.dirLight.shadow.mapSize.width = 1024;
-    this.dirLight.shadow.mapSize.height = 1024;
-    this.dirLight.shadow.camera.near = 0.5;
-    this.dirLight.shadow.camera.far = 150;
-    Object.assign(this.dirLight.shadow.camera,{left:-25,right:25,top:35,bottom:-25});
-    this.dirLight.shadow.bias = -0.0004;
-    this.dirLight.shadow.normalBias = 0.04;
+    this.dirLight.shadow.mapSize.set(2048, 2048);
+    const sc = this.dirLight.shadow.camera;
+    sc.near = 1; sc.far = 140; sc.left = -22; sc.right = 22; sc.top = 40; sc.bottom = -18;
+    sc.updateProjectionMatrix();
+    this.dirLight.shadow.bias = -0.0003;
+    this.dirLight.shadow.normalBias = 0.05;
     this.scene.add(this.dirLight.target);
     this.scene.add(this.dirLight);
 
+    this.rimLight = new THREE.DirectionalLight(0x9fd8ff, 0.9);
+    this.rimLight.castShadow = false;
+    this.scene.add(this.rimLight.target);
+    this.scene.add(this.rimLight);
+
+    this.gfx = new window.GraphicsManager(this);
+    this.post = this.gfx.post;
     window.addEventListener('resize', () => this.onResize());
   }
 
@@ -151,24 +165,25 @@ window.SkyScooterGame = class SkyScooterGame {
     if (!this.camera || !this.renderer) return;
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.gfx.resize();
   }
 
-  applyGraphicsQuality(quality) {
-    if (!this.renderer) return;
-    if (quality === 'low') {
-      this.renderer.setPixelRatio(1.0);
-      this.renderer.shadowMap.enabled = false;
-    } else if (quality === 'medium') {
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-      this.renderer.shadowMap.enabled = true;
-    } else {
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
-      this.renderer.shadowMap.enabled = true;
-    }
-    if (this.sky) this.sky.setQuality(quality);
-    if (this.container) this.container.classList.toggle('candy-grade', quality !== 'low');
+  applyGraphicsQuality() {
+    if (!this.renderer || !this.gfx) return;
+    this.gfx.apply(window.GameStorage.getSettings());
     document.body.classList.toggle('reduced-motion', !!window.GameStorage.getSettings().reducedMotion);
+  }
+
+  // Exposure lives in one place: the composite pass when post-fx is on, the renderer otherwise.
+  applyExposure() {
+    const e = this.roundExposure || 1.0;
+    if (this.gfx?.postActive) {
+      this.post.baseExposure = e;
+      this.renderer.toneMappingExposure = 1.0;
+    } else {
+      this.post.baseExposure = 1.0;
+      this.renderer.toneMappingExposure = e * 0.85;
+    }
   }
 
   applyRoundAtmosphere(roundData) {
@@ -191,34 +206,36 @@ window.SkyScooterGame = class SkyScooterGame {
     this.hemiLight.color.copy(hemiSky);
     this.hemiLight.groundColor.copy(hemiGround);
 
-    // Key light: warm sun for day, amber for sunset, cool moon for night.
-    let dirColor, dirIntensity, hemiIntensity, exposure;
+    // Key light: warm sun for day, amber for sunset, cool moon for night. Values target the
+    // neutral HDR tone-mapper: most lit surfaces land in 0.3-0.9 so only highlights bloom.
+    let dirColor, dirIntensity, hemiIntensity, exposure, rimColor, rimIntensity;
     if (isNight) {
       dirColor = new THREE.Color(0xaecbff);
-      dirIntensity = 1.5;
-      hemiIntensity = 1.45;
-      exposure = 1.2;
+      dirIntensity = 1.9; hemiIntensity = 1.15; exposure = 1.12;
+      rimColor = new THREE.Color(0x86a4ff); rimIntensity = 1.3;
     } else if (isStorm) {
       dirColor = new THREE.Color(0xe8f4ff);
-      dirIntensity = 1.2;
-      hemiIntensity = 0.8;
-      exposure = 1.0;
+      dirIntensity = 1.7; hemiIntensity = 0.85; exposure = 1.0;
+      rimColor = new THREE.Color(0x9fd9ff); rimIntensity = 1.0;
     } else if (isWarm) {
-      dirColor = new THREE.Color(0xffd0a0);
-      dirIntensity = 1.9;
-      hemiIntensity = 1.2;
-      exposure = 1.2;
+      dirColor = new THREE.Color(0xffc48f);
+      dirIntensity = 2.7; hemiIntensity = 0.85; exposure = 1.04;
+      rimColor = new THREE.Color(0xffa26b); rimIntensity = 1.2;
     } else {
-      dirColor = new THREE.Color(0xfff2dc);
-      dirIntensity = 2.2;
-      hemiIntensity = 1.35;
-      exposure = 1.25;
+      dirColor = new THREE.Color(0xfff0d6);
+      dirIntensity = 2.6; hemiIntensity = 0.95; exposure = 1.0;
+      rimColor = new THREE.Color(0xa6d8ff); rimIntensity = 0.95;
     }
 
     this.hemiLight.intensity = hemiIntensity;
     this.dirLight.color.copy(dirColor);
     this.dirLight.intensity = dirIntensity;
-    this.renderer.toneMappingExposure = exposure;
+    this.rimLight.color.copy(rimColor);
+    this.rimLight.intensity = rimIntensity;
+    this.roundExposure = exposure;
+    this.applyExposure();
+    this.post.applyPreset(theme);
+    window.SceneFx?.setWorld(roundData, this);
     this.applyEnvironment(roundData);
 
     if (this.sky) this.sky.applyRound(roundData);
@@ -289,6 +306,9 @@ window.SkyScooterGame = class SkyScooterGame {
     this.trackGen.buildRound(r1, 42);
     this.applyRoundAtmosphere(r1);
     this.riderCtrl.reset(0, 0); // idle in menu
+    this.riderFx.reset();
+    this.menuS = 0;
+    this.camera.fov = 52; this.camera.updateProjectionMatrix();
 
     if (window.GameAudio) window.GameAudio.startMusic();
     this.notifyAndroidState('MENU');
@@ -300,6 +320,7 @@ window.SkyScooterGame = class SkyScooterGame {
     this.hasActiveRun=true;this.autosaveTimer=0;
     this.input.resetAll();
     this.arcadeEffects.reset();
+    this.riderFx.reset();
     this.currentRoundId = roundId;
     this.isEndless = isEndless;
     this.currentRunTxId = `run_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
@@ -321,6 +342,7 @@ window.SkyScooterGame = class SkyScooterGame {
     this.coinMultiplier = 1;
     this.coinsCollectedThisRun = 0;
     this.totalSpawnedCoinsEstimate = Math.floor(roundData.length / 14);
+    this.hud?.reset();
 
     // Apply Biome atmosphere (sky, fog, lighting)
     this.applyRoundAtmosphere(roundData);
@@ -332,6 +354,7 @@ window.SkyScooterGame = class SkyScooterGame {
     // Reset rider
     this.riderCtrl.reset(0, roundData.baseSpeed * window.ScooterTuning.cruiseMultiplier);
     this.gameCam.reset(this.riderCtrl.mesh, this.trackGen);
+    this.gameCam.startIntro(2.6);
 
     // ML Challenge Window initialization
     this.mlWindowTimer = 0.0;
@@ -377,6 +400,7 @@ window.SkyScooterGame = class SkyScooterGame {
         this.state = 'PLAYING';
         this.lastTime=performance.now();
         this.input.resetAll();
+        this.input.calibrateTilt?.();
         this.notifyAndroidState('PLAYING');
         const hud = document.getElementById('gameplay-hud');
         if (hud) hud.classList.remove('hidden');
@@ -417,6 +441,7 @@ window.SkyScooterGame = class SkyScooterGame {
     const scoreVal = typeof document !== 'undefined' ? document.getElementById('hud-score-val') : null;
     if (scoreVal) {
       scoreVal.innerText = `${Math.floor(this.score)}`;
+      this.hud?.snapScore();
       scoreVal.classList.remove('hud-score-penalty');
       void scoreVal.offsetWidth;
       scoreVal.classList.add('hud-score-penalty');
@@ -433,6 +458,14 @@ window.SkyScooterGame = class SkyScooterGame {
     // A lethal hit ends rewards immediately, even within a physics substep.
     if (this.state === 'GAME_OVER') return;
     const settings = window.GameStorage.getSettings();
+
+    // Post-fx feedback: a red flash on damage, a brief chromatic kick on pickups and guards.
+    if (this.post && !settings.reducedMotion) {
+      const react = { hit_obstacle: ['flash', 0.85], fall: ['flash', 1.0], shield_absorbed: ['kick', 0.5],
+        magic_fault_guard: ['kick', 0.5], powerup: ['kick', 0.35], magic_fruit: ['kick', 0.6], sky_launch: ['kick', 0.7],
+        antigravity_launch: ['kick', 0.5], checkpoint: ['kick', 0.3] }[eventType];
+      if (react) this.post[react[0]](react[1]);
+    }
 
     if (eventType === 'coin') {
       this.consecutiveCoins++;
@@ -583,19 +616,22 @@ window.SkyScooterGame = class SkyScooterGame {
     }, 1200);
   }
 
-  vibrate(ms) {
+  // Haptics: a number is a single pulse, an array is an [pause, vibrate, pause, vibrate...] pattern.
+  // Strength (0.5-1.5) scales pulse lengths; native builds map lengths to amplitude.
+  vibrate(pattern) {
     const settings = window.GameStorage.getSettings();
     if (!settings.vibration) return;
-
-    // Android Native Bridge
-    if (window.AndroidBridge && window.AndroidBridge.vibrate) {
+    const k = Math.max(0.4, Math.min(1.6, Number(settings.hapticStrength) || 1));
+    const scaled = Array.isArray(pattern) ? pattern.map((v, i) => (i % 2 ? Math.round(v * k) : v)) : Math.round(pattern * k);
+    if (window.AndroidBridge) {
       try {
-        window.AndroidBridge.vibrate(ms);
-      } catch (e) {}
-    } else if (navigator.vibrate) {
-      try {
-        navigator.vibrate(ms);
-      } catch (e) {}
+        if (Array.isArray(scaled) && window.AndroidBridge.vibratePattern) window.AndroidBridge.vibratePattern(JSON.stringify(scaled), k);
+        else if (window.AndroidBridge.vibrate) window.AndroidBridge.vibrate(Array.isArray(scaled) ? scaled.reduce((a, b) => a + b, 0) : scaled);
+        return;
+      } catch (e) { /* fall through to the web API */ }
+    }
+    if (navigator.vibrate) {
+      try { navigator.vibrate(scaled); } catch (e) { /* unsupported */ }
     }
   }
 
@@ -658,7 +694,7 @@ window.SkyScooterGame = class SkyScooterGame {
     const completeModal = document.getElementById('round-complete-modal');
     if (completeModal) completeModal.classList.remove('hidden');
 
-    document.getElementById('rc-round-name').innerText = `Round ${this.currentRoundId}: ${this.trackGen.roundData.name}`;
+    document.getElementById('rc-round-name').innerText = `World ${this.currentRoundId} · ${this.trackGen.roundData.name}`;
     document.getElementById('rc-total-score').innerText = `${Math.floor(this.score)}`;
     document.getElementById('rc-distance-pts').innerText = `+${Math.floor(this.distanceScore)}`;
     document.getElementById('rc-coin-pts').innerText = `+${Math.floor(this.coinScore)}`;
@@ -669,7 +705,7 @@ window.SkyScooterGame = class SkyScooterGame {
     // Stars display
     const starsContainer = document.getElementById('rc-stars');
     if (starsContainer) {
-      starsContainer.innerHTML = '⭐'.repeat(starsEarned) + '☆'.repeat(3 - starsEarned);
+      starsContainer.innerHTML = this.starMarkup(starsEarned);
     }
 
     // Next round button text
@@ -678,7 +714,7 @@ window.SkyScooterGame = class SkyScooterGame {
       if (this.currentRoundId >= 16) {
         btnNext.innerText = 'ENDLESS MODE';
       } else {
-        btnNext.innerText = 'NEXT ROUND';
+        btnNext.innerText = 'NEXT WORLD';
       }
     }
   }
@@ -688,7 +724,10 @@ window.SkyScooterGame = class SkyScooterGame {
   loop(timestamp) {
     requestAnimationFrame((t) => this.loop(t));
 
-    const dt = Math.min(0.06, (timestamp - this.lastTime) / 1000.0);
+    // rAF timestamps are vsync-aligned and can precede a performance.now() taken in an earlier
+    // task (countdown end, resume). A negative step would blow up the exponential smoothing.
+    const rawDt = (timestamp - this.lastTime) / 1000.0;
+    const dt = Math.max(0, Math.min(0.06, rawDt));
     this.lastTime = timestamp;
 
     // Track FPS
@@ -698,6 +737,8 @@ window.SkyScooterGame = class SkyScooterGame {
       this.fpsFrames = 0;
       this.fpsLastTime = timestamp;
       this.updateDevPanel();
+      const fpsEl = document.getElementById('fps-counter');
+      if (fpsEl && !fpsEl.classList.contains('hidden')) fpsEl.textContent = `${this.fps} FPS · ${Math.round(this.gfx.renderScale * 100)}%`;
     }
 
     const settings = window.GameStorage.getSettings();
@@ -753,23 +794,19 @@ window.SkyScooterGame = class SkyScooterGame {
         this.riderCtrl.coinsCollectedInWindow=0;
       }
 
-      this.updateHUD();
+      this.hud.update(dt);
     } else if (this.state === 'MENU' || this.state === 'ROUND_SELECT') {
-      // Gentle menu background camera motion
-      const menuS = (timestamp * 0.003) % 400;
-      this.trackGen.update(menuS,this.backgrounded?0:dt);
-      const tp = this.trackGen.getTrackPoint(menuS);
-      this.camera.position.set(tp.x + 8, tp.y + 4, tp.z - 10);
-      this.camera.lookAt(tp.x, tp.y + 1, tp.z + 10);
+      this.updateMenuScene(this.backgrounded ? 0 : dt, timestamp);
     }
 
     // 2. Camera Update
     if (this.state === 'PLAYING' || this.state === 'COUNTDOWN') {
-      this.gameCam.update(dt, this.riderCtrl.mesh, this.trackGen, this.riderCtrl.activeOverdrive || this.riderCtrl.downhillIntensity > .65, settings);
+      this.gameCam.update(dt, this.riderCtrl.mesh, this.trackGen, this.riderCtrl.activeOverdrive || this.riderCtrl.downhillIntensity > .65, settings, this.riderCtrl);
     }
 
     document.getElementById('hud-speed')?.classList.toggle('effects-paused', this.state !== 'PLAYING');
     this.arcadeEffects.update(dt, this.riderCtrl, this.trackGen, settings, this.state === 'PLAYING', this.camera);
+    this.riderFx.update(this.state === 'PAUSED' ? 0 : dt, this.riderCtrl, this.trackGen, settings, ['PLAYING', 'COUNTDOWN', 'PAUSED'].includes(this.state));
     const sceneryS=(this.state==='MENU'||this.state==='ROUND_SELECT')?this.camera.position.z:this.riderCtrl.s;
     this.worldMagic.update(this.state==='PAUSED'?0:dt,sceneryS,this.trackGen,settings);
 
@@ -783,73 +820,106 @@ window.SkyScooterGame = class SkyScooterGame {
 
     // 3. Render 3D Scene
     const lightS = this.riderCtrl ? this.riderCtrl.s : 0;
-    const lightP = this.trackGen.getTrackPoint(lightS);
-    this.dirLight.position.set(lightP.x-18,35,lightP.z-15);
-    this.dirLight.target.position.set(lightP.x,0,lightP.z+12);
-    this.renderer.render(this.scene, this.camera);
+    this.updateLights(this.trackGen.getTrackPoint(lightS));
+    this.updatePostFx(dt, timestamp, settings);
+    this.gfx.govern(rawDt, this.state === 'PLAYING');
+    this.gfx.render(this.scene, this.camera);
+  }
+
+  // Key light and shadow frustum follow the rider. The light is snapped to the shadow
+  // map's texel grid so shadow edges never shimmer while travelling at speed.
+  updateLights(p) {
+    const T = this.THREE, key = this.dirLight;
+    this._lp = this._lp || { pos: new T.Vector3(), tgt: new T.Vector3(), dir: new T.Vector3(), right: new T.Vector3(), up: new T.Vector3() };
+    const { pos, tgt, dir, right, up } = this._lp;
+    tgt.set(p.x, p.y, p.z + 12);
+    pos.set(p.x - 18, p.y + 35, p.z - 15);
+    if (key.castShadow && this.gfx.shadowSize) {
+      const texel = (key.shadow.camera.right - key.shadow.camera.left) / this.gfx.shadowSize;
+      dir.subVectors(tgt, pos).normalize();
+      right.crossVectors(dir, T.Object3D.DEFAULT_UP).normalize();
+      up.crossVectors(right, dir).normalize();
+      const sr = Math.round(tgt.dot(right) / texel) * texel - tgt.dot(right);
+      const su = Math.round(tgt.dot(up) / texel) * texel - tgt.dot(up);
+      tgt.addScaledVector(right, sr).addScaledVector(up, su);
+      pos.addScaledVector(right, sr).addScaledVector(up, su);
+    }
+    key.position.copy(pos);
+    key.target.position.copy(tgt);
+    // The rim light shares the visible sun's direction so backlighting matches the sky.
+    const sun = this.sky?.sunSprite;
+    const sunPos = this._sunPos = this._sunPos || new T.Vector3();
+    if (sun && sun.visible) sunPos.copy(sun.position);
+    else sunPos.set(p.x + 20, p.y + 120, p.z + 400);
+    const sd = this._sunDir = this._sunDir || new T.Vector3();
+    sd.set(sunPos.x - p.x, sunPos.y - p.y, sunPos.z - p.z).normalize();
+    this.rimLight.position.set(p.x + sd.x * 60, p.y + Math.max(8, sd.y * 60), p.z + sd.z * 60);
+    this.rimLight.target.position.set(p.x, p.y + 1, p.z);
+    window.SceneFx?.update(this.camera, sunPos);
+  }
+
+  // Feeds gameplay intensity into the post pipeline (speed blur/streaks, chromatic pulse).
+  updatePostFx(dt, timestamp, settings) {
+    const r = this.riderCtrl;
+    let speed = 0, lines = 0, ca = 0;
+    if (this.state === 'PLAYING' && r && !settings.reducedMotion) {
+      const base = window.ScooterTuning.maxSpeed;
+      const pace = Math.max(0, Math.min(1, (r.forwardSpeed - 14) / (base - 14)));
+      speed = pace * 0.35;
+      if (r.activeOverdrive) { speed = Math.max(speed, 0.55); lines = 0.75; ca = 0.0025; }
+      if (r.activeSkyFlight) { speed = 0.85; lines = 1.0; ca = 0.004; }
+      else if (r.isGliding) { speed = Math.max(speed, 0.4); lines = Math.max(lines, 0.35); }
+      if (r.downhillIntensity > 0.4) { speed = Math.max(speed, 0.25 + r.downhillIntensity * 0.3); lines = Math.max(lines, 0.3); }
+    }
+    // A soft red pulse at the screen edge when one heart is left.
+    const warn = (this.state === 'PLAYING' && this.hearts === 1 && !settings.reducedMotion) ? 0.5 + 0.5 * Math.sin(timestamp / 1000 * 5) : 0;
+    // Sun position on screen drives the light shafts (only while the sun is in or near the view).
+    let god = 0, sunUV = null;
+    const sun = this.sky?.sunSprite;
+    if (sun && sun.visible && this.gfx.postActive) {
+      const v = this._sunNdc = this._sunNdc || new this.THREE.Vector3();
+      v.copy(sun.position).project(this.camera);
+      if (v.z < 1 && v.z > -1) {
+        sunUV = [v.x * 0.5 + 0.5, v.y * 0.5 + 0.5];
+        const off = Math.max(Math.abs(v.x), Math.abs(v.y));
+        god = Math.max(0, 1 - Math.max(0, off - 0.9) / 0.6);
+      }
+    }
+    this.post.update(dt, { speed, lines, ca, warn, god, sunUV });
   }
 
   updateHUD() {
-    const speed = document.getElementById('hud-speed');
-    if (speed) {
-      const rider = this.riderCtrl;
-      speed.textContent = `${Math.round(rider.forwardSpeed * 3.6)} km/h · ${rider.activeOverdrive ? '★ STAR TURBO' : rider.downhillIntensity > .4 ? '↓ DOWNHILL RUSH' : 'SKY CRUISE'}`;
-      speed.classList.toggle('turbo', rider.activeOverdrive);
-      speed.classList.toggle('downhill', !rider.activeOverdrive && rider.downhillIntensity > .4);
-    }
-    // Score
-    const scoreVal = document.getElementById('hud-score-val');
-    if (scoreVal) scoreVal.innerText = `${Math.floor(this.score)}`;
+    this.hud?.update(0);
+  }
 
-    // Hearts
-    const heartsVal = document.getElementById('hud-hearts-val');
-    if (heartsVal) {
-      heartsVal.innerHTML = '❤️'.repeat(Math.max(0, this.hearts)) + '🖤'.repeat(Math.max(0, 3 - this.hearts));
+  // Menu backdrop: a rider cruises the first world while the camera drifts alongside.
+  updateMenuScene(dt, timestamp) {
+    const round = this.trackGen.roundData;
+    this.menuS = (this.menuS || 0) + dt * 7.5;
+    if (round && this.menuS > round.length - 140) {
+      this.trackGen.buildRound(window.ROUNDS_DATA[0], 42);
+      this.menuS = 0;
     }
+    const t = timestamp / 1000, s = this.menuS;
+    this.trackGen.update(s, dt);
+    // Pickups float in the road's way of the hero shot; the menu backdrop stays clean.
+    for (const item of this.trackGen.activeCollectibles) item.visible = false;
+    const rider = this.riderCtrl;
+    rider.s = s + 12; rider.laneX = Math.sin(t * 0.55) * 1.7; rider.y = 0; rider.forwardSpeed = 11.5;
+    rider.lateralVelocity = Math.cos(t * 0.55) * 0.55 * 1.7;
+    rider.updateProceduralAnimations(dt);
+    rider.updateMeshTransform();
+    const tp = this.trackGen.getTrackPoint(s + 4), tan = this.trackGen.getTrackTangent(s + 4);
+    const nx = -tan.z, nz = tan.x, side = 4.6 + Math.sin(t * 0.21) * 1.3, lift = 1.7 + Math.sin(t * 0.17) * 0.35;
+    this.camera.position.set(tp.x + nx * side - tan.x * 1.5, tp.y + lift, tp.z + nz * side - tan.z * 1.5);
+    const rp = rider.mesh.position;
+    this.camera.lookAt(rp.x, rp.y + 0.95, rp.z); // rider sits between the title and the buttons
+    if (Math.abs(this.camera.fov - 52) > 0.1) { this.camera.fov = 52; this.camera.updateProjectionMatrix(); }
+  }
 
-    // Multiplier
-    const multVal = document.getElementById('hud-multiplier-val');
-    if (multVal) {
-      const double = this.riderCtrl.activeDouble ? 2 : 1;
-      const totalMult = this.coinMultiplier * double;
-      multVal.innerText = `x${totalMult}`;
-    }
-
-    // Progress Bar
-    const progBar = document.getElementById('hud-progress-fill');
-    if (progBar && this.trackGen.roundData) {
-      const pct = Math.min(100, Math.max(0, (this.riderCtrl.s / this.trackGen.roundData.length) * 100));
-      progBar.style.width = `${pct}%`;
-    }
-
-    // Active Power-ups Bar
-    const powBar = document.getElementById('hud-powerups');
-    if (powBar) {
-      let html = '';
-      if (this.riderCtrl.activeAntigravity) {
-        const hint = this.riderCtrl.isGliding ? 'GLIDING' : 'HOLD JUMP TO GLIDE';
-        html += `<span class="powerup-badge antigravity">ANTIGRAVITY ${this.riderCtrl.antigravityTimer.toFixed(1)}s<small>${hint}</small></span>`;
-      }
-      if (this.riderCtrl.activeShield) {
-        html += `<span class="powerup-badge shield">SHIELD ${Math.ceil(this.riderCtrl.shieldTimer)}s</span>`;
-      }
-      if (this.riderCtrl.activeMagnet) {
-        html += `<span class="powerup-badge magnet">MAGNET ${Math.ceil(this.riderCtrl.magnetTimer)}s</span>`;
-      }
-      if (this.riderCtrl.activeDouble) {
-        html += `<span class="powerup-badge double">2X COINS ${Math.ceil(this.riderCtrl.doubleTimer)}s</span>`;
-      }
-      if (this.riderCtrl.activeOverdrive) {
-        html += `<span class="powerup-badge overdrive">OVERDRIVE ${Math.ceil(this.riderCtrl.overdriveTimer)}s</span>`;
-      }
-      if (this.riderCtrl.activeMagicRush) {
-        html += `<span class="powerup-badge magic">MAGIC GUARD ${this.riderCtrl.faultGuardCharges}/2</span>`;
-      }
-      if (this.riderCtrl.activeSkyFlight) {
-        html += `<span class="powerup-badge sky-lift">SKY LIFT ${this.riderCtrl.skyFlightTimer.toFixed(1)}s</span>`;
-      }
-      powBar.innerHTML = html;
-    }
+  applyFpsCounter(settings = window.GameStorage.getSettings()) {
+    const el = document.getElementById('fps-counter');
+    if (el) el.classList.toggle('hidden', !settings.showFps);
   }
 
   updateStatsDisplay() {
@@ -903,6 +973,11 @@ window.SkyScooterGame = class SkyScooterGame {
   // --- UI Wiring ---
 
   initUI() {
+    // Every button and world card gets an instant click sound.
+    document.addEventListener('pointerdown', (e) => {
+      const t = e.target;
+      if (t && t.closest && t.closest('.btn, .btn-icon-pause, .round-card.unlocked')) window.GameAudio?.playClick?.();
+    }, true);
     document.getElementById('btn-menu-continue')?.addEventListener('click',()=>this.continueSavedRun());
     // Main Menu Buttons
     document.getElementById('btn-menu-play')?.addEventListener('click', () => {
@@ -991,6 +1066,12 @@ window.SkyScooterGame = class SkyScooterGame {
     this.wireSettingsForm();
   }
 
+  starMarkup(n, total = 3) {
+    let html = '';
+    for (let i = 0; i < total; i++) html += `<svg class="ico${i < n ? '' : ' off'}"><use href="#i-star"/></svg>`;
+    return html;
+  }
+
   showRoundSelect() {
     const modal = document.getElementById('round-select-modal');
     if (!modal) return;
@@ -1001,23 +1082,27 @@ window.SkyScooterGame = class SkyScooterGame {
 
     const progress = window.GameStorage.getProgress();
     const highest = progress.highestUnlockedRound || 1;
+    const hex = (c) => '#' + new this.THREE.Color(c).getHexString();
 
     window.ROUNDS_DATA.forEach(round => {
       const isUnlocked = window.ScooterTuning.testAllRounds || round.id <= highest;
       const card = document.createElement('div');
       card.className = `round-card ${isUnlocked ? 'unlocked' : 'locked'}`;
+      card.style.setProperty('--c1', hex(round.skyColor));
+      card.style.setProperty('--c2', hex(round.railColor));
 
       const stars = progress.stars[round.id] || 0;
-      const starsDisplay = isUnlocked ? '⭐'.repeat(stars) + '☆'.repeat(3 - stars) : '🔒';
       const best = progress.bestScores[round.id] || 0;
+      const kmh = Math.round(round.baseSpeed * window.ScooterTuning.cruiseMultiplier * 3.6);
 
       card.innerHTML = `
-        <div class="rc-number">Round ${round.id}</div>
+        <div class="rc-number">${round.id}</div>
         <div class="rc-title">${round.name}</div>
-        <div class="rc-meta">${round.length}m • ${Math.round(round.baseSpeed * window.ScooterTuning.cruiseMultiplier * 3.6)} km/h cruise</div>
-        <div class="rc-desc">${round.description}</div>
-        <div class="rc-stars">${starsDisplay}</div>
-        ${isUnlocked ? `<div class="rc-best">Best: ${best}</div>` : '<div class="rc-locked-msg">Locked</div>'}
+        <div class="rc-meta">${round.length}m · ${kmh} km/h</div>
+        <div class="rc-foot">
+          ${isUnlocked ? `<span class="rc-starrow">${this.starMarkup(stars)}</span><span class="rc-best">${best ? 'Best ' + best : ''}</span>`
+            : '<span class="rc-locked-msg">Locked</span>'}
+        </div>
       `;
 
       if (isUnlocked) {
@@ -1038,34 +1123,67 @@ window.SkyScooterGame = class SkyScooterGame {
     modal.classList.remove('hidden');
 
     const s = window.GameStorage.getSettings();
-    document.getElementById('set-music').checked = s.music;
-    document.getElementById('set-sfx').checked = s.sfx;
-    document.getElementById('set-vibration').checked = s.vibration;
-    document.getElementById('set-sensitivity').value = s.steeringSensitivity;
-    document.getElementById('set-graphics').value = s.graphicsQuality;
-    document.getElementById('set-reduced-motion').checked = s.reducedMotion;
-    document.getElementById('set-adaptive').checked = s.adaptiveDifficulty;
+    const set = (id, v, prop = 'value') => { const el = document.getElementById(id); if (el) el[prop] = v; };
+    set('set-music', s.music, 'checked');
+    set('set-sfx', s.sfx, 'checked');
+    set('set-vibration', s.vibration, 'checked');
+    set('set-sensitivity', s.steeringSensitivity);
+    set('set-graphics', s.graphicsQuality);
+    set('set-reduced-motion', s.reducedMotion, 'checked');
+    set('set-adaptive', s.adaptiveDifficulty, 'checked');
+    set('set-scheme', s.controlScheme);
+    set('set-tilt-sensitivity', s.tiltSensitivity);
+    set('set-stick-size', s.stickSize);
+    set('set-stick-opacity', s.stickOpacity);
+    set('set-left-handed', s.leftHanded, 'checked');
+    set('set-haptic-strength', s.hapticStrength);
+    set('set-postfx', s.postFx, 'checked');
+    set('set-adaptive-res', s.adaptiveResolution, 'checked');
+    set('set-show-fps', s.showFps, 'checked');
   }
 
   wireSettingsForm() {
+    const val = (id, fallback) => { const el = document.getElementById(id); return el ? el.value : fallback; };
+    const chk = (id, fallback) => { const el = document.getElementById(id); return el ? el.checked : fallback; };
     const saveAndApply = () => {
+      const previous = window.GameStorage.getSettings();
       const s = {
-        music: document.getElementById('set-music').checked,
-        sfx: document.getElementById('set-sfx').checked,
-        vibration: document.getElementById('set-vibration').checked,
-        steeringSensitivity: parseFloat(document.getElementById('set-sensitivity').value),
-        graphicsQuality: document.getElementById('set-graphics').value,
-        reducedMotion: document.getElementById('set-reduced-motion').checked,
-        adaptiveDifficulty: document.getElementById('set-adaptive').checked
+        ...previous,
+        music: chk('set-music', true),
+        sfx: chk('set-sfx', true),
+        vibration: chk('set-vibration', true),
+        steeringSensitivity: parseFloat(val('set-sensitivity', 1)),
+        graphicsQuality: val('set-graphics', 'auto'),
+        reducedMotion: chk('set-reduced-motion', false),
+        adaptiveDifficulty: chk('set-adaptive', true),
+        controlScheme: val('set-scheme', 'floating'),
+        tiltSensitivity: parseFloat(val('set-tilt-sensitivity', 1)),
+        stickSize: parseFloat(val('set-stick-size', 1)),
+        stickOpacity: parseFloat(val('set-stick-opacity', 0.85)),
+        leftHanded: chk('set-left-handed', false),
+        hapticStrength: parseFloat(val('set-haptic-strength', 1)),
+        postFx: chk('set-postfx', true),
+        adaptiveResolution: chk('set-adaptive-res', true),
+        showFps: chk('set-show-fps', false)
       };
       window.GameStorage.saveSettings(s);
-      this.input.updateSensitivity(s.steeringSensitivity);
-      this.applyGraphicsQuality(s.graphicsQuality);
+      // Only rebuild what actually changed: dragging a stick-size slider must not reallocate
+      // the HDR render targets, and a quality change must not reset the controls.
+      const differs = (keys) => keys.some(k => previous[k] !== s[k]);
+      if (differs(['controlScheme', 'steeringSensitivity', 'stickSize', 'stickOpacity', 'leftHanded', 'tiltSensitivity'])) this.input.applySettings(s);
+      if (differs(['graphicsQuality', 'postFx', 'adaptiveResolution', 'reducedMotion'])) this.applyGraphicsQuality();
+      this.applyFpsCounter(s);
+      if (previous.hapticStrength !== s.hapticStrength) this.vibrate(24);
       if (window.GameAudio) window.GameAudio.updateVolumes();
     };
 
-    ['set-music', 'set-sfx', 'set-vibration', 'set-sensitivity', 'set-graphics', 'set-reduced-motion', 'set-adaptive'].forEach(id => {
-      document.getElementById(id)?.addEventListener('change', saveAndApply);
+    ['set-music', 'set-sfx', 'set-vibration', 'set-sensitivity', 'set-graphics', 'set-reduced-motion', 'set-adaptive',
+      'set-scheme', 'set-tilt-sensitivity', 'set-stick-size', 'set-stick-opacity', 'set-left-handed', 'set-haptic-strength',
+      'set-postfx', 'set-adaptive-res', 'set-show-fps'].forEach(id => {
+      const el = document.getElementById(id);
+      el?.addEventListener('change', saveAndApply);
+      // Sliders preview live so stick size/opacity can be tuned by eye.
+      if (el && el.type === 'range') el.addEventListener('input', saveAndApply);
     });
 
     document.getElementById('btn-reset-ml')?.addEventListener('click', () => {

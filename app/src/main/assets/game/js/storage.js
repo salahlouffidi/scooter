@@ -14,11 +14,21 @@ window.GameStorage = {
     music: true,
     sfx: true,
     vibration: true,
+    hapticStrength: 1.0,
     steeringSensitivity: 1.0,
-    graphicsQuality: 'high', // 'low', 'medium', 'high'
+    graphicsQuality: 'auto', // 'auto' (GPU probe), 'low', 'medium', 'high'
+    postFx: true,            // bloom, colour grade, speed blur (medium/high tiers)
+    adaptiveResolution: true,
+    showFps: false,
+    controlScheme: 'floating', // 'floating', 'fixed', 'tilt'
+    stickSize: 1.0,
+    stickOpacity: 0.85,
+    leftHanded: false,
+    tiltSensitivity: 1.0,
     reducedMotion: false,
     adaptiveDifficulty: true,
-    language: 'en'
+    language: 'en',
+    settingsVersion: 2
   },
 
   defaultProgress: {
@@ -40,6 +50,12 @@ window.GameStorage = {
       const raw = localStorage.getItem(this.KEYS.SETTINGS);
       if (!raw) return { ...this.defaultSettings };
       const parsed = JSON.parse(raw);
+      // Before v2 the settings form persisted its implicit default ('high') for everyone who ever
+      // opened it. Treat that as "not chosen" so the GPU probe and dynamic resolution decide.
+      if (!parsed.settingsVersion) {
+        if (parsed.graphicsQuality === 'high') parsed.graphicsQuality = 'auto';
+        parsed.settingsVersion = 2;
+      }
       return { ...this.defaultSettings, ...parsed };
     } catch (e) {
       console.warn('Corrupted settings, returning default:', e);

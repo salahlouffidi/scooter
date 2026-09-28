@@ -15,7 +15,7 @@ const root=path.resolve(__dirname,'../app/src/main/assets/game');
     document.getElementById('countdown-display').classList.add('hidden');document.getElementById('gameplay-hud').classList.remove('hidden');
     g.riderCtrl.reset(40,0);g.trackGen.update(40);g.gameCam.reset(g.riderCtrl.mesh,g.trackGen);
     g.worldMagic.update(0,40,g.trackGen,GameStorage.getSettings());g.sky.update(g.riderCtrl.mesh.position,0);g.updateHUD();
-    g.renderer.render(g.scene,g.camera);
+    g.gfx.render(g.scene,g.camera);
     const themes=g.trackGen.sceneryObjects.filter(o=>o.name.startsWith('world_')).map(o=>o.userData.biome);
     const districts=g.trackGen.sceneryObjects.filter(o=>o.name.startsWith('city_street_')).length;
     const landmark=g.trackGen.sceneryObjects.some(o=>o.name.startsWith('world_'));
