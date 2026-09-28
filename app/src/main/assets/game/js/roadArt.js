@@ -267,7 +267,9 @@ window.RoadArt = class RoadArt {
       gctx.beginPath(); gctx.moveTo(x, y); gctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); gctx.stroke();
     } });
     ctx.globalAlpha = 0.45; ctx.drawImage(gctx.canvas, 0, 0); ctx.globalAlpha = 1;
-    spec.glow = 1.3; spec.roughness = 0.22; spec.metalness = 0.15; spec.bump = 0.2; spec.env = 1.5;
+    // Satin crystal keeps the facets and luminous seams without a mirror-like
+    // white reflection down the lane at the chase camera's grazing angle.
+    spec.glow = 1.0; spec.roughness = 0.48; spec.metalness = 0.08; spec.bump = 0.2; spec.env = 0.85;
   }
   paint_metal(P, spec) {
     const { ctx, hctx, gctx, R, base, accent } = P, W = this.W, H = this.H;

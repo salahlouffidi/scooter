@@ -166,3 +166,13 @@ Browser scripts require Playwright and Chromium; set `CHROMIUM_EXECUTABLE_PATH` 
 `npm test` runs the game, collision/resume, antigravity, flight-effects and obstacle-damage checks. Obstacle coverage includes generated hazards in all 16 worlds, all 12 GLB/fallback types, front/side/top/turbo contact, shields, guards, score floors, clean jumps and saved hit state. `npm run test:antigravity:browser` checks two simultaneous touch pointers, hold/release gliding, keyboard repeat, cancellation, app-switch pausing, purple effects and phone HUD layout. `npm run test:flight:browser` renders the rider tail and nitro, checks GPU shader compilation, landing fade and Reduced Motion, and writes the two preview images above.
 
 This is a Three.js mobile visual upgrade, not a PS5-class renderer. Real Android frame rate, thermal behaviour, memory pressure recovery and the native Activity lifecycle still require device testing; the quality tiers and dynamic resolution exist precisely because phones differ. No signed APK/AAB is included in this commit.
+
+## Clearer gameplay view
+
+Pickup rewards and obstacle penalties update the score in the top HUD immediately. Gold/red color feedback replaces floating numbers and damage text; brief checkpoint/guard notices also stay at the top. Compact, accessible power-up timers fit phone screens without a tall stack over the route.
+
+Boost blur, color separation and streaks are restricted to the screen edges. A satin crystal surface reduces the white glare ahead of the rider. Smaller collectible halos, restrained sun shafts and softer side wind keep the forward road readable while preserving the HDR lighting, biome surfaces, rider tail and flight exhaust. Low/Medium/High rendering and Reduced Motion remain supported.
+
+Verify with `npm test`, `npm run test:hud:browser`, `npm run test:graphics:browser` and `npm run test:obstacles:browser`. Browser suites accept `CHROMIUM_EXECUTABLE_PATH`. The graphics suite compares calm/boosted framebuffer pixels to check road clarity; the HUD suite exercises real pickups, burst rewards, penalties, all seven power-ups on phone layouts and legacy save migration.
+
+Actual gameplay previews: [Garden boost](docs/clarity/r1_turbo.jpg) · [Crystal road and hazards](docs/clarity/r6.jpg).

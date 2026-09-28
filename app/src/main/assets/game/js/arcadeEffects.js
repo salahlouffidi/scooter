@@ -271,12 +271,13 @@ window.ArcadeEffects = class ArcadeEffects {
     const T = this.T, tan = track.getTrackTangent(rider.s), pos = rider.mesh.position;
     const rush = Math.max(rider.activeOverdrive ? 1 : 0, rider.activeSkyFlight ? 2 : 0, rider.activeAntigravity ? 1.2 : 0, rider.downhillIntensity || 0);
     const count = settings.reducedMotion ? 0 : (settings.graphicsQuality === 'low' ? 16 : 48);
-    this.wind.material.opacity = .12 + rush * .65;
+    // Keep wind at the sides and translucent, even when flight and turbo overlap.
+    this.wind.material.opacity = .04 + Math.min(1.5, rush) * .15;
     this.wind.material.color.set(rider.activeAntigravity ? 0xc18aff : rider.activeSkyFlight ? 0x70f4ff : rider.activeOverdrive ? 0xffe9a0 : 0xc5f7ff);
     for (let i = 0; i < count; i++) {
       const cycle = (this.time * (1.4 + rush) + i * .618) % 1;
       const behind = .5 + cycle * (6 + rush * 5), angle = i * 2.39996;
-      const side = Math.cos(angle) * (1.2 + (i % 3) * .45), height = .65 + (Math.sin(angle) + 1) * .9;
+      const side = (i % 2 ? -1 : 1) * (2.8 + (i % 3) * .5), height = .65 + (Math.sin(angle) + 1) * .9;
       const x = pos.x - tan.x * behind - tan.z * side, y = pos.y + height, z = pos.z - tan.z * behind + tan.x * side;
       const length = .45 + rush * 1.8, j = i * 6;
       this.linesArray.set([x, y, z, x - tan.x * length, y + .03, z - tan.z * length], j);

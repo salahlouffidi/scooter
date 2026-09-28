@@ -138,6 +138,32 @@ const root = path.resolve(__dirname, '../app/src/main/assets/game');
     assert.deepEqual(grade.rm, {blur: 0, lines: 0, ca: 0}, 'Reduced Motion disables blur, streaks and chromatic aberration'); assert(grade.motion, 'motion effects return');
     console.log('PASS per-world grading, damage flash and Reduced Motion');
 
+    // At full turbo, the central road must retain the exact detail of the calm frame.
+    // Compare actual framebuffer pixels; inspecting uniforms alone cannot catch a bad mask.
+    const clarity = await ev(() => {
+      const g = gameInstance, p = g.post, gl = g.renderer.getContext();
+      const saved = { speed: p.state.speed, speedLines: p.state.speedLines, ca: p.state.ca, grain: p.features.grain };
+      p.features.grain = false;
+      p.state.speed = p.state.speedLines = p.state.ca = 0;
+      const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+      const read = () => { g.gfx.render(g.scene, g.camera); const px = new Uint8Array(w * h * 4); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px); return px; };
+      const calm = read();
+      p.state.speed = 1; p.state.speedLines = 1; p.state.ca = 0.012;
+      const turbo = read();
+      let center = 0, edge = 0, nc = 0, ne = 0;
+      for (let y = 0; y < h; y += 3) for (let x = 0; x < w; x += 3) {
+        const i = (y * w + x) * 4;
+        const diff = (Math.abs(calm[i] - turbo[i]) + Math.abs(calm[i + 1] - turbo[i + 1]) + Math.abs(calm[i + 2] - turbo[i + 2])) / 3;
+        if (x > w * 0.35 && x < w * 0.65) { center += diff; nc++; }
+        if (x < w * 0.15 || x > w * 0.85) { edge += diff; ne++; }
+      }
+      p.state.speed = saved.speed; p.state.speedLines = saved.speedLines; p.state.ca = saved.ca; p.features.grain = saved.grain;
+      return { center: center / nc, edge: edge / ne };
+    });
+    assert(clarity.center < 0.1, 'boost leaves the central road crisp: ' + JSON.stringify(clarity));
+    assert(clarity.edge > 0.2, 'boost remains visible at the screen edges');
+    console.log('PASS full-speed framebuffer comparison: clear road, peripheral boost effects', clarity);
+
     // ---- 6. Materials patch + road art ----
     const art = await ev(() => {
       const g = gameInstance, T = THREE, out = {};

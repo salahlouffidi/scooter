@@ -68,7 +68,7 @@ Object.assign(window.SkyScooterGame.prototype, {
       this.riderCtrl.reset(checkpoint,round.baseSpeed*window.ScooterTuning.cruiseMultiplier);this.riderCtrl.lastCheckpointS=checkpoint;
       this.gameCam.reset(this.riderCtrl.mesh,this.trackGen);this.hasActiveRun=true;this.autosaveTimer=0;this.state='PAUSED';
       document.getElementById('hud-world').textContent=`${saved.isEndless?'∞':round.id} · ${round.name}`;
-      this.hideAllScreens();this.hud?.reset();this.updateHUD();this.saveActiveRun();this.showFloatingLabel('WORLD MAP UPDATED · CHECKPOINT RESTORED',this.riderCtrl.mesh.position,'#ffe082');this.resume();return;
+      this.hideAllScreens();this.hud?.reset();this.updateHUD();this.saveActiveRun();this.hud?.notice('CHECKPOINT RESTORED');this.resume();return;
     }
     this.cancelCountdown();this.input.resetAll();this.arcadeEffects.reset();
     this.currentRoundId=saved.roundId;this.isEndless=saved.isEndless;this.currentRunTxId=saved.runId;

@@ -437,18 +437,8 @@ window.SkyScooterGame = class SkyScooterGame {
     const lostPoints = Math.max(0, currentScore - nextScore);
     this.score = nextScore;
 
-    // Immediate HUD score feedback with pulse animation
-    const scoreVal = typeof document !== 'undefined' ? document.getElementById('hud-score-val') : null;
-    if (scoreVal) {
-      scoreVal.innerText = `${Math.floor(this.score)}`;
-      this.hud?.snapScore();
-      scoreVal.classList.remove('hud-score-penalty');
-      void scoreVal.offsetWidth;
-      scoreVal.classList.add('hud-score-penalty');
-      setTimeout(() => scoreVal.classList.remove('hud-score-penalty'), 450);
-    }
-
-    if (lostPoints > 0) this.showFloatingLabel(`-${lostPoints} POINTS!`, position || this.riderCtrl?.mesh?.position, '#ff5252', 'penalty', 0.4);
+    // Keep damage feedback in the score/heart HUD so hazards remain visible.
+    this.hud?.scoreChanged('loss');
     return lostPoints;
   }
 
@@ -478,7 +468,7 @@ window.SkyScooterGame = class SkyScooterGame {
       this.coinScore += pts;
       this.score += pts;
 
-      this.showFloatingLabel(`+${pts}`, param);
+      this.hud?.scoreChanged();
       this.arcadeEffects.burst(param, settings.reducedMotion ? 2 : 6);
       if (window.GameAudio) window.GameAudio.playCoin();
       this.vibrate(18);
@@ -486,7 +476,7 @@ window.SkyScooterGame = class SkyScooterGame {
       const pts = 100;
       this.gemScore += pts;
       this.score += pts;
-      this.showFloatingLabel('+100 GEM!', param);
+      this.hud?.scoreChanged();
       this.arcadeEffects.burst(param, settings.reducedMotion ? 3 : 18);
       if (window.GameAudio) window.GameAudio.playGem();
       this.vibrate(40);
@@ -494,7 +484,7 @@ window.SkyScooterGame = class SkyScooterGame {
       const pts = 50;
       this.jumpScore += pts;
       this.score += pts;
-      this.showFloatingLabel('+50 JUMP CLEAR!', this.riderCtrl.mesh.position);
+      this.hud?.scoreChanged();
       if (window.GameAudio) window.GameAudio.playGem();
     } else if (eventType === 'jump') {
       if (window.GameAudio) window.GameAudio.playJump();
@@ -505,7 +495,6 @@ window.SkyScooterGame = class SkyScooterGame {
       const lostPoints = this.applyObstaclePenalty(this.obstaclePenalty, this.riderCtrl.mesh.position);
       this.hearts = Math.max(0, this.hearts - 1);
       this.obstaclePenaltyScore += lostPoints;
-      this.showFloatingLabel('-1 HEART!', this.riderCtrl.mesh.position, '#f44336', 'damage', 1.3);
       if (this.arcadeEffects?.triggerScreenShake) {
         this.arcadeEffects.triggerScreenShake(0.18, 0.22);
       }
@@ -519,7 +508,7 @@ window.SkyScooterGame = class SkyScooterGame {
         this.triggerGameOver();
       }
     } else if (eventType === 'shield_absorbed') {
-      this.showFloatingLabel('SHIELD BLOCKED!', this.riderCtrl.mesh.position, '#00e5ff');
+      this.hud?.notice('SHIELD BLOCKED');
       if (window.GameAudio) window.GameAudio.playShield();
       this.vibrate(50);
     } else if (eventType === 'fall') {
@@ -528,7 +517,6 @@ window.SkyScooterGame = class SkyScooterGame {
       this.coinMultiplier = 1;
       this.applyObstaclePenalty(70, this.riderCtrl.mesh.position);
       this.hearts--;
-      this.showFloatingLabel('FELL! -1 HEART', this.riderCtrl.mesh.position, '#e91e63', 'damage', 1.3);
       if (this.arcadeEffects?.triggerScreenShake) {
         this.arcadeEffects.triggerScreenShake(0.24, 0.25);
       }
@@ -541,79 +529,43 @@ window.SkyScooterGame = class SkyScooterGame {
     } else if (eventType === 'heart_pickup') {
       if (this.hearts < this.maxHearts) {
         this.hearts++;
-        this.showFloatingLabel('+1 HEART RESTORED!', this.riderCtrl.mesh.position, '#4caf50');
       } else {
         this.score += 50;
-        this.showFloatingLabel('+50 MAX HEARTS BONUS!', this.riderCtrl.mesh.position, '#ffeb3b');
+        this.hud?.scoreChanged();
       }
       if (window.GameAudio) window.GameAudio.playPowerup();
     } else if (eventType === 'powerup') {
-      if (param === 'antigravity') return; // Dedicated launch label/effect below.
-      const name = param === 'overdrive' ? 'STAR TURBO · 5s' : String(param).toUpperCase();
+      if (param === 'antigravity') return; // Dedicated launch effect below.
       this.arcadeEffects.burst(this.riderCtrl.mesh.position, settings.reducedMotion ? 4 : 32);
-      this.showFloatingLabel(`${name}!`, this.riderCtrl.mesh.position, '#ffeb3b');
       if (window.GameAudio) window.GameAudio.playPowerup();
       this.vibrate(35);
     } else if (eventType === 'magic_fruit') {
       this.arcadeEffects.burst(this.riderCtrl.mesh.position, settings.reducedMotion ? 8 : 56);
-      this.showFloatingLabel('MAGIC FRUIT · 2 FAULT GUARDS!', this.riderCtrl.mesh.position, '#ff65d4');
       if (window.GameAudio) window.GameAudio.playPowerup();
       this.vibrate(70);
     } else if (eventType === 'magic_fault_guard') {
-      this.showFloatingLabel(`MAGIC GUARD · ${param}/2 LEFT`, this.riderCtrl.mesh.position, '#ff8ce7');
+      this.hud?.notice('MAGIC GUARD BLOCKED');
       this.arcadeEffects.burst(this.riderCtrl.mesh.position, settings.reducedMotion ? 3 : 18);
       if (window.GameAudio) window.GameAudio.playShield();
       this.vibrate(55);
     } else if (eventType === 'antigravity_launch') {
       this.arcadeEffects.burst(this.riderCtrl.mesh.position, settings.reducedMotion ? 4 : 32, 0xc18aff);
-      this.showFloatingLabel('ANTIGRAVITY · HOLD JUMP TO GLIDE', this.riderCtrl.mesh.position, '#dec1ff');
       if (window.GameAudio) window.GameAudio.playPowerup();
       this.vibrate(45);
     } else if (eventType === 'antigravity_end') {
-      this.showFloatingLabel('GRAVITY RESTORED', this.riderCtrl.mesh.position, '#dec1ff');
+      this.hud?.notice('GRAVITY RESTORED');
     } else if (eventType === 'sky_launch') {
       this.arcadeEffects.burst(this.riderCtrl.mesh.position, settings.reducedMotion ? 8 : 64);
-      this.showFloatingLabel('SKY LAUNCH!', this.riderCtrl.mesh.position, '#72f5ff');
       if (window.GameAudio) window.GameAudio.playJump();
       this.vibrate(90);
     } else if (eventType === 'sky_return') {
-      this.showFloatingLabel('SKY LIFT RETURN!', this.riderCtrl.mesh.position, '#72f5ff');
       if (window.GameAudio) window.GameAudio.playFinish();
       this.vibrate(35);
     } else if (eventType === 'checkpoint') {
-      this.showFloatingLabel('CHECKPOINT REACHED!', this.riderCtrl.mesh.position, '#00e676');
+      this.hud?.notice('CHECKPOINT REACHED');
       if (window.GameAudio) window.GameAudio.playFinish();
       this.vibrate(45);
     }
-  }
-
-  showFloatingLabel(text, position, color = '#ffd700', customClass = '', offsetY = 0) {
-    const container = document.getElementById('floating-labels-layer');
-    if (!container) return;
-
-    const el = document.createElement('div');
-    el.className = `floating-score-label${customClass ? ' ' + customClass : ''}`;
-    el.innerText = text;
-    el.style.color = color;
-
-    // Convert 3D world pos to screen coordinates
-    if (position && this.camera) {
-      const p = position.clone ? position.clone() : new this.THREE.Vector3(position.x, position.y + 1.2, position.z);
-      if (offsetY) p.y += offsetY;
-      p.project(this.camera);
-      const x = (p.x * 0.5 + 0.5) * window.innerWidth;
-      const y = (-(p.y * 0.5) + 0.5) * window.innerHeight;
-      el.style.left = `${x}px`;
-      el.style.top = `${y}px`;
-    } else {
-      el.style.left = '50%';
-      el.style.top = `${40 + (offsetY ? offsetY * 6 : 0)}%`;
-    }
-
-    container.appendChild(el);
-    setTimeout(() => {
-      if (el.parentNode) el.parentNode.removeChild(el);
-    }, 1200);
   }
 
   // Haptics: a number is a single pulse, an array is an [pause, vibrate, pause, vibrate...] pattern.

@@ -6,7 +6,7 @@ window.HudController = class HudController {
     this.g = game;
     const $ = id => document.getElementById(id);
     this.el = {
-      hearts: $('hud-hearts-val'), heartsBox: $('hud-hearts'), score: $('hud-score-val'), mult: $('hud-multiplier-val'),
+      hearts: $('hud-hearts-val'), heartsBox: $('hud-hearts'), score: $('hud-score-val'), mult: $('hud-multiplier-val'), status: $('hud-status'),
       progress: $('hud-progress-fill'), power: $('hud-powerups'), speed: $('hud-speed'), num: $('spd-num'), fill: $('spd-fill'), mode: $('spd-mode')
     };
     const T = window.ScooterTuning;
@@ -29,12 +29,34 @@ window.HudController = class HudController {
   reset() {
     this.shownScore = this.g.score || 0;
     this.lastHearts = -1; this.lastMult = 1; this.cache = {};
+    this.scoreFeedbackTime = 0; this.noticeTime = 0;
+    this.el.score?.classList.remove('hud-score-gain', 'hud-score-penalty');
+    if (this.el.status) this.el.status.textContent = '';
     this.chips.forEach(c => c.node.remove());
     this.chips.clear();
     if (this.el.score) this.el.score.textContent = `${Math.floor(this.shownScore)}`;
   }
 
-  snapScore() { this.shownScore = this.g.score; }
+  snapScore() {
+    this.shownScore = Number.isFinite(this.g.score) ? this.g.score : 0;
+    const value = Math.floor(this.shownScore);
+    if (this.el.score) this.el.score.textContent = `${value}`;
+    this.cache.score = value;
+  }
+
+  // One bounded HUD cue, even for a whole row of magnet pickups. Never project text
+  // into the playfield or create an animation/timer for every collected coin.
+  scoreChanged(kind = 'gain') {
+    this.snapScore();
+    this.scoreFeedbackTime = 0.45;
+    this.el.score?.classList.toggle('hud-score-gain', kind === 'gain');
+    this.el.score?.classList.toggle('hud-score-penalty', kind === 'loss');
+  }
+
+  notice(text) {
+    if (this.el.status) this.el.status.textContent = text;
+    this.noticeTime = 1.8;
+  }
 
   // True when the value differs from what the DOM already shows (no closures on the hot path).
   changed(key, value) {
@@ -46,6 +68,15 @@ window.HudController = class HudController {
   update(dt) {
     const g = this.g, r = g.riderCtrl, el = this.el;
     if (!r) return;
+    const elapsed = Math.max(0, dt || 0);
+    if (this.scoreFeedbackTime > 0) {
+      this.scoreFeedbackTime = Math.max(0, this.scoreFeedbackTime - elapsed);
+      if (!this.scoreFeedbackTime) el.score?.classList.remove('hud-score-gain', 'hud-score-penalty');
+    }
+    if (this.noticeTime > 0) {
+      this.noticeTime = Math.max(0, this.noticeTime - elapsed);
+      if (!this.noticeTime && el.status) el.status.textContent = '';
+    }
 
     // Score: quick count-up so pickups feel rewarding but the number is never stale.
     const target = Number.isFinite(g.score) ? g.score : 0;
@@ -122,7 +153,11 @@ window.HudController = class HudController {
       }
       if (time > chip.max) chip.max = time;
       const label = (def.extra ? def.extra(r) + ' · ' : '') + (def.decimals ? time.toFixed(def.decimals) : Math.ceil(time)) + 's';
-      if (label !== chip.text) { chip.text = label; chip.time.textContent = label; }
+      if (label !== chip.text) {
+        chip.text = label; chip.time.textContent = label;
+        chip.node.setAttribute('aria-label', `${def.label}: ${label}`);
+        chip.node.title = def.label;
+      }
       chip.node.style.setProperty('--p', Math.max(0, Math.min(1, time / chip.max)).toFixed(3));
       if (def.hint) {
         const h = def.hint(r);

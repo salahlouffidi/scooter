@@ -479,7 +479,7 @@ window.AssetFactory = class AssetFactory {
     }
     group.add(new THREE.Mesh(this._gemGeo, this.materials.gem));
     group.add(new THREE.Mesh(this._gemCore, this.materials.gemCore));
-    const halo = this.haloSprite(0xb45cff, 2.2, 0.6); if (halo) group.add(halo);
+    const halo = this.haloSprite(0xb45cff, 1.55, 0.35); if (halo) group.add(halo);
     return group;
   }
 
@@ -562,7 +562,8 @@ window.AssetFactory = class AssetFactory {
 
     const haloColors = { shield: 0x25e6ff, magnet: 0xff4a4a, double: 0xffcf3a, overdrive: 0xffc93a, magic_fruit: 0xff5fc8,
       propulsor: 0x59e6ff, antigravity: 0xb86bff, heart: 0xff3d5a };
-    const halo = haloColors[type] ? this.haloSprite(haloColors[type], type === 'antigravity' ? 3.0 : 2.7, 0.7) : null;
+    // A tight halo preserves each pickup's silhouette without washing out nearby boxes.
+    const halo = haloColors[type] ? this.haloSprite(haloColors[type], type === 'antigravity' ? 2.1 : 1.9, 0.4) : null;
     if (halo) group.add(halo);
     return group;
   }

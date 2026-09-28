@@ -207,10 +207,14 @@ window.PostFX = class PostFX {
         float aspect = uResolution.x / uResolution.y;
         vec2 d = uv - uCenter;
         float r = length(d * vec2(aspect, 1.0));
+        // Preserve the full forward sightline, not only a small circle around the
+        // rider. Speed remains visible at the edges without smearing the next hazard.
+        float peripheral = smoothstep(0.19, 0.44, abs(d.x));
+        float localSpeed = uSpeed * peripheral;
+        float localCA = uCA * peripheral;
         vec3 col;
-        if (uSpeed > 0.002) {
-          // Radial zoom blur that leaves the rider (centre) crisp.
-          float amt = uSpeed * 0.075 * smoothstep(0.10, 0.85, r);
+        if (localSpeed > 0.002) {
+          float amt = localSpeed * 0.045 * smoothstep(0.10, 0.85, r);
           col = vec3(0.0); float ws = 0.0;
           for (int i = 0; i < 6; i++) {
             float t = float(i) / 5.0; float w = 1.0 - t * 0.55;
@@ -220,12 +224,12 @@ window.PostFX = class PostFX {
         } else {
           col = texture2D(tScene, uv).rgb;
         }
-        if (uCA > 0.0005) {
-          vec2 o = d * uCA * (0.4 + r);
+        if (localCA > 0.0005) {
+          vec2 o = d * localCA * (0.4 + r);
           col.r = texture2D(tScene, uv - o).r;
           col.b = texture2D(tScene, uv + o).b;
         }
-        vec3 bloomC = uUseBloom > 0.5 ? texture2D(tBloom, uv).rgb * uBloom * uBloomTint : vec3(0.0);
+        vec3 bloomC = uUseBloom > 0.5 ? texture2D(tBloom, uv).rgb * uBloom * uBloomTint * mix(0.68, 1.0, peripheral) : vec3(0.0);
         // Crepuscular rays: radially smear the bright (sun) pixels toward the sun; trees and
         // islands are dark in the bloom buffer, so the rays are naturally cut by them.
         if (uGod > 0.004 && uUseBloom > 0.5) {
@@ -236,10 +240,10 @@ window.PostFX = class PostFX {
           for (int i = 0; i < 10; i++) { sp += stepv; rays += texture2D(tBloom, sp).rgb * wgt; wgt *= 0.9; }
           // Keep the rider (screen centre, lower half) free of the veil so the hero always reads.
           float clearZone = smoothstep(0.10, 0.34, length((uv - uCenter) * vec2(aspect, 1.0)));
-          bloomC += rays * uGod * falloff * clearZone * 0.06 * uBloomTint;
+          bloomC += rays * uGod * falloff * clearZone * mix(0.28, 1.0, peripheral) * 0.06 * uBloomTint;
         }
         vec3 c;
-        if (uFxaa > 0.5 && uSpeed < 0.002 && uCA < 0.0005) {
+        if (uFxaa > 0.5 && localSpeed < 0.002 && localCA < 0.0005) {
           c = toSRGB(fxaa(uv, bloomC));
         } else {
           col += bloomC;
@@ -267,7 +271,7 @@ window.PostFX = class PostFX {
           float n = hash(vec2(cell, floor(uTime * 22.0)));
           float n2 = hash(vec2(cell * 1.7, floor(uTime * 11.0)));
           float line = smoothstep(0.86, 1.0, n) * smoothstep(0.35 - 0.2 * n2, 0.95, r);
-          c += line * uSpeedLines * 0.42;
+          c += line * uSpeedLines * peripheral * 0.26;
         }
 
         // Vignette + damage flash.

@@ -53,7 +53,7 @@ const root = path.resolve(__dirname, '../app/src/main/assets/game');
           distance: g.distanceScore, state: g.state, multiplier: g.coinMultiplier,
           hudScore: +document.getElementById('hud-score-val').innerText,
           hudHearts: [...document.querySelectorAll('#hud-hearts-val .heart')].map(h => h.classList.contains('full') ? 'full' : 'empty').join(','),
-          labels: document.getElementById('floating-labels-layer').innerText});
+          labels: document.querySelectorAll('.floating-score-label').length});
       });
     }
     await installClock();
@@ -65,7 +65,7 @@ const root = path.resolve(__dirname, '../app/src/main/assets/game');
     });
     assert.equal(hit.hearts, 2); assert.equal(hit.penalty, 50); assert.equal(hit.score, 250 + hit.distanceGain);
     assert.equal(hit.hudScore, hit.score); assert.equal(hit.hudHearts, 'full,full,empty'); assert.equal(hit.multiplier, 1);
-    assert(hit.labels.includes('-50 POINTS!') && hit.labels.includes('-1 HEART!')); assert(hit.pulse);
+    assert.equal(hit.labels, 0, 'damage feedback stays in the HUD, leaving the route clear'); assert(hit.pulse);
     if (process.env.OBSTACLE_SCREENSHOT) await page.screenshot({path: process.env.OBSTACLE_SCREENSHOT});
     console.log('PASS browser: generated box blocks the rider, removes one heart and 50 points, and updates the HUD.');
     const saved = await page.evaluate(() => {gameInstance.pause(); return GameStorage.getRun();});

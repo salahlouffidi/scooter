@@ -13,7 +13,8 @@
     "shots": "node tools/render-shots.cjs",
     "test:controls:browser": "node tools/controls-browser.cjs",
     "test:graphics:browser": "node tools/graphics-browser.cjs",
-    "test:browser": "node tools/browser-smoke.cjs && node tools/controls-browser.cjs && node tools/graphics-browser.cjs && node tools/antigravity-browser.cjs && node tools/obstacle-damage-browser.cjs && node tools/session-browser.cjs"
+    "test:browser": "node tools/browser-smoke.cjs && node tools/controls-browser.cjs && node tools/graphics-browser.cjs && node tools/antigravity-browser.cjs && node tools/obstacle-damage-browser.cjs && node tools/session-browser.cjs && node tools/hud-clarity-browser.cjs",
+    "test:hud:browser": "node tools/hud-clarity-browser.cjs"
   },
   "keywords": [],
   "author": "",
