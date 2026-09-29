@@ -31,7 +31,7 @@ window.PostFX = class PostFX {
     this.state = {
       exposure: 1.0, bloom: 0.45, threshold: 1.0, knee: 0.6, saturation: 1.1, contrast: 1.08, vignette: 0.32,
       bloomTint: new C(1, 1, 1), temp: new C(1, 1, 1), shadowTint: new C(0, 0, 0), highlightTint: new C(0, 0, 0),
-      vignetteColor: new C(0, 0, 0), grain: 0.018, ca: 0, speed: 0, speedLines: 0, flash: 0, warn: 0, flashColor: new C(1, 0.12, 0.1),
+      vignetteColor: new C(0, 0, 0), grain: 0.008, ca: 0, speed: 0, speedLines: 0, flash: 0, warn: 0, flashColor: new C(1, 0.12, 0.1),
       lift: 0.0, god: 0.35, godLive: 0, sunUV: new C(0.5, 0.8, 0)
     };
     this.target = this.cloneState(this.state);
@@ -184,7 +184,19 @@ window.PostFX = class PostFX {
       }
 
       // Edge-directed AA for tiers without MSAA (FXAA 1.0 on tone-mapped samples, bloom folded in).
-      uniform float uFxaa; uniform vec2 uTexel;
+      // A contrast threshold limits it to real geometric edges, so road and texture detail
+      // is not smoothed. uSharpen (> 0 only when dynamic resolution renders the scene below
+      // the screen size) restores detail with a CAS-style unsharp mask clamped to the local
+      // min/max, which cannot create halos.
+      uniform float uFxaa; uniform vec2 uTexel; uniform float uSharpen;
+      vec3 sharpen(vec3 m, vec3 a, vec3 b, vec3 c, vec3 e){
+        vec3 mn = min(m, min(min(a, b), min(c, e))), mx = max(m, max(max(a, b), max(c, e)));
+        return clamp(m + (m - (a + b + c + e) * 0.25) * uSharpen, mn, mx);
+      }
+      vec3 sharpenHDR(vec2 uv, vec3 m){
+        return sharpen(m, texture2D(tScene, uv + vec2(-1.0, -1.0) * uTexel).rgb, texture2D(tScene, uv + vec2(1.0, -1.0) * uTexel).rgb,
+          texture2D(tScene, uv + vec2(-1.0, 1.0) * uTexel).rgb, texture2D(tScene, uv + vec2(1.0, 1.0) * uTexel).rgb);
+      }
       vec3 tmSample(vec2 p, vec3 bloom){ return neutralTone(max((texture2D(tScene, p).rgb + bloom) * uExposure, vec3(0.0))); }
       vec3 fxaa(vec2 uv, vec3 bloom){
         vec3 nw = tmSample(uv + vec2(-1.0, -1.0) * uTexel, bloom), ne = tmSample(uv + vec2(1.0, -1.0) * uTexel, bloom);
@@ -192,6 +204,7 @@ window.PostFX = class PostFX {
         vec3 m = tmSample(uv, bloom);
         float lNW = luma(nw), lNE = luma(ne), lSW = luma(sw), lSE = luma(se), lM = luma(m);
         float lMin = min(lM, min(min(lNW, lNE), min(lSW, lSE))), lMax = max(lM, max(max(lNW, lNE), max(lSW, lSE)));
+        if (lMax - lMin < max(0.0312, lMax * 0.125)) return uSharpen > 0.001 ? sharpen(m, nw, ne, sw, se) : m;
         vec2 dir = vec2(-((lNW + lNE) - (lSW + lSE)), (lNW + lSW) - (lNE + lSE));
         float reduce = max((lNW + lNE + lSW + lSE) * 0.25 * 0.125, 1.0 / 128.0);
         float rcp = 1.0 / (min(abs(dir.x), abs(dir.y)) + reduce);
@@ -223,6 +236,7 @@ window.PostFX = class PostFX {
           col /= ws;
         } else {
           col = texture2D(tScene, uv).rgb;
+          if (uSharpen > 0.001 && uFxaa < 0.5) col = sharpenHDR(uv, col);
         }
         if (localCA > 0.0005) {
           vec2 o = d * localCA * (0.4 + r);
@@ -289,7 +303,7 @@ window.PostFX = class PostFX {
       uFlash: { value: 0 }, uLift: { value: 0 }, uBloomTint: { value: new T.Color(1, 1, 1) }, uTemp: { value: new T.Color(1, 1, 1) },
       uShadowTint: { value: new T.Color(0, 0, 0) }, uHighlightTint: { value: new T.Color(0, 0, 0) },
       uVignetteColor: { value: new T.Color(0, 0, 0) }, uFlashColor: { value: new T.Color(1, 0.1, 0.1) },
-      uCenter: { value: new T.Vector2(0.5, 0.42) }, uUseBloom: { value: 1 }, uFxaa: { value: 0 }, uTexel: { value: new T.Vector2(1, 1) }, uSunUV: { value: new T.Vector2(0.5, 0.8) }, uGod: { value: 0 }
+      uCenter: { value: new T.Vector2(0.5, 0.42) }, uUseBloom: { value: 1 }, uFxaa: { value: 0 }, uSharpen: { value: 0 }, uTexel: { value: new T.Vector2(1, 1) }, uSunUV: { value: new T.Vector2(0.5, 0.8) }, uGod: { value: 0 }
     });
   }
 
@@ -377,7 +391,7 @@ window.PostFX = class PostFX {
   // ---------- Grade presets ----------
   // Values are targets; the live state eases toward them so world changes cross-fade.
   static presetFor(theme) {
-    const base = { exposure: 1.02, bloom: 0.42, threshold: 0.95, knee: 0.55, saturation: 1.12, contrast: 1.1, vignette: 0.30,
+    const base = { exposure: 1.02, bloom: 0.42, threshold: 0.95, knee: 0.4, saturation: 1.12, contrast: 1.1, vignette: 0.30,
       temp: [1.02, 1.0, 0.97], shadow: [0.0, 0.01, 0.03], highlight: [0.03, 0.02, 0.0], bloomTint: [1, 0.96, 0.9], vignetteColor: [0.02, 0.04, 0.08], lift: 0.0, god: 0.26 };
     const P = {
       garden:       { ...base },
@@ -487,6 +501,9 @@ window.PostFX = class PostFX {
     u.uResolution.value.set(this.canvasSize.x, this.canvasSize.y); u.uTime.value = this.time;
     u.uSunUV.value.set(s.sunUV.r, s.sunUV.g); u.uGod.value = this.features.rays === false ? 0 : s.god * s.godLive;
     u.uFxaa.value = this.msaa === 0 ? 1 : 0; u.uTexel.value.set(1 / this.rtSize.x, 1 / this.rtSize.y);
+    // Recover detail only when the scene target is smaller than the screen (dynamic resolution).
+    const under = 1 - Math.min(1, this.rtSize.x / Math.max(1, this.canvasSize.x));
+    u.uSharpen.value = under > 0.02 ? Math.min(0.55, under * 1.4) : 0;
     u.uExposure.value = s.exposure * (this.baseExposure || 1); u.uBloom.value = s.bloom; u.uBloomTint.value.copy(s.bloomTint);
     u.uSaturation.value = s.saturation; u.uContrast.value = s.contrast; u.uLift.value = s.lift;
     u.uTemp.value.copy(s.temp); u.uShadowTint.value.copy(s.shadowTint); u.uHighlightTint.value.copy(s.highlightTint);

@@ -8,11 +8,16 @@ window.GameCamera = class GameCamera {
     this.camera = camera;
     this.THREE = THREE;
 
-    // Rig offsets relative to the rider
-    this.heightOffset = 2.8;
-    this.distanceBehind = 6.1;
+    // Rig offsets relative to the rider. The chase position sits ~11% closer than the
+    // original 2.8 m / 6.1 m rig (Louffi and the scooter read ~10% larger). The height is
+    // kept almost unchanged on purpose: lowering it would let the rider's head hide more of
+    // the road ahead. lookUpOffset is solved so the view pitch stays exactly the original
+    // one ((height - lookUp) / (distance + lookAhead) = 1.6 / 16.1): same horizon, same angle.
+    this.zoom = 0.89;                       // also scales the speed/turbo/flight pull-back
+    this.heightOffset = 2.78;
+    this.distanceBehind = 5.42;
     this.lookAheadDistance = 10.0;
-    this.lookUpOffset = 1.2;
+    this.lookUpOffset = this.heightOffset - (2.8 - 1.2) * (this.distanceBehind + this.lookAheadDistance) / (6.1 + 10.0);
     // Keep the route visually anchored: the rider may travel to the edge of the road while
     // the camera follows only a small fraction sideways.
     this.lateralFollow = 0.16;
@@ -109,21 +114,26 @@ window.GameCamera = class GameCamera {
     this.airBlend += ((height > 0.35 ? 1 : 0) - this.airBlend) * (1 - Math.exp(-dt * 6));
 
     // ---- Rig ----
-    const dist = this.distanceBehind + (reduced ? 0 : this.speedBlend * 1.0 + this.boostBlend * 0.7 + (flying ? 0.6 : 0));
-    let camHeight = this.heightOffset + (reduced ? 0 : this.speedBlend * 0.22);
+    const z = this.zoom;
+    const dist = this.distanceBehind + (reduced ? 0 : (this.speedBlend * 1.0 + this.boostBlend * 0.7 + (flying ? 0.6 : 0)) * z);
+    let camHeight = this.heightOffset + (reduced ? 0 : this.speedBlend * 0.22 * z);
     let lateralShift = 0, introK = 1;
     if (this.intro && !reduced) {
       this.intro.t += dt;
       const t = Math.min(1, this.intro.t / this.intro.dur);
       introK = 1 - Math.pow(1 - t, 3);                                // ease-out cubic
       if (t >= 1) this.intro = null;
-      camHeight += (1 - introK) * -0.9;
-      lateralShift = (1 - introK) * 3.4;
+      camHeight += (1 - introK) * -0.9 * z;
+      lateralShift = (1 - introK) * 3.4 * z;
     } else if (this.intro) this.intro = null;
-    const introDist = (1 - introK) * 3.6;
+    const introDist = (1 - introK) * 3.6 * z;
 
-    // The camera follows only 60% of a jump: height reads without losing the road ahead.
-    const followY = groundY + height * (reduced ? 1.0 : 0.62);
+    // The camera follows only ~60% of a jump: height reads without losing the road ahead.
+    // Very high hops (antigravity apex, sky flight) are followed a little more so the
+    // closer camera never cuts off Louffi's head at the top of the frame.
+    const hi = reduced ? 0 : Math.max(0, Math.min(1, (height - 1.5) / 4.5));
+    const highK = hi * hi * (3 - 2 * hi);
+    const followY = groundY + height * (reduced ? 1.0 : 0.62 + 0.09 * highK);
     const anchorX = center.x + (p.x - center.x) * this.lateralFollow;
     const anchorZ = center.z + (p.z - center.z) * this.lateralFollow;
 
@@ -134,7 +144,7 @@ window.GameCamera = class GameCamera {
     );
     this.targetLook.set(
       center.x + normal.x * (p.x - center.x) * this.lookLateralFollow + tan.x * this.lookAheadDistance,
-      trackGen.getTrackPoint(riderMesh.position.z + this.lookAheadDistance).y + this.lookUpOffset + height * (reduced ? 1.0 : 0.5),
+      trackGen.getTrackPoint(riderMesh.position.z + this.lookAheadDistance).y + this.lookUpOffset + height * (reduced ? 1.0 : 0.5 + 0.07 * highK),
       center.z + normal.z * (p.z - center.z) * this.lookLateralFollow + tan.z * this.lookAheadDistance
     );
 

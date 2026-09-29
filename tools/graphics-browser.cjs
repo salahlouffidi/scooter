@@ -224,7 +224,32 @@ const root = path.resolve(__dirname, '../app/src/main/assets/game');
     assert(cam.jumpFollow < 2.8, 'jumps are only partly followed');
     console.log('PASS camera: speed FOV/pull-back, banking, landing spring, Reduced Motion, intro and jump follow');
 
+    // ---- 8. Image clarity: texture filtering, resolution caps, grain, adaptive sharpening ----
+    const crisp = await ev(() => {
+      const g = gameInstance, p = g.post, out = {};
+      const set = q => { GameStorage.saveSettings({...GameStorage.getSettings(), graphicsQuality: q, postFx: true, reducedMotion: false, adaptiveResolution: true}); g.applyGraphicsQuality(); };
+      const maxA = g.renderer.capabilities.getMaxAnisotropy();
+      const road = () => g.trackGen.roadArt.create('garden_path', {base: 0x88807a, accent: 0xffd36b}).map.anisotropy;
+      out.aniso = {};
+      for (const q of ['low', 'medium', 'high']) { set(q); out.aniso[q] = {road: road(), want: Math.min(maxA, {low: 8, medium: 12, high: 16}[q]), cap: g.gfx.dprCap}; }
+      set('medium'); g.gfx.render(g.scene, g.camera); out.fxaa = p.matComposite.uniforms.uFxaa.value;
+      set('high'); g.gfx.renderScale = 1; p.setRenderScale(1); g.gfx.render(g.scene, g.camera);
+      const u = p.matComposite.uniforms; out.grain = u.uGrain.value; out.sharpNative = u.uSharpen.value;
+      p.setRenderScale(0.7); g.gfx.render(g.scene, g.camera); out.sharpScaled = u.uSharpen.value;
+      p.setRenderScale(1); g.gfx.render(g.scene, g.camera);
+      out.compileOk = g.renderer.info.programs.every(pr => !pr.diagnostics || pr.diagnostics.runnable !== false);
+      return out;
+    });
+    console.log('clarity', JSON.stringify(crisp));
+    for (const q of ['low', 'medium', 'high']) assert.equal(crisp.aniso[q].road, crisp.aniso[q].want, `${q}: road textures use the tier's anisotropic filtering`);
+    assert.deepEqual([crisp.aniso.low.cap, crisp.aniso.medium.cap, crisp.aniso.high.cap], [1, 1.75, 2], 'pixel-ratio caps per tier');
+    assert.equal(crisp.fxaa, 1, 'medium keeps FXAA'); assert(crisp.grain <= 0.0081, 'film grain stays subtle');
+    assert.equal(crisp.sharpNative, 0, 'no sharpening at native resolution');
+    assert(crisp.sharpScaled > 0.2 && crisp.sharpScaled <= 0.55, 'detail recovery when dynamic resolution drops');
+    assert(crisp.compileOk, 'composite shader compiles');
+    console.log('PASS clarity: anisotropic road filtering per tier, resolution caps, subtle grain, adaptive sharpening');
+
     assert.deepEqual(errors, []);
-    console.log('PASS browser graphics: tiers, HDR post-fx, fallbacks, dynamic resolution, grading, materials, road art, camera.');
+    console.log('PASS browser graphics: tiers, HDR post-fx, fallbacks, dynamic resolution, grading, materials, road art, camera, clarity.');
   } finally { if (browser) await browser.close(); server.close(); }
 })().catch(e => {console.error(e); process.exitCode = 1;});

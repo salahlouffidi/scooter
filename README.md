@@ -176,3 +176,17 @@ Boost blur, color separation and streaks are restricted to the screen edges. A s
 Verify with `npm test`, `npm run test:hud:browser`, `npm run test:graphics:browser` and `npm run test:obstacles:browser`. Browser suites accept `CHROMIUM_EXECUTABLE_PATH`. The graphics suite compares calm/boosted framebuffer pixels to check road clarity; the HUD suite exercises real pickups, burst rewards, penalties, all seven power-ups on phone layouts and legacy save migration.
 
 Actual gameplay previews: [Garden boost](docs/clarity/r1_turbo.jpg) · [Crystal road and hazards](docs/clarity/r6.jpg).
+
+## Sharper image and closer chase camera
+
+- **Camera:** the follow camera sits ~11% closer (5.42 m behind, 2.78 m high, was 6.1 / 2.8), so Louffi and the scooter read about 10% larger. The view pitch is solved to match the old rig exactly, so the horizon and the road ahead stay where they were. Speed, turbo and flight pull-back scale with the zoom. Very high hops (antigravity apex, sky flight) follow slightly more height so the closer camera never cuts off Louffi's head.
+- **Anti-aliasing and filtering:** Medium FXAA only smooths real geometric edges (contrast threshold), so road and texture detail stays sharp. Medium renders at up to 1.75× pixel ratio (was 1.5×). Road textures use 16×/12×/8× anisotropic filtering on High/Medium/Low.
+- **Dynamic resolution:** when the scene is rendered below screen size, a halo-free, min/max-clamped sharpen restores detail.
+- **Grain, glow and glare:**
+  - Film grain on High is lighter.
+  - The bloom knee is narrower, so bright clothing and deck edges no longer leak a veil.
+  - The underglow stays below the bloom threshold, so it tints the road without haloing the wheels.
+  - Glossy roads (ice, clockwork metal, storm glass, arena marble) get a satin finish.
+  - Road slabs damp direct-light specular, so the sun-side rim light no longer paints a white stripe down the lane. The rim light still outlines the rider and props.
+
+Measure the framing with `node tools/camera-framing.cjs` (rider size, both wheels, road-ahead visibility and camera clearance for cruise, top speed, turbo, turns, slalom, jump, landing, antigravity, sky flight, intro and several worlds). Capture deterministic before/after frames with `GFX=high|medium|low DSF=2 node tools/compare-shots.cjs <outDir> [gameRoot]`: gameplay is frozen and the world seed is fixed. `npm run test:graphics:browser` checks the per-tier filtering, resolution caps, grain and adaptive sharpening.

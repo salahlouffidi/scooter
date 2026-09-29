@@ -75,7 +75,9 @@ window.GraphicsManager = class GraphicsManager {
     this.tier = this.resolveTier(this.setting);
     this.adaptive = settings.adaptiveResolution !== false;
     this.postEnabled = settings.postFx !== false;
-    this.dprCap = { low: 1, medium: 1.5, high: 2 }[this.tier];
+    // Medium has no MSAA (FXAA only), so it gets a little more resolution for cleaner edges;
+    // the dynamic-resolution governor still steps the scene target down if a phone struggles.
+    this.dprCap = { low: 1, medium: 1.75, high: 2 }[this.tier];
     const native = window.devicePixelRatio || 1;
     this.pixelRatio = Math.min(native, this.dprCap);
     this.minScale = this.tier === 'low' ? 0.7 : 0.6;
@@ -108,11 +110,34 @@ window.GraphicsManager = class GraphicsManager {
     this.post.features.grain = this.tier === 'high';
     this.applyToneMapping();
     if (g.sky) g.sky.setQuality(this.tier);
+    this.applyTextureQuality();
     g.container?.classList.toggle('post-fx', this.postActive);
     document.body.dataset.gfx = this.postActive ? this.tier : 'direct';
     this.sinceChange = 0; this.slowTime = 0; this.fastTime = 0;
     this.materialsNeedUpdate();
     return this.tier;
+  }
+
+  // Anisotropic filtering keeps the road texture sharp at the grazing chase-camera angle.
+  // New textures (road art built per world) read the level from GraphicsManager.textureAniso.
+  applyTextureQuality() {
+    const max = this.renderer.capabilities.getMaxAnisotropy ? this.renderer.capabilities.getMaxAnisotropy() : 1;
+    const level = Math.max(1, Math.min(max, { low: 8, medium: 12, high: 16 }[this.tier] || 8));
+    window.GraphicsManager.textureAniso = level;
+    const seen = new Set();
+    this.game.scene?.traverse(o => {
+      const m = o.material;
+      if (!m) return;
+      for (const x of (Array.isArray(m) ? m : [m])) {
+        for (const key of ['map', 'bumpMap', 'emissiveMap', 'roughnessMap', 'normalMap']) {
+          const t = x[key];
+          if (!t || seen.has(t) || !t.isTexture || t.isRenderTargetTexture) continue;
+          seen.add(t);
+          const mip = t.minFilter === this.T.LinearMipmapLinearFilter || t.minFilter === this.T.LinearMipmapNearestFilter;
+          if (mip && t.anisotropy !== level) { t.anisotropy = level; t.needsUpdate = true; }
+        }
+      }
+    });
   }
 
   materialsNeedUpdate() {

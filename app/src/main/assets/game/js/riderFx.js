@@ -108,7 +108,7 @@ window.RiderFx = class RiderFx {
       blending: T.AdditiveBlending, fog: false, toneMapped: false, color: 0x39d5ff,
       polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3
     }));
-    this.glow.scale.set(1.9, 1, 3.2); this.glow.renderOrder = 2;
+    this.glow.scale.set(1.6, 1, 3.0); this.glow.renderOrder = 2;
     this.root.add(this.blob, this.glow);
     this.dust = new window.SoftParticles(scene, T, 72);
     this.tmpColor = new T.Color();
@@ -155,9 +155,11 @@ window.RiderFx = class RiderFx {
     this.tmpColor.set(target);
     this.glowColor.lerp(this.tmpColor, 1 - Math.exp(-dt * 8));
     const pulse = quiet ? 1 : 0.9 + Math.sin(this.time * 7) * 0.1;
-    this.glow.material.color.copy(this.glowColor).multiplyScalar(1.6 * pulse);
+    // Kept below the bloom threshold and a little tighter than the deck, so it tints the road
+    // under the scooter without haloing the wheels (a bright additive blob made them look soft).
+    this.glow.material.color.copy(this.glowColor).multiplyScalar(1.1 * pulse);
     this.glow.material.opacity = power * Math.max(0, 1 - h / 5);
-    this.glow.scale.set(1.9 * s, 1, 3.4 * s + Math.min(1.4, rider.forwardSpeed * 0.04));
+    this.glow.scale.set(1.6 * s, 1, 3.0 * s + Math.min(1.2, rider.forwardSpeed * 0.035));
 
     if (quiet) { this.wasGrounded = rider.isGrounded; return; }
 

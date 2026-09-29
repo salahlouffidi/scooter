@@ -14,6 +14,10 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
     // the skyline and roadside scenery.
     this.cityRoad=this.cityArt.asphalt();
     this.routeSurface=new T.MeshStandardMaterial({color:0xd7ccc8,roughness:.92});
+    // The sun-side rim light sits ahead of the rider; on glossy roads its specular highlight
+    // smeared a white glare down the lane. Damp direct-light specular on the road only
+    // (sky reflections, emissive seams and diffuse lighting are unchanged).
+    this.routeSurface.defines.FX_DIRECT_SPEC='0.15';
     this.routeEdge=new T.MeshStandardMaterial({color:0x81c784,roughness:.86});
     this.routeAccent=new T.MeshStandardMaterial({color:0xffd36b,emissive:0x000000,roughness:.7});
     this.routeHazard=new T.MeshStandardMaterial({color:0xff7043,emissive:0x000000,roughness:.72});

@@ -1,5 +1,5 @@
 // Renders real game frames (menu, HUD, several worlds, turbo, flight) for visual review.
-// Usage: [GFX=auto|high|medium|low] [JPEG=1] node tools/render-shots.cjs <outDir> [viewport=1280x720] [shots=menu,r1,r8,...]
+// Usage: [GFX=auto|high|medium|low] [JPEG=1] [DSF=2] [ADAPTIVE=0] node tools/render-shots.cjs <outDir> [viewport=1280x720] [shots=menu,r1,r8,...]
 const {chromium}=require('playwright'),http=require('http'),fs=require('fs'),path=require('path');
 const root=path.resolve(__dirname,'../app/src/main/assets/game');
 const out=path.resolve(process.argv[2]||path.join(__dirname,'../docs/shots'));
@@ -11,13 +11,14 @@ const mime={'.js':'text/javascript','.css':'text/css','.html':'text/html','.woff
  const server=http.createServer((q,r)=>{try{const u=decodeURIComponent(q.url.split('?')[0]),f=path.join(root,u==='/'?'index.html':u);r.setHeader('Content-Type',mime[path.extname(f)]||'application/octet-stream');r.end(fs.readFileSync(f));}catch{r.statusCode=404;r.end();}}).listen(0,'127.0.0.1');
  await new Promise(r=>server.on('listening',r));
  const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.CHROMIUM_EXECUTABLE_PATH}:{}),args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage','--ignore-gpu-blocklist']});
- const page=await browser.newPage({viewport:{width:W,height:H},hasTouch:true,deviceScaleFactor:1});
+ const page=await browser.newPage({viewport:{width:W,height:H},hasTouch:true,deviceScaleFactor:Number(process.env.DSF||1)});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'||m.type()==='warning'){const t=m.text();if(!/deprecated with r150/.test(t))errors.push('console:'+t);}});
- if(process.env.GFX)await page.addInitScript(q=>{try{localStorage.setItem('skyscooter_settings_v1',JSON.stringify({graphicsQuality:q}));}catch{}},process.env.GFX);
+ // GFX picks the tier; ADAPTIVE=0 pins the dynamic-resolution governor so shots compare at equal scale.
+ if(process.env.GFX||process.env.ADAPTIVE==='0')await page.addInitScript(([q,a])=>{try{const s={};if(q)s.graphicsQuality=q;if(a)s.adaptiveResolution=false;localStorage.setItem('skyscooter_settings_v1',JSON.stringify(s));}catch{}},[process.env.GFX||'',process.env.ADAPTIVE==='0']);
  await page.goto('http://127.0.0.1:'+server.address().port);
  await page.waitForFunction(()=>window.gameInstance?.trackGen?.activeSegments.length,null,{timeout:60000});
  const frames=async n=>page.evaluate(n=>new Promise(res=>{let i=0;const f=()=>++i>=n?res():requestAnimationFrame(f);requestAnimationFrame(f);}),n);
- const shot=async name=>{if(wanted.length&&!wanted.includes(name))return;await frames(2);const jpeg=!!process.env.JPEG;await page.screenshot(jpeg?{path:path.join(out,name+'.jpg'),type:'jpeg',quality:90}:{path:path.join(out,name+'.png')});console.log('shot',name);};
+ const shot=async name=>{if(wanted.length&&!wanted.includes(name))return;await frames(2);const jpeg=!!process.env.JPEG;await page.screenshot(jpeg?{path:path.join(out,name+'.jpg'),type:'jpeg',quality:90,timeout:240000}:{path:path.join(out,name+'.png'),timeout:240000});console.log('shot',name);};
  const play=async(id,s=60,speed=16,extra)=>{
   await page.evaluate(([id,s,speed])=>{const g=gameInstance;g.startRound(id);g.cancelCountdown();g.state='PLAYING';g.hideAllScreens();document.getElementById('countdown-display').classList.add('hidden');document.getElementById('gameplay-hud').classList.remove('hidden');
    g.riderCtrl.reset(s,speed);g.trackGen.update(s,0);g.gameCam.reset(g.riderCtrl.mesh,g.trackGen);g.lastTime=performance.now();},[id,s,speed]);

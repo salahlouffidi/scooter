@@ -22,6 +22,9 @@ window.RoadArt = class RoadArt {
     };
   }
 
+  // Tier-driven level published by GraphicsManager; falls back to the constructor value.
+  anisotropy() { return (window.GraphicsManager && window.GraphicsManager.textureAniso) || this.maxAniso; }
+
   hex(c) { return '#' + new this.T.Color(c).getHexString(); }
   shade(c, f) {
     const col = new this.T.Color(c);
@@ -40,7 +43,12 @@ window.RoadArt = class RoadArt {
 
   create(style, colors) {
     const key = style + ':' + colors.base + ':' + colors.accent;
-    if (this.cache.has(key)) return this.cache.get(key);
+    if (this.cache.has(key)) {
+      // A graphics-tier change may have raised or lowered anisotropic filtering since this was built.
+      const hit = this.cache.get(key), level = this.anisotropy();
+      for (const t of [hit.map, hit.bumpMap, hit.emissiveMap]) if (t && t.anisotropy !== level) { t.anisotropy = level; t.needsUpdate = true; }
+      return hit;
+    }
     const T = this.T, W = this.W, H = this.H;
     const seed = [...style].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7);
     const R = RoadArt.rng(seed);
@@ -64,7 +72,7 @@ window.RoadArt = class RoadArt {
     const tex = (canvas, srgb) => {
       const t = new T.CanvasTexture(canvas);
       t.wrapS = T.ClampToEdgeWrapping; t.wrapT = T.RepeatWrapping;
-      t.anisotropy = this.maxAniso;
+      t.anisotropy = this.anisotropy();
       t.minFilter = T.LinearMipmapLinearFilter; t.magFilter = T.LinearFilter;
       t.colorSpace = srgb ? T.SRGBColorSpace : T.NoColorSpace;
       t.needsUpdate = true;
@@ -236,7 +244,9 @@ window.RoadArt = class RoadArt {
     } });
     for (let i = 0; i < 60; i++) { ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillRect(R() * W, R() * H, 2, 2); }
     hctx.fillStyle = '#909090'; hctx.fillRect(0, 0, W, H);
-    spec.roughness = 0.16; spec.metalness = 0.05; spec.bump = 0.3; spec.env = 1.6;
+    // Satin sheen (like the crystal road): ice still gleams but no longer mirrors the sun
+    // down the lane at the chase camera's grazing angle.
+    spec.roughness = 0.3; spec.metalness = 0.05; spec.bump = 0.3; spec.env = 1.15;
   }
   paint_plates(P, spec) {
     const { ctx, gctx, R, base, accent } = P, W = this.W, H = this.H;
@@ -289,7 +299,7 @@ window.RoadArt = class RoadArt {
       ctx.fillStyle = this.hex(accent); ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + 30, y + 20); ctx.lineTo(x0 + 30, y + 40); ctx.lineTo(x0, y + 20); ctx.fill();
       gctx.fillStyle = this.hex(accent); gctx.beginPath(); gctx.moveTo(x0, y); gctx.lineTo(x0 + 30, y + 20); gctx.lineTo(x0 + 30, y + 40); gctx.lineTo(x0, y + 20); gctx.fill();
     }
-    spec.glow = 0.5; spec.roughness = 0.42; spec.metalness = 0.6; spec.bump = 1.0; spec.env = 1.4;
+    spec.glow = 0.5; spec.roughness = 0.52; spec.metalness = 0.6; spec.bump = 1.0; spec.env = 1.0; // brushed, no white lane glare
   }
   paint_glass(P, spec) {
     const { ctx, gctx, R, base, accent } = P, W = this.W, H = this.H;
@@ -301,7 +311,7 @@ window.RoadArt = class RoadArt {
     for (let x = 0; x <= W; x += 128) for (const c of [ctx, gctx]) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); }
     for (let y = 0; y <= H; y += 128) for (const c of [ctx, gctx]) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
     this.wrap(ctx, () => { for (let i = 0; i < 5; i++) { const x = R() * W; const s = ctx.createLinearGradient(x, 0, x + 140, H); s.addColorStop(0, 'rgba(255,255,255,0)'); s.addColorStop(0.5, 'rgba(255,255,255,0.13)'); s.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = s; ctx.fillRect(x, 0, 140, H); } });
-    spec.glow = 0.8; spec.roughness = 0.12; spec.metalness = 0.2; spec.bump = 0; spec.env = 1.8;
+    spec.glow = 0.8; spec.roughness = 0.26; spec.metalness = 0.2; spec.bump = 0; spec.env = 1.25; // glassy, not a mirror
   }
   paint_moon(P, spec) {
     const { ctx, hctx, R, base } = P, W = this.W, H = this.H;
@@ -348,7 +358,7 @@ window.RoadArt = class RoadArt {
     ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 3;
     for (let x = 0; x <= W; x += 256) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
     hctx.fillStyle = '#909090'; hctx.fillRect(0, 0, W, H);
-    spec.glow = 0.5; spec.roughness = 0.3; spec.metalness = 0.05; spec.bump = 0.3; spec.env = 1.5;
+    spec.glow = 0.5; spec.roughness = 0.42; spec.metalness = 0.05; spec.bump = 0.3; spec.env = 1.05; // polished, veins stay readable
   }
   paint_dots(P, spec) {
     const { ctx, hctx, R, base, accent } = P, W = this.W, H = this.H;

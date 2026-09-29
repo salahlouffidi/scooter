@@ -61,6 +61,12 @@ window.SceneFx = (function () {
           diffuseColor.rgb *= 1.0 + (fxn - 0.5) * uDetail; }
         #endif`);
     }
+    if (fs.includes('#include <lights_fragment_end>')) {
+      fs = fs.replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        #ifdef FX_DIRECT_SPEC
+          reflectedLight.directSpecular *= float(FX_DIRECT_SPEC);
+        #endif`);
+    }
     if (fs.includes('#include <opaque_fragment>')) {
       fs = fs.replace('#include <opaque_fragment>', `
         { vec3 fxV = normalize(vViewPosition);
