@@ -9,16 +9,24 @@ const root=path.resolve(__dirname,'../app/src/main/assets/game');
   const page=await browser.newPage({viewport:{width:1280,height:720},hasTouch:true}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:'+server.address().port);await page.waitForFunction(()=>window.gameInstance?.trackGen?.activeSegments.length);
   assert.equal(await page.evaluate(()=>louffiAssetStatus),'GLB loaded');
-  // Test access applies to fresh and existing saves without granting stars.
+  // Sequential round progression: fresh saves unlock only Round 1.
   await page.evaluate(()=>gameInstance.showRoundSelect());
-  assert.equal(await page.locator('.round-card.unlocked').count(),16);
+  assert.equal(await page.locator('.round-card.unlocked').count(),1);
+  assert.equal(await page.locator('.round-card.locked').count(),15);
+  assert.equal(await page.locator('.rc-lock-badge').count(),15);
+  // Clicking a locked round must not start it.
+  await page.locator('.round-card.locked').first().click();
+  assert.notEqual(await page.evaluate(()=>gameInstance.state),'PLAYING');
+  // Unlocking through round 3 makes 3 available and 13 locked.
   await page.evaluate(()=>{GameStorage.saveProgress({...GameStorage.getProgress(),highestUnlockedRound:3,stars:{2:2},bestScores:{2:1234}});gameInstance.showRoundSelect();});
-  assert.equal(await page.locator('.round-card.locked').count(),0);
+  assert.equal(await page.locator('.round-card.unlocked').count(),3);
+  assert.equal(await page.locator('.round-card.locked').count(),13);
   assert.equal(await page.evaluate(()=>GameStorage.getProgress().bestScores[2]),1234);
-  await page.locator('.round-card').last().click();await page.waitForFunction(()=>gameInstance.state==='PLAYING');
-  assert.equal(await page.evaluate(()=>gameInstance.currentRoundId),16);
+  await page.locator('.round-card.unlocked').last().click();await page.waitForFunction(()=>gameInstance.state==='PLAYING');
+  assert.equal(await page.evaluate(()=>gameInstance.currentRoundId),3);
   await page.evaluate(()=>{gameInstance.showMainMenu();GameStorage.resetProgress();});
   await page.click('#btn-menu-play');await page.waitForFunction(()=>gameInstance.state==='PLAYING');
+  assert.equal(await page.evaluate(()=>gameInstance.currentRoundId),1);
   assert(await page.locator('#joystick-zone').isVisible());assert(await page.locator('#btn-hud-pause').isVisible());
   assert(await page.evaluate(()=>{const e=document.getElementById('joystick-zone'),r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),'joystick above canvas');
   await page.keyboard.down('ArrowRight');await page.waitForFunction(()=>gameInstance.riderCtrl.laneX>.1);await page.keyboard.up('ArrowRight');

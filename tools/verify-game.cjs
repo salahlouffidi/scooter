@@ -86,5 +86,22 @@ global.fetch=async()=>({ok:true,arrayBuffer:async()=>{const b=fs.readFileSync(ba
  const before=Array.from(ml.weights);ml.trainBatch();assert(ml.weights.some((v,i)=>v!==before[i]));ml.save();assert.equal(new AdaptiveDifficultyML().examples.length,32);
  const chosen=ml.selectCandidate(ROUNDS_DATA[0],{hearts:3},validator);assert(Number.isFinite(chosen.speedMultiplier));
  GameStorage.saveSettings({adaptiveDifficulty:false});const disabled=Array.from(ml.weights);ml.recordWindowOutcome(features,{},true);assert.deepEqual(Array.from(ml.weights),disabled);
- console.log('PASS: GLB parsing/geometry, seven named assets, 16 rounds, bounded active objects, responsive steering/reversal/release, downhill/turbo/brake speeds, sloped pickups, pooled effects/reduced motion, jump physics, ML training/persistence/OFF. Gap checks:',gapCount);
+ // Sequential round progression verification:
+ assert.equal(ScooterTuning.testAllRounds, false, 'developer testAllRounds bypass is disabled');
+ GameStorage.resetProgress();
+ let prog = GameStorage.getProgress();
+ assert.equal(prog.highestUnlockedRound, 1, 'fresh progress starts with only Round 1 unlocked');
+ GameStorage.recordRoundResult(1, 850, 3, false, 'tx_prog_1');
+ prog = GameStorage.getProgress();
+ assert.equal(prog.highestUnlockedRound, 2, 'winning Round 1 unlocks Round 2');
+ assert.equal(prog.stars[1], 3, 'Round 1 stars recorded');
+ GameStorage.recordRoundResult(2, 920, 2, false, 'tx_prog_2');
+ prog = GameStorage.getProgress();
+ assert.equal(prog.highestUnlockedRound, 3, 'winning Round 2 unlocks Round 3');
+ assert(1 <= prog.highestUnlockedRound && 2 <= prog.highestUnlockedRound, 'completed rounds remain unlocked for replay');
+ GameStorage.recordRoundResult(16, 2000, 3, false, 'tx_prog_16');
+ assert.equal(GameStorage.getProgress().highestUnlockedRound, 16, 'highest round capped at 16');
+ GameStorage.resetProgress();
+ assert.equal(GameStorage.getProgress().highestUnlockedRound, 1, 'resetProgress restores Round 1 starting state');
+ console.log('PASS: GLB parsing/geometry, seven named assets, 16 rounds, bounded active objects, responsive steering/reversal/release, downhill/turbo/brake speeds, sloped pickups, pooled effects/reduced motion, jump physics, ML training/persistence/OFF, sequential progression. Gap checks:',gapCount);
 })().catch(e=>{console.error(e);process.exitCode=1;});

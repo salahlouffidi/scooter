@@ -314,7 +314,13 @@ window.SkyScooterGame = class SkyScooterGame {
     this.notifyAndroidState('MENU');
   }
 
-  startRound(roundId, isEndless = false) {
+  startRound(roundId, isEndless = false, bypassProgression = false) {
+    const progress = window.GameStorage.getProgress();
+    const highest = progress.highestUnlockedRound || 1;
+    if (!bypassProgression && !isEndless && roundId > highest) {
+      console.warn(`Round ${roundId} is locked. Highest unlocked is ${highest}.`);
+      return;
+    }
     this.cancelCountdown();
     window.GameStorage.clearRun();
     this.hasActiveRun=true;this.autosaveTimer=0;
@@ -688,7 +694,6 @@ window.SkyScooterGame = class SkyScooterGame {
       this.fps = this.fpsFrames;
       this.fpsFrames = 0;
       this.fpsLastTime = timestamp;
-      this.updateDevPanel();
       const fpsEl = document.getElementById('fps-counter');
       if (fpsEl && !fpsEl.classList.contains('hidden')) fpsEl.textContent = `${this.fps} FPS · ${Math.round(this.gfx.renderScale * 100)}%`;
     }
@@ -882,26 +887,12 @@ window.SkyScooterGame = class SkyScooterGame {
     if (coinsEl) coinsEl.innerText = `${wallet.totalCoins || 0}`;
 
     const roundEl = document.getElementById('menu-highest-round');
-    if (roundEl) roundEl.innerText = window.ScooterTuning.testAllRounds ? '16 / 16 · TEST ACCESS' : `${progress.highestUnlockedRound || 1} / 16`;
+    if (roundEl) roundEl.innerText = `${progress.highestUnlockedRound || 1} / 16`;
 
     let bestTotal = 0;
     Object.values(progress.bestScores).forEach(s => bestTotal = Math.max(bestTotal, s));
     const bestEl = document.getElementById('menu-best-score');
     if (bestEl) bestEl.innerText = `${bestTotal}`;
-  }
-
-  updateDevPanel() {
-    const panel = document.getElementById('dev-panel');
-    if (!panel || panel.classList.contains('hidden')) return;
-
-    document.getElementById('dev-fps').innerText = `${this.fps}`;
-    document.getElementById('dev-ml-state').innerText = `${this.ml.state}`;
-    document.getElementById('dev-ml-examples').innerText = `${this.ml.examples.length}`;
-    document.getElementById('dev-ml-predicted-p').innerText = `${(this.ml.lastPredictedP * 100).toFixed(1)}%`;
-    document.getElementById('dev-ml-actual').innerText = `${this.ml.lastActualLabel === 1 ? 'Clean' : 'Damage'}`;
-    document.getElementById('dev-ml-error').innerText = `${(this.ml.movingPredictionError).toFixed(3)}`;
-    document.getElementById('dev-ml-candidate').innerText = `${this.ml.currentCandidate}`;
-    document.getElementById('dev-track-seed').innerText = `${this.trackGen.seed}`;
   }
 
   hideAllScreens() {
@@ -1006,15 +997,6 @@ window.SkyScooterGame = class SkyScooterGame {
       this.showMainMenu();
     });
 
-    // Developer Panel Toggle
-    document.getElementById('btn-dev-toggle')?.addEventListener('click', () => {
-      const dev = document.getElementById('dev-panel');
-      if (dev) {
-        dev.classList.toggle('hidden');
-        this.updateDevPanel();
-      }
-    });
-
     this.wireSettingsForm();
   }
 
@@ -1037,7 +1019,7 @@ window.SkyScooterGame = class SkyScooterGame {
     const hex = (c) => '#' + new this.THREE.Color(c).getHexString();
 
     window.ROUNDS_DATA.forEach(round => {
-      const isUnlocked = window.ScooterTuning.testAllRounds || round.id <= highest;
+      const isUnlocked = round.id <= highest;
       const card = document.createElement('div');
       card.className = `round-card ${isUnlocked ? 'unlocked' : 'locked'}`;
       card.style.setProperty('--c1', hex(round.skyColor));
@@ -1049,11 +1031,12 @@ window.SkyScooterGame = class SkyScooterGame {
 
       card.innerHTML = `
         <div class="rc-number">${round.id}</div>
+        ${!isUnlocked ? '<div class="rc-lock-badge" aria-label="Locked"><svg class="ico lock"><use href="#i-lock"/></svg></div>' : ''}
         <div class="rc-title">${round.name}</div>
         <div class="rc-meta">${round.length}m · ${kmh} km/h</div>
         <div class="rc-foot">
           ${isUnlocked ? `<span class="rc-starrow">${this.starMarkup(stars)}</span><span class="rc-best">${best ? 'Best ' + best : ''}</span>`
-            : '<span class="rc-locked-msg">Locked</span>'}
+            : `<span class="rc-locked-msg"><svg class="rc-lock-icon" aria-hidden="true"><use href="#i-lock"/></svg><span>Complete World ${round.id - 1}</span></span>`}
         </div>
       `;
 
@@ -1061,6 +1044,11 @@ window.SkyScooterGame = class SkyScooterGame {
         card.addEventListener('click', () => {
           modal.classList.add('hidden');
           this.startRound(round.id);
+        });
+      } else {
+        card.addEventListener('click', () => {
+          this.vibrate(30);
+          window.GameAudio?.playClick?.();
         });
       }
 
@@ -1141,7 +1129,6 @@ window.SkyScooterGame = class SkyScooterGame {
     document.getElementById('btn-reset-ml')?.addEventListener('click', () => {
       this.ml.reset();
       alert('Adaptive Machine Learning training weights have been reset.');
-      this.updateDevPanel();
     });
 
     document.getElementById('btn-reset-progress')?.addEventListener('click', () => {
