@@ -116,9 +116,9 @@ window.SceneFx = (function () {
       const night = ['moon', 'neon'].includes(theme);
       const storm = theme === 'storm';
       U.uSunColor.value.set(night ? 0xa9c1ff : warm ? 0xffb066 : storm ? 0xcfe4ff : 0xffe4a8);
-      U.uSunScatter.value = night ? 0.3 : storm ? 0.2 : warm ? 0.5 : 0.4;
+      U.uSunScatter.value = night ? 0.12 : storm ? 0.08 : warm ? 0.16 : 0.14; // low: haze must not wash out the road
       U.uRimColor.value.set(night ? 0x7f98ff : warm ? 0xffa46d : 0x9fd6ff);
-      U.uRimStrength.value = night ? 0.5 : storm ? 0.25 : 0.32;
+      U.uRimStrength.value = night ? 0.38 : storm ? 0.2 : 0.24;
       U.uFogBase.value = -5.0;
       U.uHeightFog.value = storm ? 0.9 : 0.7;
     },

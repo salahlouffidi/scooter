@@ -311,7 +311,7 @@ window.RoadArt = class RoadArt {
     for (let x = 0; x <= W; x += 128) for (const c of [ctx, gctx]) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); }
     for (let y = 0; y <= H; y += 128) for (const c of [ctx, gctx]) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
     this.wrap(ctx, () => { for (let i = 0; i < 5; i++) { const x = R() * W; const s = ctx.createLinearGradient(x, 0, x + 140, H); s.addColorStop(0, 'rgba(255,255,255,0)'); s.addColorStop(0.5, 'rgba(255,255,255,0.13)'); s.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = s; ctx.fillRect(x, 0, 140, H); } });
-    spec.glow = 0.8; spec.roughness = 0.26; spec.metalness = 0.2; spec.bump = 0; spec.env = 1.25; // glassy, not a mirror
+    spec.glow = 0.6; spec.roughness = 0.42; spec.metalness = 0.15; spec.bump = 0; spec.env = 0.85; // glassy, no specular streak down the lane
   }
   paint_moon(P, spec) {
     const { ctx, hctx, R, base } = P, W = this.W, H = this.H;

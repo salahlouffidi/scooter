@@ -29,10 +29,10 @@ window.PostFX = class PostFX {
     const C = THREE.Color;
     // Live (smoothed) grade values and the preset they are easing toward.
     this.state = {
-      exposure: 1.0, bloom: 0.45, threshold: 1.0, knee: 0.6, saturation: 1.1, contrast: 1.08, vignette: 0.32,
+      exposure: 1.0, bloom: 0.26, threshold: 1.05, knee: 0.35, saturation: 1.1, contrast: 1.08, vignette: 0.32,
       bloomTint: new C(1, 1, 1), temp: new C(1, 1, 1), shadowTint: new C(0, 0, 0), highlightTint: new C(0, 0, 0),
       vignetteColor: new C(0, 0, 0), grain: 0.008, ca: 0, speed: 0, speedLines: 0, flash: 0, warn: 0, flashColor: new C(1, 0.12, 0.1),
-      lift: 0.0, god: 0.35, godLive: 0, sunUV: new C(0.5, 0.8, 0)
+      lift: 0.0, god: 0.08, godLive: 0, sunUV: new C(0.5, 0.8, 0)
     };
     this.target = this.cloneState(this.state);
     this.features = { blur: true, ca: true, lines: true, grain: true, rays: true };
@@ -243,7 +243,7 @@ window.PostFX = class PostFX {
           col.r = texture2D(tScene, uv - o).r;
           col.b = texture2D(tScene, uv + o).b;
         }
-        vec3 bloomC = uUseBloom > 0.5 ? texture2D(tBloom, uv).rgb * uBloom * uBloomTint * mix(0.68, 1.0, peripheral) : vec3(0.0);
+        vec3 bloomC = uUseBloom > 0.5 ? texture2D(tBloom, uv).rgb * uBloom * uBloomTint * mix(0.55, 1.0, peripheral) : vec3(0.0);
         // Crepuscular rays: radially smear the bright (sun) pixels toward the sun; trees and
         // islands are dark in the bloom buffer, so the rays are naturally cut by them.
         if (uGod > 0.004 && uUseBloom > 0.5) {
@@ -254,7 +254,7 @@ window.PostFX = class PostFX {
           for (int i = 0; i < 10; i++) { sp += stepv; rays += texture2D(tBloom, sp).rgb * wgt; wgt *= 0.9; }
           // Keep the rider (screen centre, lower half) free of the veil so the hero always reads.
           float clearZone = smoothstep(0.10, 0.34, length((uv - uCenter) * vec2(aspect, 1.0)));
-          bloomC += rays * uGod * falloff * clearZone * mix(0.28, 1.0, peripheral) * 0.06 * uBloomTint;
+          bloomC += rays * uGod * falloff * clearZone * mix(0.15, 1.0, peripheral) * 0.018 * uBloomTint;
         }
         vec3 c;
         if (uFxaa > 0.5 && localSpeed < 0.002 && localCA < 0.0005) {
@@ -391,25 +391,27 @@ window.PostFX = class PostFX {
   // ---------- Grade presets ----------
   // Values are targets; the live state eases toward them so world changes cross-fade.
   static presetFor(theme) {
-    const base = { exposure: 1.02, bloom: 0.42, threshold: 0.95, knee: 0.4, saturation: 1.12, contrast: 1.1, vignette: 0.30,
-      temp: [1.02, 1.0, 0.97], shadow: [0.0, 0.01, 0.03], highlight: [0.03, 0.02, 0.0], bloomTint: [1, 0.96, 0.9], vignetteColor: [0.02, 0.04, 0.08], lift: 0.0, god: 0.26 };
+    // Readability pass: bloom only catches true highlights (threshold >= 1), stays soft, and
+    // light shafts are a faint accent. Saturation/contrast/tints keep each world's look.
+    const base = { exposure: 1.0, bloom: 0.26, threshold: 1.05, knee: 0.35, saturation: 1.12, contrast: 1.1, vignette: 0.26,
+      temp: [1.02, 1.0, 0.97], shadow: [0.0, 0.01, 0.03], highlight: [0.02, 0.012, 0.0], bloomTint: [1, 0.96, 0.9], vignetteColor: [0.02, 0.04, 0.08], lift: 0.0, god: 0.08 };
     const P = {
       garden:       { ...base },
-      desert:       { ...base, god: 0.3, exposure: 0.93, temp: [1.06, 1.0, 0.9], saturation: 1.16, highlight: [0.05, 0.025, 0.0], bloom: 0.36, shadow: [0.03, 0.0, 0.01], vignetteColor: [0.08, 0.03, 0.0] },
-      forest:       { ...base, temp: [0.98, 1.03, 0.98], shadow: [0.0, 0.03, 0.02], saturation: 1.14, vignette: 0.36, vignetteColor: [0.0, 0.05, 0.03] },
-      castle_bridge:{ ...base, temp: [1.0, 1.0, 1.02], contrast: 1.12 },
-      waterfalls:   { ...base, temp: [0.97, 1.02, 1.05], saturation: 1.15, bloom: 0.5 },
-      crystal:      { ...base, god: 0.14, temp: [1.0, 0.97, 1.06], shadow: [0.03, 0.0, 0.07], highlight: [0.03, 0.0, 0.05], saturation: 1.2, bloom: 0.58, threshold: 0.9, contrast: 1.14, vignette: 0.4, vignetteColor: [0.05, 0.0, 0.1] },
-      snow:         { ...base, god: 0.16, temp: [0.97, 1.0, 1.06], saturation: 1.04, exposure: 0.9, bloom: 0.22, threshold: 1.15, lift: 0.0, shadow: [0.0, 0.02, 0.05] },
-      volcano:      { ...base, god: 0.5, temp: [1.08, 0.97, 0.9], shadow: [0.06, 0.0, 0.0], highlight: [0.06, 0.02, 0.0], saturation: 1.18, contrast: 1.18, bloom: 0.7, threshold: 0.85, vignette: 0.45, vignetteColor: [0.1, 0.0, 0.0] },
-      mushroom:     { ...base, temp: [1.02, 1.0, 1.02], saturation: 1.2, bloom: 0.55, shadow: [0.04, 0.0, 0.05] },
-      temple:       { ...base, god: 0.4, exposure: 0.96, temp: [1.06, 1.02, 0.92], saturation: 1.1, highlight: [0.05, 0.03, 0.0], vignette: 0.36, vignetteColor: [0.06, 0.03, 0.0] },
-      sunset:       { ...base, god: 0.7, temp: [1.09, 0.99, 0.9], saturation: 1.2, bloom: 0.62, threshold: 0.85, highlight: [0.06, 0.02, 0.01], shadow: [0.04, 0.0, 0.04], vignette: 0.38, vignetteColor: [0.1, 0.02, 0.04] },
-      workshop:     { ...base, temp: [1.03, 1.0, 0.96], saturation: 1.05, contrast: 1.14, bloom: 0.5 },
-      storm:        { ...base, god: 0.0, temp: [0.96, 1.0, 1.05], saturation: 0.98, contrast: 1.16, exposure: 0.98, vignette: 0.5, bloom: 0.5, shadow: [0.0, 0.02, 0.05], vignetteColor: [0.0, 0.02, 0.06] },
-      moon:         { ...base, god: 0.22, temp: [0.96, 0.98, 1.08], saturation: 1.12, bloom: 0.85, threshold: 0.75, contrast: 1.16, vignette: 0.46, shadow: [0.02, 0.02, 0.08], highlight: [0.02, 0.03, 0.06], vignetteColor: [0.02, 0.02, 0.08], exposure: 1.05 },
-      rapids:       { ...base, temp: [1.0, 1.0, 1.02], saturation: 1.22, bloom: 0.6 },
-      grand_run:    { ...base, god: 0.16, exposure: 0.84, saturation: 1.15, bloom: 0.34, threshold: 1.1, contrast: 1.14 }
+      desert:       { ...base, god: 0.08, exposure: 0.9, temp: [1.04, 1.0, 0.93], saturation: 1.14, highlight: [0.025, 0.012, 0.0], bloom: 0.22, shadow: [0.02, 0.0, 0.01], vignetteColor: [0.08, 0.03, 0.0] },
+      forest:       { ...base, temp: [0.98, 1.03, 0.98], shadow: [0.0, 0.03, 0.02], saturation: 1.14, vignette: 0.3, vignetteColor: [0.0, 0.05, 0.03] },
+      castle_bridge:{ ...base, temp: [1.0, 1.0, 1.02], contrast: 1.12, exposure: 0.97 },
+      waterfalls:   { ...base, temp: [0.97, 1.02, 1.05], saturation: 1.15, bloom: 0.3 },
+      crystal:      { ...base, god: 0.05, temp: [1.0, 0.97, 1.06], shadow: [0.03, 0.0, 0.07], highlight: [0.02, 0.0, 0.03], saturation: 1.18, bloom: 0.36, threshold: 1.0, contrast: 1.14, vignette: 0.34, vignetteColor: [0.05, 0.0, 0.1] },
+      snow:         { ...base, god: 0.05, temp: [0.97, 1.0, 1.05], saturation: 1.06, exposure: 0.86, bloom: 0.16, threshold: 1.2, lift: 0.0, contrast: 1.14, shadow: [0.0, 0.02, 0.05] },
+      volcano:      { ...base, god: 0.1, temp: [1.06, 0.98, 0.92], shadow: [0.05, 0.0, 0.0], highlight: [0.03, 0.01, 0.0], saturation: 1.15, contrast: 1.16, bloom: 0.36, threshold: 1.0, vignette: 0.38, vignetteColor: [0.1, 0.0, 0.0] },
+      mushroom:     { ...base, temp: [1.02, 1.0, 1.02], saturation: 1.18, bloom: 0.32, shadow: [0.04, 0.0, 0.05] },
+      temple:       { ...base, god: 0.08, exposure: 0.92, temp: [1.04, 1.01, 0.94], saturation: 1.1, highlight: [0.025, 0.015, 0.0], vignette: 0.3, vignetteColor: [0.06, 0.03, 0.0] },
+      sunset:       { ...base, god: 0.12, exposure: 0.93, temp: [1.06, 0.99, 0.93], saturation: 1.16, bloom: 0.34, threshold: 1.0, highlight: [0.03, 0.01, 0.005], shadow: [0.04, 0.0, 0.04], contrast: 1.14, vignette: 0.32, vignetteColor: [0.1, 0.02, 0.04] },
+      workshop:     { ...base, temp: [1.03, 1.0, 0.96], saturation: 1.06, contrast: 1.14, bloom: 0.3 },
+      storm:        { ...base, god: 0.0, temp: [0.96, 1.0, 1.05], saturation: 1.0, contrast: 1.16, exposure: 0.98, vignette: 0.4, bloom: 0.3, shadow: [0.0, 0.02, 0.05], vignetteColor: [0.0, 0.02, 0.06] },
+      moon:         { ...base, god: 0.05, temp: [0.96, 0.98, 1.08], saturation: 1.12, bloom: 0.42, threshold: 0.95, contrast: 1.16, vignette: 0.38, shadow: [0.02, 0.02, 0.08], highlight: [0.01, 0.02, 0.04], vignetteColor: [0.02, 0.02, 0.08], exposure: 1.02 },
+      rapids:       { ...base, temp: [1.0, 1.0, 1.02], saturation: 1.18, bloom: 0.32, exposure: 0.96 },
+      grand_run:    { ...base, god: 0.05, exposure: 0.8, saturation: 1.16, bloom: 0.2, threshold: 1.2, contrast: 1.18 }
     };
     return P[theme] || P.garden;
   }

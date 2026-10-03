@@ -219,11 +219,11 @@ window.SkyScooterGame = class SkyScooterGame {
       rimColor = new THREE.Color(0x9fd9ff); rimIntensity = 1.0;
     } else if (isWarm) {
       dirColor = new THREE.Color(0xffc48f);
-      dirIntensity = 2.7; hemiIntensity = 0.85; exposure = 1.04;
+      dirIntensity = 2.3; hemiIntensity = 0.92; exposure = 1.0;
       rimColor = new THREE.Color(0xffa26b); rimIntensity = 1.2;
     } else {
       dirColor = new THREE.Color(0xfff0d6);
-      dirIntensity = 2.6; hemiIntensity = 0.95; exposure = 1.0;
+      dirIntensity = 2.35; hemiIntensity = 1.0; exposure = 1.0;
       rimColor = new THREE.Color(0xa6d8ff); rimIntensity = 0.95;
     }
 
@@ -262,6 +262,8 @@ window.SkyScooterGame = class SkyScooterGame {
     new this.THREE.Color(roundData.skyColor).getHSL(hsl);
     if (hsl.l < 0.35) return 0.004;
     if (roundData.theme === 'storm') return 0.009;
+    // Warm worlds have bright, saturated fog: thinner so far hazards keep their contrast.
+    if (['desert', 'temple', 'sunset', 'volcano'].includes(roundData.theme)) return 0.0048;
     return 0.006;
   }
 

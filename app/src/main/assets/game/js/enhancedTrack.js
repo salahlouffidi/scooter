@@ -87,7 +87,7 @@ window.TrackGenerator = class EnhancedTrack extends window.TrackGenerator {
       this.roadArt.disposeExcept(art);
     }
     this.routeCurb.color.set(round.railColor).multiplyScalar(.85);
-    this.routeGlow.color.copy(this.routeAccent.color).multiplyScalar(['crystal_floor','lava_plates','moon_rocks','storm_skyway','rainbow_rapids'].includes(round.routeStyle)?2.6:1.9);
+    this.routeGlow.color.copy(this.routeAccent.color).multiplyScalar(['crystal_floor','lava_plates','moon_rocks','storm_skyway','rainbow_rapids'].includes(round.routeStyle)?2.0:1.6);
     this.cityRoad.color.set(round.roadColor);
     this.citySidewalk.color.set(round.theme==='snow'?0xb7c4ca:0x818b96);
     this.cityRail.color.set(round.theme==='neon'?0x3a5a79:0x334552);

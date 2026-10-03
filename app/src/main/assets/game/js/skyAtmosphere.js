@@ -267,7 +267,7 @@ window.SkyAtmosphere = class SkyAtmosphere {
         const wr=Math.round(warm.r*255),wg=Math.round(warm.g*255),wb=Math.round(warm.b*255);
         const glow=ctx.createLinearGradient(0,190,0,300);
         glow.addColorStop(0,'rgba(255,255,255,0)');
-        glow.addColorStop(1,`rgba(${wr},${wg},${wb},${warmTheme?.34:.26})`);
+        glow.addColorStop(1,`rgba(${wr},${wg},${wb},${warmTheme?.16:.12})`);
         ctx.fillStyle=glow;ctx.fillRect(0,190,1024,110);
       }
 
@@ -315,9 +315,9 @@ window.SkyAtmosphere = class SkyAtmosphere {
     if (ctx) {
       const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
       g.addColorStop(0, 'rgba(255,255,255,1)');
-      g.addColorStop(0.12, 'rgba(255,255,255,1)');
-      g.addColorStop(0.3, 'rgba(255,255,255,0.75)');
-      g.addColorStop(0.6, 'rgba(255,255,255,0.25)');
+      g.addColorStop(0.2, 'rgba(255,255,255,1)');
+      g.addColorStop(0.28, 'rgba(255,255,255,0.45)');
+      g.addColorStop(0.55, 'rgba(255,255,255,0.08)');
       g.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, 256, 256);
@@ -343,21 +343,23 @@ window.SkyAtmosphere = class SkyAtmosphere {
       this.sunWorld = null;
       return;
     }
+    // Readability: the disc stays below HDR white (no bloom/ray source), is smaller, and sits
+    // off to the side of the route so it never glares over the road's vanishing point.
     if (this.isNight) {
-      this.sunSprite.material.color.set(0xdfe9ff).multiplyScalar(1.7);
-      this.sunSprite.material.opacity = 0.9;
-      this.sunSprite.scale.set(110, 110, 1);
-      this.sunWorld = { lateral: -60, height: 100, distance: 420 };
+      this.sunSprite.material.color.set(0xdfe9ff).multiplyScalar(0.95);
+      this.sunSprite.material.opacity = 0.8;
+      this.sunSprite.scale.set(80, 80, 1);
+      this.sunWorld = { lateral: -170, height: 125, distance: 420 };
     } else if (theme === 'sunset' || theme === 'volcano' || theme === 'desert') {
-      this.sunSprite.material.color.set(0xffc98a).multiplyScalar(1.6);
-      this.sunSprite.material.opacity = 1.0;
-      this.sunSprite.scale.set(230, 230, 1);
-      this.sunWorld = { lateral: 0, height: 42, distance: 520 };
+      this.sunSprite.material.color.set(0xffd2a0).multiplyScalar(0.9);
+      this.sunSprite.material.opacity = 0.75;
+      this.sunSprite.scale.set(120, 120, 1);
+      this.sunWorld = { lateral: 190, height: 80, distance: 520 };
     } else {
-      this.sunSprite.material.color.set(0xffe9b8).multiplyScalar(1.45);
-      this.sunSprite.material.opacity = 1.0;
-      this.sunSprite.scale.set(185, 185, 1);
-      this.sunWorld = { lateral: 30, height: 105, distance: 450 };
+      this.sunSprite.material.color.set(0xfff0cc).multiplyScalar(0.92);
+      this.sunSprite.material.opacity = 0.75;
+      this.sunSprite.scale.set(100, 100, 1);
+      this.sunWorld = { lateral: 170, height: 135, distance: 450 };
     }
     this.sunSprite.visible = true;
   }
