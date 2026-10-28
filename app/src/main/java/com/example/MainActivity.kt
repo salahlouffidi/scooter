@@ -60,7 +60,8 @@ class MainActivity : ComponentActivity() {
             if (snapshot.length > 2_000_000) return false
             return try {
                 val parsed = org.json.JSONObject(snapshot)
-                if (parsed.optInt("version") != 1) false
+                val version = parsed.optInt("version")
+                if (version != 1 && version != 2) false
                 else saves.edit().putString("snapshot", snapshot).commit()
             } catch (_: Exception) { false }
         }
