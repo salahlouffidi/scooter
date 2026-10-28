@@ -1128,6 +1128,20 @@ window.SkyScooterGame = class SkyScooterGame {
       this.showInterstitialThen(() => this.showMainMenu());
     });
 
+    document.getElementById('btn-test-interstitial')?.addEventListener('click', () => {
+      const status = document.getElementById('ad-debug-status');
+      if (status) status.textContent = 'Ad status: requesting test interstitial…';
+      if (window.AndroidBridge && window.AndroidBridge.showInterstitial) {
+        try {
+          window.AndroidBridge.showInterstitial();
+        } catch (e) {
+          if (status) status.textContent = 'Ad status: bridge error';
+        }
+      } else if (status) {
+        status.textContent = 'Ad status: Android bridge unavailable';
+      }
+    });
+
     document.getElementById('btn-privacy-options')?.addEventListener('click', () => {
       this.requestPrivacyOptions();
     });
@@ -1215,6 +1229,21 @@ window.SkyScooterGame = class SkyScooterGame {
     set('set-postfx', s.postFx, 'checked');
     set('set-adaptive-res', s.adaptiveResolution, 'checked');
     set('set-show-fps', s.showFps, 'checked');
+
+    const adStatus = document.getElementById('ad-debug-status');
+    const testAdButton = document.getElementById('btn-test-interstitial');
+    if (adStatus) {
+      let value = 'WEB_ONLY';
+      try {
+        if (window.AndroidBridge?.interstitialAdStatus) {
+          value = window.AndroidBridge.interstitialAdStatus();
+        }
+      } catch (e) {
+        value = 'STATUS_ERROR';
+      }
+      adStatus.textContent = 'Ad status: ' + value;
+      if (testAdButton) testAdButton.disabled = value === 'NOT_INITIALIZED' || value === 'NO_MANAGER';
+    }
 
     const privacyButton = document.getElementById('btn-privacy-options');
     if (privacyButton) {
