@@ -32,6 +32,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.example.ads.AdManager
+import com.example.ads.AdsConsentManager
 
 class MainActivity : ComponentActivity() {
 
@@ -43,6 +45,7 @@ class MainActivity : ComponentActivity() {
 
     private var webView: WebView? = null
     private var appResumed = false
+    private var adManager: AdManager? = null
 
     class AndroidBridge(private val context: Context) {
         private val saves = context.getSharedPreferences("louffi_active_run", Context.MODE_PRIVATE)
@@ -149,6 +152,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Ads are initialized only after UMP has updated consent and says requests are allowed.
+        adManager = AdManager(applicationContext)
+        AdsConsentManager(this).gatherConsent { canRequestAds, _ ->
+            if (!isFinishing && !isDestroyed && canRequestAds) adManager?.initializeAfterConsent()
+        }
         enableEdgeToEdge()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
