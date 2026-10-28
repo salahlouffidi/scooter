@@ -92,6 +92,26 @@ class MainActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
+        fun openAdInspector() {
+            if (!BuildConfig.DEBUG) return
+            val host = activity ?: return
+            host.runOnUiThread {
+                com.google.android.gms.ads.MobileAds.openAdInspector(host) { error ->
+                    if (error == null) {
+                        android.util.Log.d("SkyScooterAds", "Ad Inspector closed successfully")
+                    } else {
+                        android.util.Log.w(
+                            "SkyScooterAds",
+                            "Ad Inspector closed with error: code=" + error.code +
+                                " domain=" + error.domain +
+                                " message=" + error.message
+                        )
+                    }
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun showRewardedRevive() {
             val host = activity ?: return
             host.runOnUiThread {
