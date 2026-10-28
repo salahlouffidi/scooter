@@ -46,8 +46,9 @@ class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
     private var appResumed = false
     private var adManager: AdManager? = null
+    private var consentManager: AdsConsentManager? = null
 
-    class AndroidBridge(private val context: Context) {
+    inner class AndroidBridge(private val context: Context) {
         private val saves = context.getSharedPreferences("louffi_active_run", Context.MODE_PRIVATE)
         private val activity: Activity? = context as? Activity
 
@@ -66,6 +67,65 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun clearRunSnapshot() { saves.edit().remove("snapshot").commit() }
+
+        @JavascriptInterface
+        fun isRewardedAdReady(): Boolean = adManager?.isRewardedLoaded() == true
+
+        @JavascriptInterface
+        fun showInterstitial() {
+            val host = activity ?: return
+            host.runOnUiThread {
+                val manager = adManager
+                if (manager == null) {
+                    webView?.evaluateJavascript("window.gameInstance?.onInterstitialClosed?.();", null)
+                    return@runOnUiThread
+                }
+                manager.showInterstitial(host) {
+                    webView?.evaluateJavascript("window.gameInstance?.onInterstitialClosed?.();", null)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun showRewardedRevive() {
+            val host = activity ?: return
+            host.runOnUiThread {
+                val manager = adManager
+                if (manager == null) {
+                    webView?.evaluateJavascript("window.gameInstance?.onRewardedAdUnavailable?.();", null)
+                    return@runOnUiThread
+                }
+                manager.showRewarded(
+                    activity = host,
+                    onRewardEarned = {
+                        webView?.evaluateJavascript("window.gameInstance?.onRewardedReviveEarned?.();", null)
+                    },
+                    onUnavailable = {
+                        webView?.evaluateJavascript("window.gameInstance?.onRewardedAdUnavailable?.();", null)
+                    }
+                )
+            }
+        }
+
+        @JavascriptInterface
+        fun privacyOptionsRequired(): Boolean =
+            consentManager?.privacyOptionsRequired() == true
+
+        @JavascriptInterface
+        fun showPrivacyOptions() {
+            val host = activity ?: return
+            host.runOnUiThread {
+                val manager = consentManager
+                if (manager == null) {
+                    webView?.evaluateJavascript("window.gameInstance?.onPrivacyOptionsClosed?.(false);", null)
+                    return@runOnUiThread
+                }
+                manager.showPrivacyOptions { error ->
+                    val ok = error == null
+                    webView?.evaluateJavascript("window.gameInstance?.onPrivacyOptionsClosed?.($ok);", null)
+                }
+            }
+        }
 
         // Fixed local asset only; no caller-controlled paths or network access.
         @JavascriptInterface
@@ -154,7 +214,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         // Ads are initialized only after UMP has updated consent and says requests are allowed.
         adManager = AdManager(applicationContext)
-        AdsConsentManager(this).gatherConsent { canRequestAds, _ ->
+        consentManager = AdsConsentManager(this)
+        consentManager?.gatherConsent { canRequestAds, _ ->
             if (!isFinishing && !isDestroyed && canRequestAds) adManager?.initializeAfterConsent()
         }
         enableEdgeToEdge()
