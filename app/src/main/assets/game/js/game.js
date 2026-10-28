@@ -22,6 +22,12 @@ window.SkyScooterGame = class SkyScooterGame {
     this.coinsCollectedThisRun = 0;
     this.totalSpawnedCoinsEstimate = 50;
 
+    // Ad flow state
+    this.revivesUsed = 0;
+    this.rewardedRequestPending = false;
+    this.waitingForGameOverInterstitial = false;
+    this.gameOverInterstitialShown = false;
+
     // Unique run ID for idempotent reward transactions
     this.currentRunTxId = '';
 
@@ -340,6 +346,10 @@ window.SkyScooterGame = class SkyScooterGame {
     // Reset scoring & health
     document.getElementById('hud-world').textContent = `${roundData.id === 99 ? '∞' : roundData.id} · ${roundData.name}`;
     this.hearts = 3;
+    this.revivesUsed = 0;
+    this.rewardedRequestPending = false;
+    this.waitingForGameOverInterstitial = false;
+    this.gameOverInterstitialShown = false;
     this.score = 0;
     this.distanceScore = 0;
     this.coinScore = 0;
@@ -604,6 +614,8 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   triggerGameOver() {
+    if (this.state === 'GAME_OVER') return;
+
     this.hasActiveRun=false;window.GameStorage.clearRun();this.cancelCountdown();
     if(this.mlWindowFeaturesSnapshot && this.mlWindowTimer>0){
       this.ml.recordWindowOutcome(this.mlWindowFeaturesSnapshot,{speed:this.riderCtrl.forwardSpeed},false);
@@ -613,6 +625,30 @@ window.SkyScooterGame = class SkyScooterGame {
     this.notifyAndroidState('GAME_OVER');
     this.hideAllScreens();
 
+    // Record coins to wallet. GameStorage uses the run transaction id so this stays idempotent.
+    window.GameStorage.addCoins(this.coinsCollectedThisRun, this.currentRunTxId);
+
+    // Show one interstitial at the first Game Over of a run. If no ad is ready,
+    // Android immediately calls onInterstitialClosed() and the Game Over UI appears.
+    if (!this.gameOverInterstitialShown &&
+        window.AndroidBridge &&
+        window.AndroidBridge.showInterstitial) {
+      this.gameOverInterstitialShown = true;
+      this.waitingForGameOverInterstitial = true;
+      try {
+        window.AndroidBridge.showInterstitial();
+        return;
+      } catch (e) {
+        this.waitingForGameOverInterstitial = false;
+      }
+    }
+
+    this.showGameOverScreen();
+  }
+
+  showGameOverScreen() {
+    if (this.state !== 'GAME_OVER') return;
+
     const gameOverEl = document.getElementById('game-over-modal');
     if (gameOverEl) gameOverEl.classList.remove('hidden');
 
@@ -621,8 +657,73 @@ window.SkyScooterGame = class SkyScooterGame {
     const best = progress.bestScores[this.currentRoundId] || 0;
     document.getElementById('go-best-score').innerText = `${Math.max(best, Math.floor(this.score))}`;
 
-    // Record coins to wallet
-    window.GameStorage.addCoins(this.coinsCollectedThisRun, this.currentRunTxId);
+    const reviveButton = document.getElementById('btn-go-revive');
+    if (reviveButton) {
+      const available = this.revivesUsed < 1;
+      reviveButton.classList.toggle('hidden', !available);
+      reviveButton.disabled = !available;
+      reviveButton.textContent = 'REVIVE · WATCH AD';
+    }
+  }
+
+  onInterstitialClosed() {
+    if (this.state !== 'GAME_OVER' || !this.waitingForGameOverInterstitial) return;
+    this.waitingForGameOverInterstitial = false;
+    this.showGameOverScreen();
+  }
+
+  requestRewardedRevive() {
+    if (this.state !== 'GAME_OVER' || this.revivesUsed >= 1 || this.rewardedRequestPending) return;
+
+    this.rewardedRequestPending = true;
+    const button = document.getElementById('btn-go-revive');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'LOADING AD…';
+    }
+
+    if (window.AndroidBridge && window.AndroidBridge.showRewardedRevive) {
+      try {
+        window.AndroidBridge.showRewardedRevive();
+        return;
+      } catch (e) {}
+    }
+
+    this.onRewardedAdUnavailable();
+  }
+
+  onRewardedReviveEarned() {
+    if (this.state !== 'GAME_OVER' || !this.rewardedRequestPending || this.revivesUsed >= 1) return;
+
+    this.rewardedRequestPending = false;
+    this.revivesUsed = 1;
+    this.hearts = 1;
+    this.hasActiveRun = true;
+
+    this.hideAllScreens();
+    const hud = document.getElementById('gameplay-hud');
+    if (hud) hud.classList.remove('hidden');
+
+    this.state = 'PLAYING';
+    this.lastTime = performance.now();
+    this.input.resetAll();
+    this.notifyAndroidState('PLAYING');
+    this.hud?.update(0);
+    this.saveActiveRun();
+    this.vibrate(80);
+  }
+
+  onRewardedAdUnavailable() {
+    this.rewardedRequestPending = false;
+    const button = document.getElementById('btn-go-revive');
+    if (button && this.revivesUsed < 1) {
+      button.disabled = false;
+      button.textContent = 'REVIVE · WATCH AD';
+    }
+  }
+
+  onRewardedAdNotCompleted() {
+    this.onRewardedAdUnavailable();
   }
 
   triggerRoundComplete() {
@@ -974,6 +1075,10 @@ window.SkyScooterGame = class SkyScooterGame {
     });
 
     // Game Over Buttons
+    document.getElementById('btn-go-revive')?.addEventListener('click', () => {
+      this.requestRewardedRevive();
+    });
+
     document.getElementById('btn-go-retry')?.addEventListener('click', () => {
       this.startRound(this.currentRoundId, this.isEndless);
     });
