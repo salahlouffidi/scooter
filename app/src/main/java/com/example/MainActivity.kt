@@ -217,15 +217,25 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Ads are initialized only after UMP has updated consent and says requests are allowed.
         adManager = AdManager(applicationContext)
         consentManager = AdsConsentManager(this)
-        consentManager?.gatherConsent { canRequestAds, _ ->
-            if (!isFinishing && !isDestroyed && canRequestAds) adManager?.initializeAfterConsent()
+
+        // Debug APKs use Google's official TEST ad units, so initialize immediately
+        // for deterministic developer testing (same practical preload behavior as ARMASNAKE).
+        // Release builds remain fully gated by UMP consent.
+        if (BuildConfig.DEBUG) {
+            adManager?.initializeAfterConsent()
         }
-        // Match Google's sample behavior: a valid consent state from a previous
-        // session can let us preload immediately while this launch refreshes UMP.
-        if (consentManager?.canRequestAds() == true) {
+
+        consentManager?.gatherConsent { canRequestAds, _ ->
+            if (!isFinishing && !isDestroyed && canRequestAds) {
+                adManager?.initializeAfterConsent()
+            }
+        }
+
+        // For release builds, a valid consent state from a previous session can
+        // preload immediately while this launch refreshes UMP.
+        if (!BuildConfig.DEBUG && consentManager?.canRequestAds() == true) {
             adManager?.initializeAfterConsent()
         }
         enableEdgeToEdge()
