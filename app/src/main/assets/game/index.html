@@ -245,6 +245,8 @@
       <div class="settings-actions">
         <button id="btn-reset-ml" class="btn btn-glass small">Reset Adaptive Learning</button>
         <button id="btn-reset-progress" class="btn btn-glass small danger">Reset Progress</button>
+        <button id="btn-privacy-options" class="btn btn-glass small hidden">Privacy choices</button>
+        <span id="privacy-message" role="status"></span>
         <button id="btn-close-settings" class="btn btn-hero">DONE</button>
       </div>
     </div>
@@ -271,6 +273,8 @@
       <div class="go-score"><span class="go-label">SCORE</span><strong id="go-run-score">0</strong></div>
       <div class="go-best">Best <span id="go-best-score">0</span></div>
       <div class="menu-buttons">
+        <button class="btn btn-glass rewarded-ad-button hidden" disabled>WATCH AD · +50 COINS</button>
+        <span class="ads-message" role="status"></span>
         <button id="btn-go-retry" class="btn btn-hero">RETRY</button>
         <button id="btn-go-menu" class="btn btn-glass">MAIN MENU</button>
       </div>
@@ -286,7 +290,9 @@
           <div id="rc-round-name" class="rc-name"></div>
           <div id="rc-stars" class="rc-stars"></div>
           <div class="menu-buttons">
-            <button id="btn-next-round" class="btn btn-hero">NEXT WORLD</button>
+            <button class="btn btn-glass rewarded-ad-button hidden" disabled>WATCH AD · +50 COINS</button>
+        <span class="ads-message" role="status"></span>
+        <button id="btn-next-round" class="btn btn-hero">NEXT WORLD</button>
             <div class="menu-row">
               <button id="btn-rc-replay" class="btn btn-glass">REPLAY</button>
               <button id="btn-rc-menu" class="btn btn-glass">MENU</button>
@@ -358,6 +364,7 @@
   <script src="js/graphics.js"></script>
   <script src="js/paperDelivery.js"></script>
   <script src="js/hud.js"></script>
+  <script src="js/ads.js"></script>
   <script src="js/game.js"></script>
   <script src="js/runSession.js"></script>
   <script>
@@ -368,3 +375,4 @@
   </script>
 </body>
 </html>
+

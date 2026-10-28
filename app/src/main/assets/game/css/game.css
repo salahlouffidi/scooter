@@ -5,10 +5,10 @@
    mobile GPUs, so blur is reserved for static menus. */
 
 :root {
-  --safe-t: env(safe-area-inset-top, 0px);
-  --safe-r: env(safe-area-inset-right, 0px);
-  --safe-b: env(safe-area-inset-bottom, 0px);
-  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-t: max(env(safe-area-inset-top, 0px), var(--native-safe-t, 0px));
+  --safe-r: max(env(safe-area-inset-right, 0px), var(--native-safe-r, 0px));
+  --safe-b: max(env(safe-area-inset-bottom, 0px), var(--native-safe-b, 0px));
+  --safe-l: max(env(safe-area-inset-left, 0px), var(--native-safe-l, 0px));
   --ui: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --display: 'Lilita One', 'Nunito', system-ui, sans-serif;
   --ink: #f4f7ff;
@@ -576,3 +576,9 @@ body.reduced-motion .hud-multiplier.up, body.reduced-motion .powerup-badge { ani
   #hud-score-val { font-size: 1.28rem; }
   .hud-multiplier { padding: 3px 5px; font-size: 0.8rem; }
 }
+
+
+/* Keep result actions stable while native full-screen UI owns input. */
+body.ad-busy .ui-layer { pointer-events: none; }
+.rewarded-ad-button:disabled { opacity: .55; }
+.ads-message, #privacy-message { font-size: .8rem; min-height: 1em; }

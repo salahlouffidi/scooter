@@ -1,13 +1,17 @@
-import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
-
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
-  alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
-  alias(libs.plugins.secrets)
-  alias(libs.plugins.google.services)
 }
+
+// AdMob identifiers are public configuration, never account credentials.
+fun adSetting(name: String) = providers.gradleProperty(name)
+  .orElse(providers.environmentVariable(name)).orElse("").get()
+val scooterAppId = adSetting("SCOOTER_ADMOB_APP_ID")
+val scooterRewardedId = adSetting("SCOOTER_ADMOB_REWARDED_ID")
+val scooterInterstitialId = adSetting("SCOOTER_ADMOB_INTERSTITIAL_ID")
+val testAppId = scooterAppId.takeIf { Regex("ca-app-pub-[0-9]{16}~[0-9]{10}").matches(it) }
+  ?: "ca-app-pub-3940256099942544~3347511713"
 
 android {
   namespace = "com.example"
@@ -31,22 +35,38 @@ android {
       keyAlias = "upload"
       keyPassword = System.getenv("KEY_PASSWORD")
     }
-    create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
-    }
+
   }
 
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = false
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
+      manifestPlaceholders["admobAppId"] = scooterAppId
+      buildConfigField("String", "ADMOB_REWARDED_ID", "\"$scooterRewardedId\"")
+      buildConfigField("String", "ADMOB_INTERSTITIAL_ID", "\"$scooterInterstitialId\"")
+      buildConfigField("boolean", "ADS_TEST_MODE", "false")
     }
-    debug { signingConfig = signingConfigs.getByName("debugConfig") }
+    debug {
+      // Use Android's generated debug signing key; no key is committed to this repository.
+      manifestPlaceholders["admobAppId"] = testAppId
+      buildConfigField("String", "ADMOB_REWARDED_ID", "\"ca-app-pub-3940256099942544/5224354917\"")
+      buildConfigField("String", "ADMOB_INTERSTITIAL_ID", "\"ca-app-pub-3940256099942544/1033173712\"")
+      buildConfigField("boolean", "ADS_TEST_MODE", "true")
+    }
+    create("adQa") {
+      initWith(getByName("release"))
+      applicationIdSuffix = ".adqa"
+      signingConfig = signingConfigs.getByName("debug")
+      matchingFallbacks += listOf("release")
+      manifestPlaceholders["admobAppId"] = testAppId
+      buildConfigField("String", "ADMOB_REWARDED_ID", "\"ca-app-pub-3940256099942544/5224354917\"")
+      buildConfigField("String", "ADMOB_INTERSTITIAL_ID", "\"ca-app-pub-3940256099942544/1033173712\"")
+      buildConfigField("boolean", "ADS_TEST_MODE", "true")
+    }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -63,65 +83,26 @@ android {
   }
 }
 
-// Configure the Secrets Gradle Plugin to use .env and .env.example files
-// to match the convention used in Web projects.
-secrets {
-  propertiesFileName = ".env"
-  defaultPropertiesFileName = ".env.example"
-  ignoreList.add("FIREBASE_APPCHECK_DEBUG_TOKEN")
-}
-
-googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
-
-// Some unused dependencies are commented out below instead of being removed.
-// This makes it easy to add them back in the future if needed.
 dependencies {
+  constraints {
+    implementation("androidx.fragment:fragment:1.9.1") {
+      because("Do not package the obsolete transitive Fragment 1.1.0 SDK")
+    }
+  }
   implementation(platform(libs.androidx.compose.bom))
-  implementation(platform(libs.firebase.bom))
   // Google Mobile Ads + User Messaging Platform (UMP) consent SDK.
-  implementation("com.google.android.gms:play-services-ads:25.4.0")
-  implementation("com.google.android.ump:user-messaging-platform:3.2.0")
-  // implementation(libs.accompanist.permissions)
+  implementation("com.google.android.gms:play-services-ads:25.5.0")
+  implementation("com.google.android.ump:user-messaging-platform:4.0.0")
   implementation(libs.androidx.activity.compose)
-  // implementation(libs.androidx.camera.camera2)
-  // implementation(libs.androidx.camera.core)
-  // implementation(libs.androidx.camera.lifecycle)
-  // implementation(libs.androidx.camera.view)
-  implementation(libs.androidx.compose.material.icons.core)
-  implementation(libs.androidx.compose.material.icons.extended)
   implementation(libs.androidx.compose.material3)
   implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.ui.graphics)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.core.ktx)
-  // implementation(libs.androidx.datastore.preferences)
-  implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
-  implementation(libs.androidx.lifecycle.viewmodel.compose)
-  // implementation(libs.androidx.navigation.compose)
-  implementation(libs.androidx.room.ktx)
-  implementation(libs.androidx.room.runtime)
-  // implementation(libs.coil.compose)
-  implementation(libs.converter.moshi)
-  implementation(libs.firebase.ai)
-  // Uncomment to use Firestore:
-  // implementation(libs.firebase.firestore)
 
-  // Uncomment ALL FOUR of the following dependencies together to use Firebase Auth and Google
-  // Sign-In via Credential Manager:
-  // implementation(libs.firebase.auth)
-  // implementation(libs.androidx.credentials)
-  // implementation(libs.androidx.credentials.play.services)
-  // implementation(libs.googleid)
-  implementation(libs.firebase.appcheck.recaptcha)
-  implementation(libs.firebase.appcheck.debug)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
-  implementation(libs.logging.interceptor)
-  implementation(libs.moshi.kotlin)
-  implementation(libs.okhttp)
-  // implementation(libs.play.services.location)
-  implementation(libs.retrofit)
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
@@ -138,6 +119,19 @@ dependencies {
   androidTestImplementation(libs.androidx.runner)
   debugImplementation(libs.androidx.compose.ui.test.manifest)
   debugImplementation(libs.androidx.compose.ui.tooling)
-  "ksp"(libs.androidx.room.compiler)
-  "ksp"(libs.moshi.kotlin.codegen)
 }
+
+
+// A store release must never silently fall back to another app's or demo identifiers.
+val validateReleaseAds by tasks.registering {
+  doLast {
+    val ids = listOf(scooterAppId to "~", scooterRewardedId to "/", scooterInterstitialId to "/")
+    ids.forEach { (id, separator) ->
+      require(Regex("ca-app-pub-[0-9]{16}" + Regex.escape(separator) + "[0-9]{10}").matches(id) &&
+        !id.startsWith("ca-app-pub-3940256099942544")) {
+        "Configure Scooter's SCOOTER_ADMOB_APP_ID, SCOOTER_ADMOB_REWARDED_ID and SCOOTER_ADMOB_INTERSTITIAL_ID. Use adQa for test ads."
+      }
+    }
+  }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(validateReleaseAds) }
