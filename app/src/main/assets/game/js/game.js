@@ -20,6 +20,9 @@ window.SkyScooterGame = class SkyScooterGame {
     this.consecutiveCoins = 0;
     this.coinMultiplier = 1;
     this.coinsCollectedThisRun = 0;
+    this.creditedCoinsThisRun = 0;
+    this.revivesUsed = 0;
+    this.rewardedRequestPending = false;
     this.totalSpawnedCoinsEstimate = 50;
 
     // Unique run ID for idempotent reward transactions
@@ -349,6 +352,9 @@ window.SkyScooterGame = class SkyScooterGame {
     this.consecutiveCoins = 0;
     this.coinMultiplier = 1;
     this.coinsCollectedThisRun = 0;
+    this.creditedCoinsThisRun = 0;
+    this.revivesUsed = 0;
+    this.rewardedRequestPending = false;
     this.totalSpawnedCoinsEstimate = Math.floor(roundData.length / 14);
     this.hud?.reset();
 
@@ -625,7 +631,13 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   requestRewardedRevive() {
-    if (this.state !== 'GAME_OVER') return;
+    if (this.state !== 'GAME_OVER' || this.revivesUsed >= 1 || this.rewardedRequestPending) return;
+    this.rewardedRequestPending = true;
+    const button = document.getElementById('btn-go-revive');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'LOADING AD…';
+    }
     if (window.AndroidBridge && window.AndroidBridge.showRewardedRevive) {
       try {
         window.AndroidBridge.showRewardedRevive();
@@ -636,17 +648,20 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   onRewardedAdUnavailable() {
+    this.rewardedRequestPending = false;
     const button = document.getElementById('btn-go-revive');
     if (!button) return;
-    const original = button.textContent;
-    button.textContent = 'AD NOT READY · TRY AGAIN';
+    button.disabled = false;
+    button.textContent = 'AD NOT COMPLETED · TRY AGAIN';
     setTimeout(() => {
-      if (this.state === 'GAME_OVER') button.textContent = original;
+      if (this.state === 'GAME_OVER' && this.revivesUsed < 1) button.textContent = 'REVIVE · WATCH AD';
     }, 1800);
   }
 
   onRewardedReviveEarned() {
-    if (this.state !== 'GAME_OVER') return;
+    this.rewardedRequestPending = false;
+    if (this.state !== 'GAME_OVER' || this.revivesUsed >= 1) return;
+    this.revivesUsed = 1;
     const roundData = this.trackGen?.roundData ||
       (this.isEndless ? { ...window.ROUNDS_DATA[15], id: 99, name: 'Endless Sky Tour', length: 999999, baseSpeed: 12 }
         : window.ROUNDS_DATA.find(r => r.id === this.currentRoundId) || window.ROUNDS_DATA[0]);
@@ -671,6 +686,16 @@ window.SkyScooterGame = class SkyScooterGame {
     this.saveActiveRun();
     this.hud?.notice('REVIVED · 1 HEART');
     this.resume();
+  }
+
+  creditPendingCoins() {
+    const total = Math.max(0, Math.floor(this.coinsCollectedThisRun || 0));
+    const credited = Math.max(0, Math.floor(this.creditedCoinsThisRun || 0));
+    const delta = Math.max(0, total - credited);
+    if (delta <= 0) return;
+    const tx = `${this.currentRunTxId}_wallet_${credited}_${total}`;
+    window.GameStorage.addCoins(delta, tx);
+    this.creditedCoinsThisRun = total;
   }
 
   requestPrivacyOptions() {
@@ -701,8 +726,16 @@ window.SkyScooterGame = class SkyScooterGame {
     const best = progress.bestScores[this.currentRoundId] || 0;
     document.getElementById('go-best-score').innerText = `${Math.max(best, Math.floor(this.score))}`;
 
-    // Record coins to wallet
-    window.GameStorage.addCoins(this.coinsCollectedThisRun, this.currentRunTxId);
+    // Credit only coins not already banked at an earlier game-over in this run.
+    this.creditPendingCoins();
+
+    const reviveButton = document.getElementById('btn-go-revive');
+    if (reviveButton) {
+      const available = this.revivesUsed < 1;
+      reviveButton.classList.toggle('hidden', !available);
+      reviveButton.disabled = !available;
+      if (available) reviveButton.textContent = 'REVIVE · WATCH AD';
+    }
   }
 
   triggerRoundComplete() {
@@ -729,7 +762,7 @@ window.SkyScooterGame = class SkyScooterGame {
 
     const isAdaptive = window.GameStorage.getSettings().adaptiveDifficulty;
     window.GameStorage.recordRoundResult(this.currentRoundId, Math.floor(this.score), starsEarned, isAdaptive, this.currentRunTxId);
-    window.GameStorage.addCoins(this.coinsCollectedThisRun, this.currentRunTxId);
+    this.creditPendingCoins();
 
     const completeModal = document.getElementById('round-complete-modal');
     if (completeModal) completeModal.classList.remove('hidden');
