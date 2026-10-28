@@ -33,6 +33,8 @@ class AdsConsentManager(private val activity: Activity) {
         )
     }
 
+    fun canRequestAds(): Boolean = consentInformation.canRequestAds()
+
     fun privacyOptionsRequired(): Boolean =
         consentInformation.privacyOptionsRequirementStatus ==
             ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED
