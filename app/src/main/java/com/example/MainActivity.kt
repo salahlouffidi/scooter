@@ -73,6 +73,10 @@ class MainActivity : ComponentActivity() {
         fun isRewardedAdReady(): Boolean = adManager?.isRewardedLoaded() == true
 
         @JavascriptInterface
+        fun interstitialAdStatus(): String =
+            adManager?.interstitialStatus() ?: "NO_MANAGER"
+
+        @JavascriptInterface
         fun showInterstitial() {
             val host = activity ?: return
             host.runOnUiThread {
@@ -218,6 +222,11 @@ class MainActivity : ComponentActivity() {
         consentManager = AdsConsentManager(this)
         consentManager?.gatherConsent { canRequestAds, _ ->
             if (!isFinishing && !isDestroyed && canRequestAds) adManager?.initializeAfterConsent()
+        }
+        // Match Google's sample behavior: a valid consent state from a previous
+        // session can let us preload immediately while this launch refreshes UMP.
+        if (consentManager?.canRequestAds() == true) {
+            adManager?.initializeAfterConsent()
         }
         enableEdgeToEdge()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
