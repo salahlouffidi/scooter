@@ -53,7 +53,8 @@ class AdManager(private val context: Context) {
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdDismissedFullScreenContent() {
                 loadRewarded()
-                earnedReward?.let(onRewardEarned)
+                val reward = earnedReward
+                if (reward != null) onRewardEarned(reward) else onUnavailable()
             }
             override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
                 loadRewarded()
