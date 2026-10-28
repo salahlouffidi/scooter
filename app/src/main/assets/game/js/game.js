@@ -708,6 +708,26 @@ window.SkyScooterGame = class SkyScooterGame {
     if (!ok) this.hud?.notice?.('PRIVACY OPTIONS UNAVAILABLE');
   }
 
+  showGameOverScreen() {
+    if (this.state !== 'GAME_OVER') return;
+
+    const gameOverEl = document.getElementById('game-over-modal');
+    if (gameOverEl) gameOverEl.classList.remove('hidden');
+
+    document.getElementById('go-run-score').innerText = `${Math.floor(this.score)}`;
+    const progress = window.GameStorage.getProgress();
+    const best = progress.bestScores[this.currentRoundId] || 0;
+    document.getElementById('go-best-score').innerText = `${Math.max(best, Math.floor(this.score))}`;
+
+    const reviveButton = document.getElementById('btn-go-revive');
+    if (reviveButton) {
+      const available = this.revivesUsed < 1;
+      reviveButton.classList.toggle('hidden', !available);
+      reviveButton.disabled = !available;
+      if (available) reviveButton.textContent = 'REVIVE · WATCH AD';
+    }
+  }
+
   triggerGameOver() {
     this.hasActiveRun=false;window.GameStorage.clearRun();this.cancelCountdown();
     if(this.mlWindowFeaturesSnapshot && this.mlWindowTimer>0){
@@ -718,24 +738,13 @@ window.SkyScooterGame = class SkyScooterGame {
     this.notifyAndroidState('GAME_OVER');
     this.hideAllScreens();
 
-    const gameOverEl = document.getElementById('game-over-modal');
-    if (gameOverEl) gameOverEl.classList.remove('hidden');
-
-    document.getElementById('go-run-score').innerText = `${Math.floor(this.score)}`;
-    const progress = window.GameStorage.getProgress();
-    const best = progress.bestScores[this.currentRoundId] || 0;
-    document.getElementById('go-best-score').innerText = `${Math.max(best, Math.floor(this.score))}`;
-
-    // Credit only coins not already banked at an earlier game-over in this run.
+    // Bank run rewards before opening a full-screen ad.
     this.creditPendingCoins();
 
-    const reviveButton = document.getElementById('btn-go-revive');
-    if (reviveButton) {
-      const available = this.revivesUsed < 1;
-      reviveButton.classList.toggle('hidden', !available);
-      reviveButton.disabled = !available;
-      if (available) reviveButton.textContent = 'REVIVE · WATCH AD';
-    }
+    // Show an interstitial immediately at the natural GAME OVER break.
+    // If the ad is not loaded or ads are unavailable, the native bridge calls
+    // onInterstitialClosed() right away so the player is never stuck on a blank screen.
+    this.showInterstitialThen(() => this.showGameOverScreen());
   }
 
   triggerRoundComplete() {
