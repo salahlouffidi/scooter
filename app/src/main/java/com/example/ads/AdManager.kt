@@ -38,6 +38,10 @@ class AdManager(private val context: Context) {
     fun isInterstitialLoaded(): Boolean = interstitialAd != null
 
     fun showRewarded(activity: Activity, onRewardEarned: (RewardItem) -> Unit, onUnavailable: () -> Unit = {}) {
+        if (!initialized) {
+            onUnavailable()
+            return
+        }
         val ad = rewardedAd
         if (ad == null) {
             loadRewarded()
@@ -45,17 +49,26 @@ class AdManager(private val context: Context) {
             return
         }
         rewardedAd = null
+        var earnedReward: RewardItem? = null
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
-            override fun onAdDismissedFullScreenContent() = loadRewarded()
+            override fun onAdDismissedFullScreenContent() {
+                loadRewarded()
+                earnedReward?.let(onRewardEarned)
+            }
             override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
                 loadRewarded()
                 onUnavailable()
             }
         }
-        ad.show(activity, OnUserEarnedRewardListener { reward -> onRewardEarned(reward) })
+        // Record the reward immediately, but only resume the game after the full-screen ad closes.
+        ad.show(activity, OnUserEarnedRewardListener { reward -> earnedReward = reward })
     }
 
     fun showInterstitial(activity: Activity, onFinished: () -> Unit = {}) {
+        if (!initialized) {
+            onFinished()
+            return
+        }
         val ad = interstitialAd
         if (ad == null) {
             loadInterstitial()
@@ -77,6 +90,7 @@ class AdManager(private val context: Context) {
     }
 
     private fun loadRewarded() {
+        if (!initialized) return
         try {
             RewardedAd.load(context, rewardedAdUnitId(), AdRequest.Builder().build(),
                 object : RewardedAdLoadCallback() {
@@ -87,6 +101,7 @@ class AdManager(private val context: Context) {
     }
 
     private fun loadInterstitial() {
+        if (!initialized) return
         try {
             InterstitialAd.load(context, interstitialAdUnitId(), AdRequest.Builder().build(),
                 object : InterstitialAdLoadCallback() {
