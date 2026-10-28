@@ -57,7 +57,12 @@ class AdManager(private val context: Context) {
         else -> "IDLE"
     }
 
-    fun showRewarded(activity: Activity, onRewardEarned: (RewardItem) -> Unit, onUnavailable: () -> Unit = {}) {
+    fun showRewarded(
+        activity: Activity,
+        onRewardEarned: (RewardItem) -> Unit,
+        onUnavailable: () -> Unit = {},
+        onNotEarned: () -> Unit = {}
+    ) {
         if (!initialized) {
             onUnavailable()
             return
@@ -74,7 +79,7 @@ class AdManager(private val context: Context) {
             override fun onAdDismissedFullScreenContent() {
                 loadRewarded()
                 val reward = earnedReward
-                if (reward != null) onRewardEarned(reward) else onUnavailable()
+                if (reward != null) onRewardEarned(reward) else onNotEarned()
             }
             override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
                 loadRewarded()
