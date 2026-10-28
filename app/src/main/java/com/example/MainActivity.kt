@@ -32,6 +32,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.example.ads.AdManager
+import com.google.android.gms.ads.MobileAds
 
 class MainActivity : ComponentActivity() {
 
@@ -43,10 +45,70 @@ class MainActivity : ComponentActivity() {
 
     private var webView: WebView? = null
     private var appResumed = false
+    private lateinit var adManager: AdManager
 
-    class AndroidBridge(private val context: Context) {
+    inner class AndroidBridge(private val context: Context) {
         private val saves = context.getSharedPreferences("louffi_active_run", Context.MODE_PRIVATE)
         private val activity: Activity? = context as? Activity
+
+        @JavascriptInterface
+        fun isRewardedAdReady(): Boolean =
+            ::adManager.isInitialized && adManager.isRewardedLoaded()
+
+        @JavascriptInterface
+        fun showInterstitial() {
+            val host = activity ?: return
+            host.runOnUiThread {
+                if (!::adManager.isInitialized) {
+                    webView?.evaluateJavascript(
+                        "window.gameInstance?.onInterstitialClosed?.();",
+                        null
+                    )
+                    return@runOnUiThread
+                }
+                adManager.showInterstitial(host) {
+                    webView?.evaluateJavascript(
+                        "window.gameInstance?.onInterstitialClosed?.();",
+                        null
+                    )
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun showRewardedRevive() {
+            val host = activity ?: return
+            host.runOnUiThread {
+                if (!::adManager.isInitialized) {
+                    webView?.evaluateJavascript(
+                        "window.gameInstance?.onRewardedAdUnavailable?.();",
+                        null
+                    )
+                    return@runOnUiThread
+                }
+                adManager.showRewarded(
+                    activity = host,
+                    onRewardEarned = {
+                        webView?.evaluateJavascript(
+                            "window.gameInstance?.onRewardedReviveEarned?.();",
+                            null
+                        )
+                    },
+                    onUnavailable = {
+                        webView?.evaluateJavascript(
+                            "window.gameInstance?.onRewardedAdUnavailable?.();",
+                            null
+                        )
+                    },
+                    onNotEarned = {
+                        webView?.evaluateJavascript(
+                            "window.gameInstance?.onRewardedAdNotCompleted?.();",
+                            null
+                        )
+                    }
+                )
+            }
+        }
 
         @JavascriptInterface
         fun readRunSnapshot(): String = saves.getString("snapshot", "") ?: ""
@@ -150,6 +212,15 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        adManager = AdManager(applicationContext)
+        try {
+            MobileAds.initialize(this) {
+                runOnUiThread { adManager.preload() }
+            }
+        } catch (_: Throwable) {
+            // Keep the game usable on devices/environments where Google Mobile Ads cannot start.
+        }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 webView?.evaluateJavascript("""
