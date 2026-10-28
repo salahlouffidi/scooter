@@ -1,7 +1,7 @@
 name: Scooter ads and Android checks
 on:
   push:
-    branches: [main, 'codex/scooter-ads-privacy']
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -17,6 +17,18 @@ jobs:
           node-version: '22'
       # Core tests use the bundled Three.js and require no npm install.
       - run: npm test
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # The pre-existing lockfile is out of sync with package.json.
+      - run: npm install --ignore-scripts --package-lock=false
+      - run: npx playwright install --with-deps chromium
+      - run: node tools/ads-browser.cjs
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -27,6 +39,8 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
