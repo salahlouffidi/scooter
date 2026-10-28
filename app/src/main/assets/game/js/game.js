@@ -20,9 +20,6 @@ window.SkyScooterGame = class SkyScooterGame {
     this.consecutiveCoins = 0;
     this.coinMultiplier = 1;
     this.coinsCollectedThisRun = 0;
-    this.creditedCoinsThisRun = 0;
-    this.revivesUsed = 0;
-    this.rewardedRequestPending = false;
     this.totalSpawnedCoinsEstimate = 50;
 
     // Unique run ID for idempotent reward transactions
@@ -352,9 +349,6 @@ window.SkyScooterGame = class SkyScooterGame {
     this.consecutiveCoins = 0;
     this.coinMultiplier = 1;
     this.coinsCollectedThisRun = 0;
-    this.creditedCoinsThisRun = 0;
-    this.revivesUsed = 0;
-    this.rewardedRequestPending = false;
     this.totalSpawnedCoinsEstimate = Math.floor(roundData.length / 14);
     this.hud?.reset();
 
@@ -609,136 +603,6 @@ window.SkyScooterGame = class SkyScooterGame {
     }
   }
 
-  showInterstitialThen(action) {
-    if (typeof action !== 'function') return;
-    if (this.pendingInterstitialAction) return;
-    if (window.AndroidBridge && window.AndroidBridge.showInterstitial) {
-      this.pendingInterstitialAction = action;
-      try {
-        window.AndroidBridge.showInterstitial();
-        return;
-      } catch (e) {
-        this.pendingInterstitialAction = null;
-      }
-    }
-    action();
-  }
-
-  onInterstitialClosed() {
-    const action = this.pendingInterstitialAction;
-    this.pendingInterstitialAction = null;
-    if (action) setTimeout(() => action(), 0);
-  }
-
-  requestRewardedRevive() {
-    if (this.state !== 'GAME_OVER' || this.revivesUsed >= 1 || this.rewardedRequestPending) return;
-    this.rewardedRequestPending = true;
-    const button = document.getElementById('btn-go-revive');
-    if (button) {
-      button.disabled = true;
-      button.textContent = 'LOADING AD…';
-    }
-    if (window.AndroidBridge && window.AndroidBridge.showRewardedRevive) {
-      try {
-        window.AndroidBridge.showRewardedRevive();
-        return;
-      } catch (e) {}
-    }
-    this.onRewardedAdUnavailable();
-  }
-
-  onRewardedAdUnavailable() {
-    this.rewardedRequestPending = false;
-    const button = document.getElementById('btn-go-revive');
-    if (!button) return;
-    button.disabled = false;
-    button.textContent = 'AD UNAVAILABLE · TRY AGAIN';
-    setTimeout(() => {
-      if (this.state === 'GAME_OVER' && this.revivesUsed < 1) button.textContent = 'REVIVE · WATCH AD';
-    }, 1800);
-  }
-
-  onRewardedAdNotCompleted() {
-    this.rewardedRequestPending = false;
-    const button = document.getElementById('btn-go-revive');
-    if (!button) return;
-    button.disabled = false;
-    button.textContent = 'AD NOT COMPLETED · TRY AGAIN';
-    setTimeout(() => {
-      if (this.state === 'GAME_OVER' && this.revivesUsed < 1) button.textContent = 'REVIVE · WATCH AD';
-    }, 1800);
-  }
-
-  onRewardedReviveEarned() {
-    this.rewardedRequestPending = false;
-    if (this.state !== 'GAME_OVER' || this.revivesUsed >= 1) return;
-    this.revivesUsed = 1;
-    const roundData = this.trackGen?.roundData ||
-      (this.isEndless ? { ...window.ROUNDS_DATA[15], id: 99, name: 'Endless Sky Tour', length: 999999, baseSpeed: 12 }
-        : window.ROUNDS_DATA.find(r => r.id === this.currentRoundId) || window.ROUNDS_DATA[0]);
-    const checkpoint = Math.max(
-      0,
-      Math.min(Number(this.riderCtrl?.lastCheckpointS) || 0, Math.max(0, (roundData.length || 999999) - 80))
-    );
-
-    this.hearts = 1;
-    this.consecutiveCoins = 0;
-    this.coinMultiplier = 1;
-    this.riderCtrl.reset(checkpoint, roundData.baseSpeed * window.ScooterTuning.cruiseMultiplier);
-    this.riderCtrl.lastCheckpointS = checkpoint;
-    this.gameCam.reset(this.riderCtrl.mesh, this.trackGen);
-    this.hasActiveRun = true;
-    this.autosaveTimer = 0;
-    this.hideAllScreens();
-    this.hud?.reset();
-    this.updateHUD();
-    this.state = 'PAUSED';
-    this.notifyAndroidState('PAUSED');
-    this.saveActiveRun();
-    this.hud?.notice('REVIVED · 1 HEART');
-    this.resume();
-  }
-
-  creditPendingCoins() {
-    const total = Math.max(0, Math.floor(this.coinsCollectedThisRun || 0));
-    const credited = Math.max(0, Math.floor(this.creditedCoinsThisRun || 0));
-    const delta = Math.max(0, total - credited);
-    if (delta <= 0) return;
-    const tx = `${this.currentRunTxId}_wallet_${credited}_${total}`;
-    window.GameStorage.addCoins(delta, tx);
-    this.creditedCoinsThisRun = total;
-  }
-
-  requestPrivacyOptions() {
-    if (window.AndroidBridge && window.AndroidBridge.showPrivacyOptions) {
-      try { window.AndroidBridge.showPrivacyOptions(); } catch (e) {}
-    }
-  }
-
-  onPrivacyOptionsClosed(ok) {
-    if (!ok) this.hud?.notice?.('PRIVACY OPTIONS UNAVAILABLE');
-  }
-
-  showGameOverScreen() {
-    if (this.state !== 'GAME_OVER') return;
-
-    const gameOverEl = document.getElementById('game-over-modal');
-    if (gameOverEl) gameOverEl.classList.remove('hidden');
-
-    document.getElementById('go-run-score').innerText = `${Math.floor(this.score)}`;
-    const progress = window.GameStorage.getProgress();
-    const best = progress.bestScores[this.currentRoundId] || 0;
-    document.getElementById('go-best-score').innerText = `${Math.max(best, Math.floor(this.score))}`;
-
-    const reviveButton = document.getElementById('btn-go-revive');
-    if (reviveButton) {
-      const available = this.revivesUsed < 1;
-      reviveButton.classList.toggle('hidden', !available);
-      reviveButton.disabled = !available;
-      if (available) reviveButton.textContent = 'REVIVE · WATCH AD';
-    }
-  }
-
   triggerGameOver() {
     this.hasActiveRun=false;window.GameStorage.clearRun();this.cancelCountdown();
     if(this.mlWindowFeaturesSnapshot && this.mlWindowTimer>0){
@@ -749,13 +613,16 @@ window.SkyScooterGame = class SkyScooterGame {
     this.notifyAndroidState('GAME_OVER');
     this.hideAllScreens();
 
-    // Bank run rewards before opening a full-screen ad.
-    this.creditPendingCoins();
+    const gameOverEl = document.getElementById('game-over-modal');
+    if (gameOverEl) gameOverEl.classList.remove('hidden');
 
-    // Show an interstitial immediately at the natural GAME OVER break.
-    // If the ad is not loaded or ads are unavailable, the native bridge calls
-    // onInterstitialClosed() right away so the player is never stuck on a blank screen.
-    this.showInterstitialThen(() => this.showGameOverScreen());
+    document.getElementById('go-run-score').innerText = `${Math.floor(this.score)}`;
+    const progress = window.GameStorage.getProgress();
+    const best = progress.bestScores[this.currentRoundId] || 0;
+    document.getElementById('go-best-score').innerText = `${Math.max(best, Math.floor(this.score))}`;
+
+    // Record coins to wallet
+    window.GameStorage.addCoins(this.coinsCollectedThisRun, this.currentRunTxId);
   }
 
   triggerRoundComplete() {
@@ -782,7 +649,7 @@ window.SkyScooterGame = class SkyScooterGame {
 
     const isAdaptive = window.GameStorage.getSettings().adaptiveDifficulty;
     window.GameStorage.recordRoundResult(this.currentRoundId, Math.floor(this.score), starsEarned, isAdaptive, this.currentRunTxId);
-    this.creditPendingCoins();
+    window.GameStorage.addCoins(this.coinsCollectedThisRun, this.currentRunTxId);
 
     const completeModal = document.getElementById('round-complete-modal');
     if (completeModal) completeModal.classList.remove('hidden');
@@ -1107,10 +974,6 @@ window.SkyScooterGame = class SkyScooterGame {
     });
 
     // Game Over Buttons
-    document.getElementById('btn-go-revive')?.addEventListener('click', () => {
-      this.requestRewardedRevive();
-    });
-
     document.getElementById('btn-go-retry')?.addEventListener('click', () => {
       this.startRound(this.currentRoundId, this.isEndless);
     });
@@ -1119,42 +982,21 @@ window.SkyScooterGame = class SkyScooterGame {
       this.showMainMenu();
     });
 
-    // Round Complete Buttons. Interstitials appear only at this natural break,
-    // after the player chooses where to go next.
+    // Round Complete Buttons
     document.getElementById('btn-next-round')?.addEventListener('click', () => {
-      this.showInterstitialThen(() => {
-        if (this.currentRoundId >= 16) {
-          this.startRound(16, true); // Endless
-        } else {
-          this.startRound(this.currentRoundId + 1);
-        }
-      });
-    });
-
-    document.getElementById('btn-rc-replay')?.addEventListener('click', () => {
-      this.showInterstitialThen(() => this.startRound(this.currentRoundId));
-    });
-
-    document.getElementById('btn-rc-menu')?.addEventListener('click', () => {
-      this.showInterstitialThen(() => this.showMainMenu());
-    });
-
-    document.getElementById('btn-test-interstitial')?.addEventListener('click', () => {
-      const status = document.getElementById('ad-debug-status');
-      if (status) status.textContent = 'Ad status: requesting test interstitial…';
-      if (window.AndroidBridge && window.AndroidBridge.showInterstitial) {
-        try {
-          window.AndroidBridge.showInterstitial();
-        } catch (e) {
-          if (status) status.textContent = 'Ad status: bridge error';
-        }
-      } else if (status) {
-        status.textContent = 'Ad status: Android bridge unavailable';
+      if (this.currentRoundId >= 16) {
+        this.startRound(16, true); // Endless
+      } else {
+        this.startRound(this.currentRoundId + 1);
       }
     });
 
-    document.getElementById('btn-privacy-options')?.addEventListener('click', () => {
-      this.requestPrivacyOptions();
+    document.getElementById('btn-rc-replay')?.addEventListener('click', () => {
+      this.startRound(this.currentRoundId);
+    });
+
+    document.getElementById('btn-rc-menu')?.addEventListener('click', () => {
+      this.showMainMenu();
     });
 
     this.wireSettingsForm();
@@ -1240,32 +1082,6 @@ window.SkyScooterGame = class SkyScooterGame {
     set('set-postfx', s.postFx, 'checked');
     set('set-adaptive-res', s.adaptiveResolution, 'checked');
     set('set-show-fps', s.showFps, 'checked');
-
-    const adStatus = document.getElementById('ad-debug-status');
-    const testAdButton = document.getElementById('btn-test-interstitial');
-    if (adStatus) {
-      let value = 'WEB_ONLY';
-      try {
-        if (window.AndroidBridge?.interstitialAdStatus) {
-          value = window.AndroidBridge.interstitialAdStatus();
-        }
-      } catch (e) {
-        value = 'STATUS_ERROR';
-      }
-      adStatus.textContent = 'Ad status: ' + value;
-      if (testAdButton) testAdButton.disabled = value === 'NOT_INITIALIZED' || value === 'NO_MANAGER';
-    }
-
-    const privacyButton = document.getElementById('btn-privacy-options');
-    if (privacyButton) {
-      let required = false;
-      try {
-        required = !!(window.AndroidBridge &&
-          window.AndroidBridge.privacyOptionsRequired &&
-          window.AndroidBridge.privacyOptionsRequired());
-      } catch (e) {}
-      privacyButton.classList.toggle('hidden', !required);
-    }
   }
 
   wireSettingsForm() {

@@ -24,7 +24,7 @@ Object.assign(window.SkyScooterGame.prototype, {
     if (!this.hasActiveRun || !['PLAYING','PAUSED','COUNTDOWN'].includes(this.state)) return false;
     const stats = {};
     for (const key of ['hearts','score','distanceScore','coinScore','gemScore','jumpScore','obstaclePenaltyScore',
-      'consecutiveCoins','coinMultiplier','coinsCollectedThisRun','creditedCoinsThisRun','revivesUsed','totalSpawnedCoinsEstimate']) stats[key] = this[key];
+      'consecutiveCoins','coinMultiplier','coinsCollectedThisRun','totalSpawnedCoinsEstimate']) stats[key] = this[key];
     return window.GameStorage.saveRun({version:2,layoutVersion:2,savedAt:Date.now(),roundId:this.currentRoundId,
       isEndless:this.isEndless,runId:this.currentRunTxId,stats,rider:this.riderCtrl.captureState(),
       track:this.trackGen.captureState(),ml:{timer:this.mlWindowTimer,hadDamage:this.mlWindowHadDamage,

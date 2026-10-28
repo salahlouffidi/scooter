@@ -32,8 +32,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import com.example.ads.AdManager
-import com.example.ads.AdsConsentManager
 
 class MainActivity : ComponentActivity() {
 
@@ -45,10 +43,8 @@ class MainActivity : ComponentActivity() {
 
     private var webView: WebView? = null
     private var appResumed = false
-    private var adManager: AdManager? = null
-    private var consentManager: AdsConsentManager? = null
 
-    inner class AndroidBridge(private val context: Context) {
+    class AndroidBridge(private val context: Context) {
         private val saves = context.getSharedPreferences("louffi_active_run", Context.MODE_PRIVATE)
         private val activity: Activity? = context as? Activity
 
@@ -60,100 +56,13 @@ class MainActivity : ComponentActivity() {
             if (snapshot.length > 2_000_000) return false
             return try {
                 val parsed = org.json.JSONObject(snapshot)
-                val version = parsed.optInt("version")
-                if (version != 1 && version != 2) false
+                if (parsed.optInt("version") != 1) false
                 else saves.edit().putString("snapshot", snapshot).commit()
             } catch (_: Exception) { false }
         }
 
         @JavascriptInterface
         fun clearRunSnapshot() { saves.edit().remove("snapshot").commit() }
-
-        @JavascriptInterface
-        fun isRewardedAdReady(): Boolean = adManager?.isRewardedLoaded() == true
-
-        @JavascriptInterface
-        fun interstitialAdStatus(): String =
-            adManager?.interstitialStatus() ?: "NO_MANAGER"
-
-        @JavascriptInterface
-        fun showInterstitial() {
-            val host = activity ?: return
-            host.runOnUiThread {
-                val manager = adManager
-                if (manager == null) {
-                    webView?.evaluateJavascript("window.gameInstance?.onInterstitialClosed?.();", null)
-                    return@runOnUiThread
-                }
-                manager.showInterstitial(host) {
-                    webView?.evaluateJavascript("window.gameInstance?.onInterstitialClosed?.();", null)
-                }
-            }
-        }
-
-        @JavascriptInterface
-        fun openAdInspector() {
-            if (!BuildConfig.DEBUG) return
-            val host = activity ?: return
-            host.runOnUiThread {
-                com.google.android.gms.ads.MobileAds.openAdInspector(host) { error ->
-                    if (error == null) {
-                        android.util.Log.d("SkyScooterAds", "Ad Inspector closed successfully")
-                    } else {
-                        android.util.Log.w(
-                            "SkyScooterAds",
-                            "Ad Inspector closed with error: code=" + error.code +
-                                " domain=" + error.domain +
-                                " message=" + error.message
-                        )
-                    }
-                }
-            }
-        }
-
-        @JavascriptInterface
-        fun showRewardedRevive() {
-            val host = activity ?: return
-            host.runOnUiThread {
-                val manager = adManager
-                if (manager == null) {
-                    webView?.evaluateJavascript("window.gameInstance?.onRewardedAdUnavailable?.();", null)
-                    return@runOnUiThread
-                }
-                manager.showRewarded(
-                    activity = host,
-                    onRewardEarned = {
-                        webView?.evaluateJavascript("window.gameInstance?.onRewardedReviveEarned?.();", null)
-                    },
-                    onUnavailable = {
-                        webView?.evaluateJavascript("window.gameInstance?.onRewardedAdUnavailable?.();", null)
-                    },
-                    onNotEarned = {
-                        webView?.evaluateJavascript("window.gameInstance?.onRewardedAdNotCompleted?.();", null)
-                    }
-                )
-            }
-        }
-
-        @JavascriptInterface
-        fun privacyOptionsRequired(): Boolean =
-            consentManager?.privacyOptionsRequired() == true
-
-        @JavascriptInterface
-        fun showPrivacyOptions() {
-            val host = activity ?: return
-            host.runOnUiThread {
-                val manager = consentManager
-                if (manager == null) {
-                    webView?.evaluateJavascript("window.gameInstance?.onPrivacyOptionsClosed?.(false);", null)
-                    return@runOnUiThread
-                }
-                manager.showPrivacyOptions { error ->
-                    val ok = error == null
-                    webView?.evaluateJavascript("window.gameInstance?.onPrivacyOptionsClosed?.($ok);", null)
-                }
-            }
-        }
 
         // Fixed local asset only; no caller-controlled paths or network access.
         @JavascriptInterface
@@ -240,27 +149,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        adManager = AdManager(applicationContext)
-        consentManager = AdsConsentManager(this)
-
-        // Debug APKs use Google's official TEST ad units, so initialize immediately
-        // for deterministic developer testing (same practical preload behavior as ARMASNAKE).
-        // Release builds remain fully gated by UMP consent.
-        if (BuildConfig.DEBUG) {
-            adManager?.initializeAfterConsent()
-        }
-
-        consentManager?.gatherConsent { canRequestAds, _ ->
-            if (!isFinishing && !isDestroyed && canRequestAds) {
-                adManager?.initializeAfterConsent()
-            }
-        }
-
-        // For release builds, a valid consent state from a previous session can
-        // preload immediately while this launch refreshes UMP.
-        if (!BuildConfig.DEBUG && consentManager?.canRequestAds() == true) {
-            adManager?.initializeAfterConsent()
-        }
         enableEdgeToEdge()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
