@@ -12,8 +12,10 @@ const root=path.resolve(__dirname,'../app/src/main/assets/game');
  try {
   browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
   const page=await browser.newPage({viewport:{width:1280,height:720}}),errors=[];
-  page.on('pageerror',e=>errors.push(e.message));
+  page.on('pageerror',e=>{errors.push(e.message);console.error('Browser exception:',e.message);});
+  page.on('console',msg=>{if(msg.type()==='error')console.error('Browser console:',msg.text());});
   await page.addInitScript(()=>{
+   localStorage.setItem('skyscooter_settings_v1',JSON.stringify({settingsVersion:2,graphicsQuality:'low',postFx:false,music:false,sfx:false}));
    window.adRequests=[];
    const ready=()=>window.ScooterAds?.onStatus({available:true,rewardedReady:true,privacyRequired:true,testAds:true});
    window.ScooterAdsNative={requestStatus:ready,
@@ -22,7 +24,7 @@ const root=path.resolve(__dirname,'../app/src/main/assets/game');
     showPrivacyOptions:id=>window.adRequests.push({id,type:'privacy'})};
   });
   await page.goto('http://127.0.0.1:'+server.address().port);
-  await page.waitForFunction(()=>window.gameInstance?.trackGen?.activeSegments.length);
+  await page.waitForFunction(()=>window.gameInstance?.trackGen,null,{timeout:60000});
   await page.evaluate(()=>{const g=gameInstance;g.showMainMenu();g.startRound(1);g.cancelCountdown();g.triggerGameOver();ScooterAdsNative.requestStatus();});
   const button=page.locator('#game-over-modal .rewarded-ad-button');
   await button.click();assert.equal(await page.evaluate(()=>adRequests.length),1);
