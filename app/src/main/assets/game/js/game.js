@@ -652,6 +652,17 @@ window.SkyScooterGame = class SkyScooterGame {
     const button = document.getElementById('btn-go-revive');
     if (!button) return;
     button.disabled = false;
+    button.textContent = 'AD UNAVAILABLE · TRY AGAIN';
+    setTimeout(() => {
+      if (this.state === 'GAME_OVER' && this.revivesUsed < 1) button.textContent = 'REVIVE · WATCH AD';
+    }, 1800);
+  }
+
+  onRewardedAdNotCompleted() {
+    this.rewardedRequestPending = false;
+    const button = document.getElementById('btn-go-revive');
+    if (!button) return;
+    button.disabled = false;
     button.textContent = 'AD NOT COMPLETED · TRY AGAIN';
     setTimeout(() => {
       if (this.state === 'GAME_OVER' && this.revivesUsed < 1) button.textContent = 'REVIVE · WATCH AD';
