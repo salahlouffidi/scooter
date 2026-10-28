@@ -107,6 +107,9 @@ class MainActivity : ComponentActivity() {
                     },
                     onUnavailable = {
                         webView?.evaluateJavascript("window.gameInstance?.onRewardedAdUnavailable?.();", null)
+                    },
+                    onNotEarned = {
+                        webView?.evaluateJavascript("window.gameInstance?.onRewardedAdNotCompleted?.();", null)
                     }
                 )
             }
