@@ -165,8 +165,10 @@ class AdManager(private val context: Context) {
         if (!initialized || rewardedLoading || rewardedAd != null) return
         mainHandler.removeCallbacks(rewardedRetry)
         rewardedLoading = true
+        val unitId = rewardedAdUnitId()
+        Log.d(TAG, "Loading rewarded unit=" + unitId + " testMode=" + USE_TEST_ADS)
         try {
-            RewardedAd.load(context, rewardedAdUnitId(), AdRequest.Builder().build(),
+            RewardedAd.load(context, unitId, AdRequest.Builder().build(),
                 object : RewardedAdLoadCallback() {
                     override fun onAdLoaded(ad: RewardedAd) {
                         rewardedLoading = false
@@ -177,7 +179,15 @@ class AdManager(private val context: Context) {
                     override fun onAdFailedToLoad(error: LoadAdError) {
                         rewardedLoading = false
                         rewardedAd = null
-                        Log.w(TAG, "Rewarded failed to load FULL=" + error)
+                        Log.w(
+                            TAG,
+                            "Rewarded failed to load FULL=" + error +
+                                " | code=" + error.code +
+                                " | domain=" + error.domain +
+                                " | message=" + error.message +
+                                " | cause=" + error.cause +
+                                " | responseInfo=" + error.responseInfo
+                        )
                         scheduleRewardedRetry()
                     }
                 })
@@ -194,9 +204,11 @@ class AdManager(private val context: Context) {
         mainHandler.removeCallbacks(interstitialRetry)
         interstitialLoading = true
         lastInterstitialError = null
+        val unitId = interstitialAdUnitId()
+        Log.d(TAG, "Loading interstitial unit=" + unitId + " testMode=" + USE_TEST_ADS)
 
         try {
-            InterstitialAd.load(context, interstitialAdUnitId(), AdRequest.Builder().build(),
+            InterstitialAd.load(context, unitId, AdRequest.Builder().build(),
                 object : InterstitialAdLoadCallback() {
                     override fun onAdLoaded(ad: InterstitialAd) {
                         interstitialLoading = false
@@ -220,7 +232,15 @@ class AdManager(private val context: Context) {
                         interstitialLoading = false
                         interstitialAd = null
                         lastInterstitialError = error.code.toString() + ": " + error.message
-                        Log.w(TAG, "Interstitial failed to load FULL=" + error)
+                        Log.w(
+                            TAG,
+                            "Interstitial failed to load FULL=" + error +
+                                " | code=" + error.code +
+                                " | domain=" + error.domain +
+                                " | message=" + error.message +
+                                " | cause=" + error.cause +
+                                " | responseInfo=" + error.responseInfo
+                        )
                         scheduleInterstitialRetry(
                             if (pendingInterstitialCallback != null) PENDING_RETRY_DELAY_MS
                             else RETRY_DELAY_MS
