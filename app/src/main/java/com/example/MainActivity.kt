@@ -19,6 +19,9 @@ import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
+import com.example.ads.GameAdsBridge
+import org.json.JSONObject
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
@@ -46,8 +49,68 @@ class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
     private var appResumed = false
     private var adManager: AdManager? = null
+    private lateinit var consentManager: AdsConsentManager
+    private var consentBusy = true
+    private var gameState = "BOOT"
+    private var safeInsets = "{}"
 
-    class AndroidBridge(private val context: Context) {
+    private fun sendAdsStatus() {
+        if (isDestroyed) return
+        val status = JSONObject().put("available", true)
+            .put("rewardedReady", adManager?.rewardedReady() == true)
+            .put("privacyRequired", consentManager.privacyOptionsRequired())
+            .put("testAds", BuildConfig.ADS_TEST_MODE)
+        webView?.evaluateJavascript("window.ScooterAds?.onStatus($status);", null)
+    }
+
+    private fun adResult(id: String, status: String, earned: Boolean = false) {
+        if (isDestroyed) return
+        val result = JSONObject().put("id", id).put("status", status).put("earned", earned)
+        webView?.evaluateJavascript("window.ScooterAds?.onResult($result);", null)
+        sendAdsStatus()
+    }
+
+    private fun handleAdRequest(kind: String, id: String) {
+        if (isDestroyed || isFinishing) return
+        if (kind == "status") {
+            adManager?.preload()
+            sendAdsStatus()
+            return
+        }
+        if (!id.matches(Regex("[a-zA-Z0-9_-]{1,80}"))) return
+        if (!appResumed || consentBusy || adManager?.showing == true) {
+            adResult(id, "unavailable")
+            return
+        }
+        if (kind == "privacy") {
+            if (gameState in listOf("PLAYING", "COUNTDOWN") || !consentManager.privacyOptionsRequired()) {
+                adResult(id, "unavailable")
+                return
+            }
+            consentBusy = true
+            adManager?.refreshConsent()
+            consentManager.showPrivacyOptions { error ->
+                consentBusy = false
+                adManager?.refreshConsent()
+                adResult(id, if (error == null) "closed" else "failed")
+            }
+            return
+        }
+        if (gameState !in listOf("GAME_OVER", "ROUND_COMPLETE")) {
+            adResult(id, "unavailable")
+            return
+        }
+        when (kind) {
+            "rewarded" -> adManager?.showRewarded(this) { status, earned -> adResult(id, status, earned) }
+            "interstitial" -> adManager?.showInterstitial(this) { status -> adResult(id, status) }
+        }
+    }
+
+    private fun sendSafeInsets() {
+        webView?.evaluateJavascript("window.ScooterAds?.setInsets($safeInsets);", null)
+    }
+
+    class AndroidBridge(private val context: Context, private val onState: (String) -> Unit) {
         private val saves = context.getSharedPreferences("louffi_active_run", Context.MODE_PRIVATE)
         private val activity: Activity? = context as? Activity
 
@@ -132,6 +195,7 @@ class MainActivity : ComponentActivity() {
             val playing = state == "PLAYING" || state == "COUNTDOWN"
             val host = activity ?: return
             host.runOnUiThread {
+                onState(state)
                 try {
                     if (playing) host.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     else host.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -153,13 +217,20 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Ads are initialized only after UMP has updated consent and says requests are allowed.
-        adManager = AdManager(applicationContext)
-        AdsConsentManager(this).gatherConsent { canRequestAds, _ ->
-            if (!isFinishing && !isDestroyed && canRequestAds) adManager?.initializeAfterConsent()
+        consentManager = AdsConsentManager(this)
+        adManager = AdManager(applicationContext,
+            { !consentBusy && consentManager.canRequestAds() }, { sendAdsStatus() })
+        consentManager.gatherConsent { _, error ->
+            if (error != null) android.util.Log.w("ScooterAds", "Consent update: $error")
+            if (!isFinishing && !isDestroyed) {
+                consentBusy = false
+                adManager?.refreshConsent()
+            }
         }
         enableEdgeToEdge()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (consentBusy || adManager?.showing == true) return
                 webView?.evaluateJavascript("""
                     (() => {
                       const g = window.gameInstance;
@@ -175,18 +246,15 @@ class MainActivity : ComponentActivity() {
             }
         })
 
-        // Immersive sticky full screen for the arcade game; draw into the notch area too so the
-        // game fills the whole display (the HUD respects env(safe-area-inset-*)).
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            window.attributes = window.attributes.apply {
-                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            }
-        }
+        // enableEdgeToEdge handles platform window configuration. Native insets are
+        // forwarded to CSS because older WebViews do not reliably expose safe-area env().
         hideSystemBars()
 
         setContent {
-            val bridge = remember { AndroidBridge(this) }
+            val bridge = remember { AndroidBridge(this) { gameState = it } }
+            val adsBridge = remember { GameAdsBridge { kind, id ->
+                runOnUiThread { handleAdRequest(kind, id) }
+            } }
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
@@ -207,6 +275,18 @@ class MainActivity : ComponentActivity() {
                         addOnLayoutChangeListener { v, l, t, r, b, _, _, _, _ ->
                             ViewCompat.setSystemGestureExclusionRects(v, listOf(Rect(0, 0, r - l, b - t)))
                         }
+                        ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
+                            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+                            val gestures = insets.getInsets(WindowInsetsCompat.Type.mandatorySystemGestures())
+                            val density = resources.displayMetrics.density
+                            safeInsets = JSONObject()
+                                .put("top", bars.top / density)
+                                .put("right", maxOf(bars.right, gestures.right) / density)
+                                .put("bottom", maxOf(bars.bottom, gestures.bottom) / density)
+                                .put("left", maxOf(bars.left, gestures.left) / density).toString()
+                            sendSafeInsets()
+                            insets
+                        }
                         if (BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true)
                         settings.apply {
                             @SuppressLint("SetJavaScriptEnabled")
@@ -214,6 +294,12 @@ class MainActivity : ComponentActivity() {
                             domStorageEnabled = true
                             databaseEnabled = true
                             allowFileAccess = true
+                            allowContentAccess = false
+                            @Suppress("DEPRECATION")
+                            allowFileAccessFromFileURLs = false
+                            @Suppress("DEPRECATION")
+                            allowUniversalAccessFromFileURLs = false
+                            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                             mediaPlaybackRequiresUserGesture = false
                             cacheMode = WebSettings.LOAD_DEFAULT
                             useWideViewPort = true
@@ -226,6 +312,15 @@ class MainActivity : ComponentActivity() {
                         }
                         webChromeClient = WebChromeClient()
                         webViewClient = object : WebViewClient() {
+                            // Never expose the native bridge to a navigated web page.
+                            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?) = true
+                            @Deprecated("Legacy WebView navigation callback")
+                            override fun shouldOverrideUrlLoading(view: WebView?, url: String?) = true
+                            override fun onPageFinished(view: WebView?, url: String?) {
+                                sendSafeInsets()
+                                sendAdsStatus()
+                                ViewCompat.requestApplyInsets(view ?: return)
+                            }
                             override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
                                 view?.let { wv ->
                                     (wv.parent as? ViewGroup)?.removeView(wv)
@@ -239,6 +334,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         addJavascriptInterface(bridge, "AndroidBridge")
+                        addJavascriptInterface(adsBridge, "ScooterAdsNative")
                         loadUrl("file:///android_asset/game/index.html")
                         this@MainActivity.webView = this
                     }
@@ -263,6 +359,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         appResumed = true
+        adManager?.preload()
         webView?.onResume()
         webView?.evaluateJavascript("window.gameInstance?.onAppForeground();", null)
     }
@@ -285,6 +382,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        adManager?.destroy()
+        adManager = null
         webView?.destroy()
         webView = null
         super.onDestroy()
@@ -295,3 +394,4 @@ class MainActivity : ComponentActivity() {
 fun Greeting(name: String, modifier: Modifier = Modifier) {
     androidx.compose.material3.Text(text = "Hello $name!", modifier = modifier)
 }
+

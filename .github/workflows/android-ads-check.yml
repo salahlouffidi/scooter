@@ -1,0 +1,47 @@
+name: Scooter ads and Android checks
+on:
+  push:
+    branches: [main, 'codex/scooter-ads-privacy']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gameplay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Core tests use the bundled Three.js and require no npm install.
+      - run: npm test
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+      - run: sdkmanager 'platforms;android-36.1' 'build-tools;36.0.0'
+      - run: gradle :app:assembleDebug :app:assembleAdQa :app:lintAdQa :app:testDebugUnitTest --stacktrace
+      - name: Resolved SDK dependencies
+        run: gradle :app:dependencies --configuration adQaRuntimeClasspath > sdk-dependencies.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scooter-android-qa
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/adQa/*.apk
+            app/build/outputs/mapping/adQa/
+            app/build/reports/
+            sdk-dependencies.txt
+          retention-days: 14

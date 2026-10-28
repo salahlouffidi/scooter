@@ -317,6 +317,7 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   startRound(roundId, isEndless = false, bypassProgression = false) {
+    document.querySelectorAll('.ads-message').forEach(el => { el.textContent = ''; });
     const progress = window.GameStorage.getProgress();
     const highest = progress.highestUnlockedRound || 1;
     if (!bypassProgression && !isEndless && roundId > highest) {
@@ -604,6 +605,7 @@ window.SkyScooterGame = class SkyScooterGame {
   }
 
   triggerGameOver() {
+    if (this.state === 'GAME_OVER') return;
     this.hasActiveRun=false;window.GameStorage.clearRun();this.cancelCountdown();
     if(this.mlWindowFeaturesSnapshot && this.mlWindowTimer>0){
       this.ml.recordWindowOutcome(this.mlWindowFeaturesSnapshot,{speed:this.riderCtrl.forwardSpeed},false);
@@ -621,11 +623,13 @@ window.SkyScooterGame = class SkyScooterGame {
     const best = progress.bestScores[this.currentRoundId] || 0;
     document.getElementById('go-best-score').innerText = `${Math.max(best, Math.floor(this.score))}`;
 
+    window.ScooterAds?.refresh();
     // Record coins to wallet
     window.GameStorage.addCoins(this.coinsCollectedThisRun, this.currentRunTxId);
   }
 
   triggerRoundComplete() {
+    if (this.state === 'ROUND_COMPLETE') return;
     this.hasActiveRun=false;window.GameStorage.clearRun();this.cancelCountdown();
     this.state = 'ROUND_COMPLETE';
     this.notifyAndroidState('ROUND_COMPLETE');
@@ -668,6 +672,7 @@ window.SkyScooterGame = class SkyScooterGame {
       starsContainer.innerHTML = this.starMarkup(starsEarned);
     }
 
+    window.ScooterAds?.refresh();
     // Next round button text
     const btnNext = document.getElementById('btn-next-round');
     if (btnNext) {
@@ -973,30 +978,33 @@ window.SkyScooterGame = class SkyScooterGame {
       this.showMainMenu();
     });
 
+    const afterAd = action => window.ScooterAds ? window.ScooterAds.transition(action) : action();
     // Game Over Buttons
     document.getElementById('btn-go-retry')?.addEventListener('click', () => {
-      this.startRound(this.currentRoundId, this.isEndless);
+      afterAd(() => this.startRound(this.currentRoundId, this.isEndless));
     });
 
     document.getElementById('btn-go-menu')?.addEventListener('click', () => {
-      this.showMainMenu();
+      afterAd(() => this.showMainMenu());
     });
 
     // Round Complete Buttons
     document.getElementById('btn-next-round')?.addEventListener('click', () => {
-      if (this.currentRoundId >= 16) {
-        this.startRound(16, true); // Endless
-      } else {
-        this.startRound(this.currentRoundId + 1);
-      }
+      afterAd(() => {
+        if (this.currentRoundId >= 16) {
+          this.startRound(16, true); // Endless
+        } else {
+          this.startRound(this.currentRoundId + 1);
+        }
+      });
     });
 
     document.getElementById('btn-rc-replay')?.addEventListener('click', () => {
-      this.startRound(this.currentRoundId);
+      afterAd(() => this.startRound(this.currentRoundId));
     });
 
     document.getElementById('btn-rc-menu')?.addEventListener('click', () => {
-      this.showMainMenu();
+      afterAd(() => this.showMainMenu());
     });
 
     this.wireSettingsForm();
@@ -1142,3 +1150,4 @@ window.SkyScooterGame = class SkyScooterGame {
     });
   }
 };
+

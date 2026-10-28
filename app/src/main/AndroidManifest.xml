@@ -16,14 +16,13 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
-        <!-- Google demo App ID only. Replace with SKY SCOOTER’s own AdMob App ID before production. -->
-        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713" />
+        <!-- Selected per build type: demo IDs in debug/adQa, Scooter IDs in release. -->
+        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="${admobAppId}" />
         <meta-data android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION" android:value="true" />
         <activity
             android:name=".MainActivity"
-            android:screenOrientation="sensorLandscape"
             android:hardwareAccelerated="true"
-            android:resizeableActivity="false"
+            android:resizeableActivity="true"
             android:exported="true"
             android:label="@string/app_name"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode|fontScale"
@@ -37,3 +36,4 @@
     </application>
 
 </manifest>
+
