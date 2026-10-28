@@ -78,7 +78,7 @@ class AdManager(private val context: Context) {
 
     private fun loadRewarded() {
         try {
-            RewardedAd.load(context, TEST_REWARDED_AD_UNIT_ID, AdRequest.Builder().build(),
+            RewardedAd.load(context, rewardedAdUnitId(), AdRequest.Builder().build(),
                 object : RewardedAdLoadCallback() {
                     override fun onAdLoaded(ad: RewardedAd) { rewardedAd = ad }
                     override fun onAdFailedToLoad(error: LoadAdError) { rewardedAd = null }
@@ -88,7 +88,7 @@ class AdManager(private val context: Context) {
 
     private fun loadInterstitial() {
         try {
-            InterstitialAd.load(context, TEST_INTERSTITIAL_AD_UNIT_ID, AdRequest.Builder().build(),
+            InterstitialAd.load(context, interstitialAdUnitId(), AdRequest.Builder().build(),
                 object : InterstitialAdLoadCallback() {
                     override fun onAdLoaded(ad: InterstitialAd) { interstitialAd = ad }
                     override fun onAdFailedToLoad(error: LoadAdError) { interstitialAd = null }
@@ -96,9 +96,22 @@ class AdManager(private val context: Context) {
         } catch (_: Exception) { interstitialAd = null }
     }
 
+    private fun rewardedAdUnitId(): String =
+        if (USE_TEST_ADS) TEST_REWARDED_AD_UNIT_ID else PROD_REWARDED_AD_UNIT_ID
+
+    private fun interstitialAdUnitId(): String =
+        if (USE_TEST_ADS) TEST_INTERSTITIAL_AD_UNIT_ID else PROD_INTERSTITIAL_AD_UNIT_ID
+
     companion object {
-        // Official Google demo IDs: safe for development; not production monetization.
+        // Keep test mode enabled until a real-device build has verified both ad flows.
+        private const val USE_TEST_ADS = true
+
+        // Official Google demo IDs: safe for development.
         private const val TEST_REWARDED_AD_UNIT_ID = "ca-app-pub-3940256099942544/5224354917"
         private const val TEST_INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712"
+
+        // SKY SCOOTER production units created in AdMob. Do not enable until testing is complete.
+        private const val PROD_REWARDED_AD_UNIT_ID = "ca-app-pub-3521560929268417/3871153080"
+        private const val PROD_INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3521560929268417/9134380216"
     }
 }
