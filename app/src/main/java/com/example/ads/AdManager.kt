@@ -26,6 +26,7 @@ import com.google.android.gms.ads.rewarded.RewardItem
 class AdManager(private val context: Context) {
     private var rewardedAd: RewardedAd? = null
     private var interstitialAd: InterstitialAd? = null
+    private var initializationStarted = false
     private var initialized = false
     private var rewardedLoading = false
     private var interstitialLoading = false
@@ -34,13 +35,17 @@ class AdManager(private val context: Context) {
     private var pendingInterstitialActivity: Activity? = null
     private var pendingInterstitialCallback: (() -> Unit)? = null
     private var pendingInterstitialTimeout: Runnable? = null
+    private val rewardedRetry = Runnable { loadRewarded() }
+    private val interstitialRetry = Runnable { loadInterstitial() }
 
     fun initializeAfterConsent() {
-        if (initialized) return
-        initialized = true
-        MobileAds.initialize(context) {
+        if (initializationStarted || initialized) return
+        initializationStarted = true
+        Log.d(TAG, "Mobile Ads initialization started; test mode=" + USE_TEST_ADS)
+        MobileAds.initialize(context) { status ->
             mainHandler.post {
-                Log.d(TAG, "Mobile Ads initialized; test mode=" + USE_TEST_ADS)
+                initialized = true
+                Log.d(TAG, "Mobile Ads initialized; adapters=" + status.adapterStatusMap)
                 loadRewarded()
                 loadInterstitial()
             }
@@ -158,6 +163,7 @@ class AdManager(private val context: Context) {
 
     private fun loadRewarded() {
         if (!initialized || rewardedLoading || rewardedAd != null) return
+        mainHandler.removeCallbacks(rewardedRetry)
         rewardedLoading = true
         try {
             RewardedAd.load(context, rewardedAdUnitId(), AdRequest.Builder().build(),
@@ -171,20 +177,21 @@ class AdManager(private val context: Context) {
                     override fun onAdFailedToLoad(error: LoadAdError) {
                         rewardedLoading = false
                         rewardedAd = null
-                        Log.w(TAG, "Rewarded failed to load: " + error.code + " " + error.message)
-                        mainHandler.postDelayed({ loadRewarded() }, RETRY_DELAY_MS)
+                        Log.w(TAG, "Rewarded failed to load FULL=" + error)
+                        scheduleRewardedRetry()
                     }
                 })
         } catch (t: Throwable) {
             rewardedLoading = false
             rewardedAd = null
             Log.w(TAG, "Rewarded load exception", t)
-            mainHandler.postDelayed({ loadRewarded() }, RETRY_DELAY_MS)
+            scheduleRewardedRetry()
         }
     }
 
     private fun loadInterstitial() {
         if (!initialized || interstitialLoading || interstitialAd != null) return
+        mainHandler.removeCallbacks(interstitialRetry)
         interstitialLoading = true
         lastInterstitialError = null
 
@@ -213,13 +220,11 @@ class AdManager(private val context: Context) {
                         interstitialLoading = false
                         interstitialAd = null
                         lastInterstitialError = error.code.toString() + ": " + error.message
-                        Log.w(TAG, "Interstitial failed to load: " + lastInterstitialError)
-
-                        if (pendingInterstitialCallback != null) {
-                            mainHandler.postDelayed({ loadInterstitial() }, 700L)
-                        } else {
-                            mainHandler.postDelayed({ loadInterstitial() }, RETRY_DELAY_MS)
-                        }
+                        Log.w(TAG, "Interstitial failed to load FULL=" + error)
+                        scheduleInterstitialRetry(
+                            if (pendingInterstitialCallback != null) PENDING_RETRY_DELAY_MS
+                            else RETRY_DELAY_MS
+                        )
                     }
                 })
         } catch (t: Throwable) {
@@ -227,8 +232,18 @@ class AdManager(private val context: Context) {
             interstitialAd = null
             lastInterstitialError = t.message ?: t.javaClass.simpleName
             Log.w(TAG, "Interstitial load exception", t)
-            mainHandler.postDelayed({ loadInterstitial() }, RETRY_DELAY_MS)
+            scheduleInterstitialRetry(RETRY_DELAY_MS)
         }
+    }
+
+    private fun scheduleRewardedRetry() {
+        mainHandler.removeCallbacks(rewardedRetry)
+        mainHandler.postDelayed(rewardedRetry, RETRY_DELAY_MS)
+    }
+
+    private fun scheduleInterstitialRetry(delayMs: Long) {
+        mainHandler.removeCallbacks(interstitialRetry)
+        mainHandler.postDelayed(interstitialRetry, delayMs)
     }
 
     private fun rewardedAdUnitId(): String =
@@ -239,7 +254,8 @@ class AdManager(private val context: Context) {
 
     companion object {
         private const val TAG = "SkyScooterAds"
-        private const val RETRY_DELAY_MS = 5_000L
+        private const val RETRY_DELAY_MS = 15_000L
+        private const val PENDING_RETRY_DELAY_MS = 1_000L
 
         // Keep test mode enabled until a real-device build has verified both ad flows.
         private const val USE_TEST_ADS = true
