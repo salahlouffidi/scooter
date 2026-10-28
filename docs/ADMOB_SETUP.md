@@ -64,10 +64,10 @@ International availability is selected in **Play Console**, not hardcoded in thi
 
 ## Verification record for this change
 
-- Passed locally: five existing Node gameplay suites plus the new ad bridge behavior suite (`npm test`).
+- Passed locally and in GitHub Actions: five existing Node gameplay suites plus the new ad bridge behavior suite (`npm test`).
 - Passed locally: JavaScript syntax and `git diff --check`.
 - Android compilation, R8 output, lint, actual SDK ads/consent and device rendering are **not yet verified**. This work environment lacks Android SDK/Gradle; downloading Gradle was blocked (HTTP 403).
-- Browser visual tests were **not run**: Chromium download was blocked (HTTP 403).
+- Passed in GitHub Actions: `node tools/ads-browser.cjs` checks rewarded/result-transition/privacy buttons and visibility at 412×915, 915×412, 800×1280 and 1280×800, using low graphics and a mocked native ad SDK. Local Chromium download was blocked (HTTP 403). This is not a native SDK or device test.
 - `.github/workflows/android-ads-check.yml` runs core tests and attempts debug/adQa builds, lint and unit tests, retaining APKs, mapping and reports. Inspect the actual run; adding CI is not evidence it passes.
 
 Before store upload, test consent accept/decline/reopen, offline startup/no fill, early dismissal vs earned rewards, double taps, app background/resume, minimized release bridges, orientation/resize, and memory on at least a modest phone and a modern tablet/foldable. Check the resulting bundle in Play Console; warnings from an older application's version are not evidence about this new bundle.

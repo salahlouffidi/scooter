@@ -228,6 +228,19 @@ class MainActivity : ComponentActivity() {
             }
         }
         enableEdgeToEdge()
+        // Observe raw window insets before the Compose host can consume them.
+        ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            val gestures = insets.getInsets(WindowInsetsCompat.Type.mandatorySystemGestures())
+            val density = resources.displayMetrics.density
+            safeInsets = JSONObject()
+                .put("top", bars.top / density)
+                .put("right", maxOf(bars.right, gestures.right) / density)
+                .put("bottom", maxOf(bars.bottom, gestures.bottom) / density)
+                .put("left", maxOf(bars.left, gestures.left) / density).toString()
+            sendSafeInsets()
+            insets
+        }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (consentBusy || adManager?.showing == true) return
@@ -275,18 +288,6 @@ class MainActivity : ComponentActivity() {
                         addOnLayoutChangeListener { v, l, t, r, b, _, _, _, _ ->
                             ViewCompat.setSystemGestureExclusionRects(v, listOf(Rect(0, 0, r - l, b - t)))
                         }
-                        ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
-                            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-                            val gestures = insets.getInsets(WindowInsetsCompat.Type.mandatorySystemGestures())
-                            val density = resources.displayMetrics.density
-                            safeInsets = JSONObject()
-                                .put("top", bars.top / density)
-                                .put("right", maxOf(bars.right, gestures.right) / density)
-                                .put("bottom", maxOf(bars.bottom, gestures.bottom) / density)
-                                .put("left", maxOf(bars.left, gestures.left) / density).toString()
-                            sendSafeInsets()
-                            insets
-                        }
                         if (BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true)
                         settings.apply {
                             @SuppressLint("SetJavaScriptEnabled")
@@ -319,7 +320,7 @@ class MainActivity : ComponentActivity() {
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 sendSafeInsets()
                                 sendAdsStatus()
-                                ViewCompat.requestApplyInsets(view ?: return)
+                                ViewCompat.requestApplyInsets(window.decorView)
                             }
                             override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
                                 view?.let { wv ->
