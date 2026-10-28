@@ -2,6 +2,9 @@ package com.example.ads
 
 import android.app.Activity
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
@@ -24,18 +27,35 @@ class AdManager(private val context: Context) {
     private var rewardedAd: RewardedAd? = null
     private var interstitialAd: InterstitialAd? = null
     private var initialized = false
+    private var rewardedLoading = false
+    private var interstitialLoading = false
+    private var lastInterstitialError: String? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var pendingInterstitialActivity: Activity? = null
+    private var pendingInterstitialCallback: (() -> Unit)? = null
+    private var pendingInterstitialTimeout: Runnable? = null
 
     fun initializeAfterConsent() {
         if (initialized) return
         initialized = true
         MobileAds.initialize(context) {
-            loadRewarded()
-            loadInterstitial()
+            mainHandler.post {
+                Log.d(TAG, "Mobile Ads initialized; test mode=" + USE_TEST_ADS)
+                loadRewarded()
+                loadInterstitial()
+            }
         }
     }
 
     fun isRewardedLoaded(): Boolean = rewardedAd != null
     fun isInterstitialLoaded(): Boolean = interstitialAd != null
+    fun interstitialStatus(): String = when {
+        !initialized -> "NOT_INITIALIZED"
+        interstitialAd != null -> "READY"
+        interstitialLoading -> "LOADING"
+        lastInterstitialError != null -> "FAILED: " + lastInterstitialError
+        else -> "IDLE"
+    }
 
     fun showRewarded(activity: Activity, onRewardEarned: (RewardItem) -> Unit, onUnavailable: () -> Unit = {}) {
         if (!initialized) {
@@ -65,51 +85,145 @@ class AdManager(private val context: Context) {
         ad.show(activity, OnUserEarnedRewardListener { reward -> earnedReward = reward })
     }
 
-    fun showInterstitial(activity: Activity, onFinished: () -> Unit = {}) {
-        if (!initialized) {
-            onFinished()
-            return
-        }
-        val ad = interstitialAd
-        if (ad == null) {
+    fun showInterstitial(
+        activity: Activity,
+        maxWaitMs: Long = 3_000L,
+        onFinished: () -> Unit = {}
+    ) {
+        mainHandler.post {
+            if (!initialized) {
+                Log.w(TAG, "Interstitial unavailable: SDK not initialized")
+                onFinished()
+                return@post
+            }
+
+            val readyAd = interstitialAd
+            if (readyAd != null) {
+                showLoadedInterstitial(activity, readyAd, onFinished)
+                return@post
+            }
+
+            if (pendingInterstitialCallback != null) {
+                Log.d(TAG, "Interstitial show already waiting")
+                return@post
+            }
+
+            pendingInterstitialActivity = activity
+            pendingInterstitialCallback = onFinished
+
+            val timeout = Runnable {
+                val callback = pendingInterstitialCallback
+                pendingInterstitialActivity = null
+                pendingInterstitialCallback = null
+                pendingInterstitialTimeout = null
+                Log.w(TAG, "Interstitial wait timeout; status=" + interstitialStatus())
+                callback?.invoke()
+            }
+            pendingInterstitialTimeout = timeout
+            mainHandler.postDelayed(timeout, maxWaitMs.coerceIn(500L, 5_000L))
+
             loadInterstitial()
-            onFinished()
-            return
         }
+    }
+
+    private fun showLoadedInterstitial(
+        activity: Activity,
+        ad: InterstitialAd,
+        onFinished: () -> Unit
+    ) {
         interstitialAd = null
+        lastInterstitialError = null
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdDismissedFullScreenContent() {
+                Log.d(TAG, "Interstitial dismissed")
                 loadInterstitial()
                 onFinished()
             }
+
             override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
+                lastInterstitialError = adError.message
+                Log.w(TAG, "Interstitial failed to show: " + adError.message)
                 loadInterstitial()
                 onFinished()
             }
         }
+        Log.d(TAG, "Showing interstitial")
         ad.show(activity)
     }
 
     private fun loadRewarded() {
-        if (!initialized) return
+        if (!initialized || rewardedLoading || rewardedAd != null) return
+        rewardedLoading = true
         try {
             RewardedAd.load(context, rewardedAdUnitId(), AdRequest.Builder().build(),
                 object : RewardedAdLoadCallback() {
-                    override fun onAdLoaded(ad: RewardedAd) { rewardedAd = ad }
-                    override fun onAdFailedToLoad(error: LoadAdError) { rewardedAd = null }
+                    override fun onAdLoaded(ad: RewardedAd) {
+                        rewardedLoading = false
+                        rewardedAd = ad
+                        Log.d(TAG, "Rewarded loaded")
+                    }
+
+                    override fun onAdFailedToLoad(error: LoadAdError) {
+                        rewardedLoading = false
+                        rewardedAd = null
+                        Log.w(TAG, "Rewarded failed to load: " + error.code + " " + error.message)
+                        mainHandler.postDelayed({ loadRewarded() }, RETRY_DELAY_MS)
+                    }
                 })
-        } catch (_: Exception) { rewardedAd = null }
+        } catch (t: Throwable) {
+            rewardedLoading = false
+            rewardedAd = null
+            Log.w(TAG, "Rewarded load exception", t)
+            mainHandler.postDelayed({ loadRewarded() }, RETRY_DELAY_MS)
+        }
     }
 
     private fun loadInterstitial() {
-        if (!initialized) return
+        if (!initialized || interstitialLoading || interstitialAd != null) return
+        interstitialLoading = true
+        lastInterstitialError = null
+
         try {
             InterstitialAd.load(context, interstitialAdUnitId(), AdRequest.Builder().build(),
                 object : InterstitialAdLoadCallback() {
-                    override fun onAdLoaded(ad: InterstitialAd) { interstitialAd = ad }
-                    override fun onAdFailedToLoad(error: LoadAdError) { interstitialAd = null }
+                    override fun onAdLoaded(ad: InterstitialAd) {
+                        interstitialLoading = false
+                        interstitialAd = ad
+                        lastInterstitialError = null
+                        Log.d(TAG, "Interstitial loaded")
+
+                        val activity = pendingInterstitialActivity
+                        val callback = pendingInterstitialCallback
+                        if (activity != null && callback != null &&
+                            !activity.isFinishing && !activity.isDestroyed) {
+                            pendingInterstitialTimeout?.let { mainHandler.removeCallbacks(it) }
+                            pendingInterstitialActivity = null
+                            pendingInterstitialCallback = null
+                            pendingInterstitialTimeout = null
+                            showLoadedInterstitial(activity, ad, callback)
+                        }
+                    }
+
+                    override fun onAdFailedToLoad(error: LoadAdError) {
+                        interstitialLoading = false
+                        interstitialAd = null
+                        lastInterstitialError = error.code.toString() + ": " + error.message
+                        Log.w(TAG, "Interstitial failed to load: " + lastInterstitialError)
+
+                        if (pendingInterstitialCallback != null) {
+                            mainHandler.postDelayed({ loadInterstitial() }, 700L)
+                        } else {
+                            mainHandler.postDelayed({ loadInterstitial() }, RETRY_DELAY_MS)
+                        }
+                    }
                 })
-        } catch (_: Exception) { interstitialAd = null }
+        } catch (t: Throwable) {
+            interstitialLoading = false
+            interstitialAd = null
+            lastInterstitialError = t.message ?: t.javaClass.simpleName
+            Log.w(TAG, "Interstitial load exception", t)
+            mainHandler.postDelayed({ loadInterstitial() }, RETRY_DELAY_MS)
+        }
     }
 
     private fun rewardedAdUnitId(): String =
@@ -119,6 +233,9 @@ class AdManager(private val context: Context) {
         if (USE_TEST_ADS) TEST_INTERSTITIAL_AD_UNIT_ID else PROD_INTERSTITIAL_AD_UNIT_ID
 
     companion object {
+        private const val TAG = "SkyScooterAds"
+        private const val RETRY_DELAY_MS = 5_000L
+
         // Keep test mode enabled until a real-device build has verified both ad flows.
         private const val USE_TEST_ADS = true
 
