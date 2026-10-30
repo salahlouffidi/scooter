@@ -1,0 +1,13 @@
+{
+  "base": "b985668f49d9cddb6005d73d36915e671d4c4ef0",
+  "checked_files": 76,
+  "changed_production_files": [
+    "app/src/main/assets/game/css/game.css",
+    "app/src/main/assets/game/js/game.js"
+  ],
+  "game_methods_outside_light_tint_identical": true,
+  "protected_differences": [],
+  "ads_and_UMP_native_sources_unchanged": true,
+  "build_SDK_signing_ProGuard_unchanged": true,
+  "physics_input_layout_progression_unchanged": true
+}

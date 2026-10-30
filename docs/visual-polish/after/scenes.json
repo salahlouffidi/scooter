@@ -1,0 +1,732 @@
+[
+  {
+    "name": "day-medium",
+    "round": 1,
+    "tier": "medium",
+    "seed": 20261030,
+    "s": 100,
+    "viewport": [
+      800,
+      450
+    ],
+    "reducedMotion": false,
+    "post": true,
+    "renderScale": 1,
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+    "sceneCalls": 645,
+    "sceneTriangles": 183508,
+    "textures": 21,
+    "geometries": 104,
+    "rider": {
+      "supportId": null,
+      "s": 100,
+      "laneX": 0,
+      "y": 0,
+      "forwardSpeed": 14,
+      "lateralVelocity": 0,
+      "verticalVelocity": 0,
+      "isGrounded": true,
+      "coyoteTimer": 0,
+      "invulnerableTimer": 0,
+      "isInvulnerable": false,
+      "wobbleTimer": 0,
+      "activeShield": false,
+      "shieldTimer": 0,
+      "activeMagnet": false,
+      "magnetTimer": 0,
+      "activeDouble": false,
+      "doubleTimer": 0,
+      "activeOverdrive": false,
+      "overdriveTimer": 0,
+      "activeMagicRush": false,
+      "magicRushTimer": 0,
+      "faultGuardCharges": 0,
+      "activeSkyFlight": false,
+      "skyFlightTimer": 0,
+      "skyFlightDuration": 3.6,
+      "furthestS": 100,
+      "lastCheckpointS": 100,
+      "recentDamageCount": 0,
+      "activeAntigravity": false,
+      "antigravityTimer": 0,
+      "hoverOffset": 0,
+      "isGliding": false,
+      "jumpAttempts": 0,
+      "jumpSuccesses": 0,
+      "steerCorrections": 0,
+      "coinsCollectedInWindow": 0,
+      "leanAngle": 0,
+      "downhillIntensity": 0,
+      "wheelRotation": 0,
+      "idleTime": 1.25
+    },
+    "camera": {
+      "position": [
+        12.371360068379081,
+        -6.158625865312253,
+        94.60707265344969
+      ],
+      "quaternion": [
+        0.0017008284482021212,
+        0.9981718888869189,
+        0.03399121916632706,
+        -0.04994581502084929
+      ]
+    },
+    "hud": {
+      ".hud-top": {
+        "x": 12,
+        "y": 10,
+        "width": 776,
+        "height": 55,
+        "text": "1 · Enchanted Garden\n        \n          \n          \n          \n        \n        \n      \n      \n        \n          \n          2450\n          x1",
+        "color": "rgb(244, 247, 255)"
+      },
+      ".hud-hearts": {
+        "x": 12,
+        "y": 10,
+        "width": 108,
+        "height": 44,
+        "text": "",
+        "color": "rgb(244, 247, 255)"
+      },
+      ".hud-score": {
+        "x": 590.203125,
+        "y": 10,
+        "width": 145.796875,
+        "height": 44,
+        "text": "2450\n          x1",
+        "color": "rgb(244, 247, 255)"
+      },
+      "#hud-world": {
+        "x": 283.59375,
+        "y": 14,
+        "width": 143,
+        "height": 15,
+        "text": "1 · Enchanted Garden",
+        "color": "rgb(255, 255, 255)"
+      },
+      "#hud-speed": {
+        "x": 343.239990234375,
+        "y": 390.4693603515625,
+        "width": 113.52001953125,
+        "height": 49.5306396484375,
+        "text": "50km/h\n      \n      SKY CRUISE",
+        "color": "rgb(244, 247, 255)"
+      }
+    },
+    "lightPositions": {
+      "key": [
+        -5.097754784535679,
+        26.05547910938428,
+        84.99913458101727
+      ],
+      "keyTarget": [
+        12.90224521546432,
+        -8.94452089061572,
+        111.99913458101727
+      ],
+      "rim": [
+        33.226527250572396,
+        8.261292811630886,
+        153.7726642733614
+      ],
+      "rimTarget": [
+        12.912409636191411,
+        -7.938625865312252,
+        100
+      ],
+      "sun": [
+        182.9124096361914,
+        135,
+        550
+      ]
+    },
+    "trackHash": "6c368a28f45cfaef5a571b85c2ca122527ae0439d31e7d3650a665aa5d5c5fc9",
+    "errors": []
+  },
+  {
+    "name": "moon-medium",
+    "round": 14,
+    "tier": "medium",
+    "seed": 20261030,
+    "s": 100,
+    "viewport": [
+      800,
+      450
+    ],
+    "reducedMotion": false,
+    "post": true,
+    "renderScale": 1,
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+    "sceneCalls": 580,
+    "sceneTriangles": 155478,
+    "textures": 21,
+    "geometries": 126,
+    "rider": {
+      "supportId": null,
+      "s": 100,
+      "laneX": 0,
+      "y": 0,
+      "forwardSpeed": 14,
+      "lateralVelocity": 0,
+      "verticalVelocity": 0,
+      "isGrounded": true,
+      "coyoteTimer": 0,
+      "invulnerableTimer": 0,
+      "isInvulnerable": false,
+      "wobbleTimer": 0,
+      "activeShield": false,
+      "shieldTimer": 0,
+      "activeMagnet": false,
+      "magnetTimer": 0,
+      "activeDouble": false,
+      "doubleTimer": 0,
+      "activeOverdrive": false,
+      "overdriveTimer": 0,
+      "activeMagicRush": false,
+      "magicRushTimer": 0,
+      "faultGuardCharges": 0,
+      "activeSkyFlight": false,
+      "skyFlightTimer": 0,
+      "skyFlightDuration": 3.6,
+      "furthestS": 100,
+      "lastCheckpointS": 100,
+      "recentDamageCount": 0,
+      "activeAntigravity": false,
+      "antigravityTimer": 0,
+      "hoverOffset": 0,
+      "isGliding": false,
+      "jumpAttempts": 0,
+      "jumpSuccesses": 0,
+      "steerCorrections": 0,
+      "coinsCollectedInWindow": 0,
+      "leanAngle": 0,
+      "downhillIntensity": 0,
+      "wheelRotation": 0,
+      "idleTime": 1.25
+    },
+    "camera": {
+      "position": [
+        12.371360068379081,
+        -6.158625865312253,
+        94.60707265344969
+      ],
+      "quaternion": [
+        0.0017008284482021212,
+        0.9981718888869189,
+        0.03399121916632706,
+        -0.04994581502084929
+      ]
+    },
+    "hud": {
+      ".hud-top": {
+        "x": 12,
+        "y": 10,
+        "width": 776,
+        "height": 55,
+        "text": "14 · Moon Realm\n        \n          \n          \n          \n        \n        \n      \n      \n        \n          \n          2450\n          x1",
+        "color": "rgb(244, 247, 255)"
+      },
+      ".hud-hearts": {
+        "x": 12,
+        "y": 10,
+        "width": 108,
+        "height": 44,
+        "text": "",
+        "color": "rgb(244, 247, 255)"
+      },
+      ".hud-score": {
+        "x": 590.203125,
+        "y": 10,
+        "width": 145.796875,
+        "height": 44,
+        "text": "2450\n          x1",
+        "color": "rgb(244, 247, 255)"
+      },
+      "#hud-world": {
+        "x": 298.34375,
+        "y": 14,
+        "width": 113.5,
+        "height": 15,
+        "text": "14 · Moon Realm",
+        "color": "rgb(255, 255, 255)"
+      },
+      "#hud-speed": {
+        "x": 343.239990234375,
+        "y": 390.4693603515625,
+        "width": 113.52001953125,
+        "height": 49.5306396484375,
+        "text": "50km/h\n      \n      SKY CRUISE",
+        "color": "rgb(244, 247, 255)"
+      }
+    },
+    "lightPositions": {
+      "key": [
+        -5.097754784535679,
+        26.05547910938428,
+        84.99913458101727
+      ],
+      "keyTarget": [
+        12.90224521546432,
+        -8.94452089061572,
+        111.99913458101727
+      ],
+      "rim": [
+        -8.675699116525776,
+        8.070089554510455,
+        153.33532750671304
+      ],
+      "rimTarget": [
+        12.912409636191411,
+        -7.938625865312252,
+        100
+      ],
+      "sun": [
+        -157.0875903638086,
+        125,
+        520
+      ]
+    },
+    "trackHash": "4891fd73128d180eff9fc8047f8c3c04c468f19351762bea7d25beb8b7e0e54b",
+    "errors": []
+  },
+  {
+    "name": "sunset-medium",
+    "round": 11,
+    "tier": "medium",
+    "seed": 20261030,
+    "s": 100,
+    "viewport": [
+      800,
+      450
+    ],
+    "reducedMotion": false,
+    "post": true,
+    "renderScale": 1,
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+    "sceneCalls": 566,
+    "sceneTriangles": 118434,
+    "textures": 21,
+    "geometries": 120,
+    "rider": {
+      "supportId": null,
+      "s": 100,
+      "laneX": 0,
+      "y": 0,
+      "forwardSpeed": 14,
+      "lateralVelocity": 0,
+      "verticalVelocity": 0,
+      "isGrounded": true,
+      "coyoteTimer": 0,
+      "invulnerableTimer": 0,
+      "isInvulnerable": false,
+      "wobbleTimer": 0,
+      "activeShield": false,
+      "shieldTimer": 0,
+      "activeMagnet": false,
+      "magnetTimer": 0,
+      "activeDouble": false,
+      "doubleTimer": 0,
+      "activeOverdrive": false,
+      "overdriveTimer": 0,
+      "activeMagicRush": false,
+      "magicRushTimer": 0,
+      "faultGuardCharges": 0,
+      "activeSkyFlight": false,
+      "skyFlightTimer": 0,
+      "skyFlightDuration": 3.6,
+      "furthestS": 100,
+      "lastCheckpointS": 100,
+      "recentDamageCount": 0,
+      "activeAntigravity": false,
+      "antigravityTimer": 0,
+      "hoverOffset": 0,
+      "isGliding": false,
+      "jumpAttempts": 0,
+      "jumpSuccesses": 0,
+      "steerCorrections": 0,
+      "coinsCollectedInWindow": 0,
+      "leanAngle": 0,
+      "downhillIntensity": 0,
+      "wheelRotation": 0,
+      "idleTime": 1.25
+    },
+    "camera": {
+      "position": [
+        12.371360068379081,
+        -6.158625865312253,
+        94.60707265344969
+      ],
+      "quaternion": [
+        0.0017008284482021212,
+        0.9981718888869189,
+        0.03399121916632706,
+        -0.04994581502084929
+      ]
+    },
+    "hud": {
+      ".hud-top": {
+        "x": 12,
+        "y": 10,
+        "width": 776,
+        "height": 55,
+        "text": "11 · Sunset Archipelago\n        \n          \n          \n          \n        \n        \n      \n      \n        \n          \n          2450\n          x1",
+        "color": "rgb(244, 247, 255)"
+      },
+      ".hud-hearts": {
+        "x": 12,
+        "y": 10,
+        "width": 108,
+        "height": 44,
+        "text": "",
+        "color": "rgb(244, 247, 255)"
+      },
+      ".hud-score": {
+        "x": 590.203125,
+        "y": 10,
+        "width": 145.796875,
+        "height": 44,
+        "text": "2450\n          x1",
+        "color": "rgb(244, 247, 255)"
+      },
+      "#hud-world": {
+        "x": 274.34375,
+        "y": 14,
+        "width": 161.5,
+        "height": 15,
+        "text": "11 · Sunset Archipelago",
+        "color": "rgb(255, 255, 255)"
+      },
+      "#hud-speed": {
+        "x": 343.239990234375,
+        "y": 390.4693603515625,
+        "width": 113.52001953125,
+        "height": 49.5306396484375,
+        "text": "50km/h\n      \n      SKY CRUISE",
+        "color": "rgb(244, 247, 255)"
+      }
+    },
+    "lightPositions": {
+      "key": [
+        -5.097754784535679,
+        26.05547910938428,
+        84.99913458101727
+      ],
+      "keyTarget": [
+        12.90224521546432,
+        -8.94452089061572,
+        111.99913458101727
+      ],
+      "rim": [
+        33.24331043809264,
+        0.5782287658723302,
+        155.6424653525718
+      ],
+      "rimTarget": [
+        12.912409636191411,
+        -7.938625865312252,
+        100
+      ],
+      "sun": [
+        202.9124096361914,
+        80,
+        620
+      ]
+    },
+    "trackHash": "eacb619826ac9c2100a5ff558218ab66c121e08d9216964ebeea749cdf18f130",
+    "errors": []
+  },
+  {
+    "name": "day-low",
+    "round": 1,
+    "tier": "low",
+    "seed": 20261030,
+    "s": 100,
+    "viewport": [
+      800,
+      450
+    ],
+    "reducedMotion": false,
+    "post": false,
+    "renderScale": 1,
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+    "sceneCalls": 383,
+    "sceneTriangles": 109892,
+    "textures": 7,
+    "geometries": 72,
+    "rider": {
+      "supportId": null,
+      "s": 100,
+      "laneX": 0,
+      "y": 0,
+      "forwardSpeed": 14,
+      "lateralVelocity": 0,
+      "verticalVelocity": 0,
+      "isGrounded": true,
+      "coyoteTimer": 0,
+      "invulnerableTimer": 0,
+      "isInvulnerable": false,
+      "wobbleTimer": 0,
+      "activeShield": false,
+      "shieldTimer": 0,
+      "activeMagnet": false,
+      "magnetTimer": 0,
+      "activeDouble": false,
+      "doubleTimer": 0,
+      "activeOverdrive": false,
+      "overdriveTimer": 0,
+      "activeMagicRush": false,
+      "magicRushTimer": 0,
+      "faultGuardCharges": 0,
+      "activeSkyFlight": false,
+      "skyFlightTimer": 0,
+      "skyFlightDuration": 3.6,
+      "furthestS": 100,
+      "lastCheckpointS": 100,
+      "recentDamageCount": 0,
+      "activeAntigravity": false,
+      "antigravityTimer": 0,
+      "hoverOffset": 0,
+      "isGliding": false,
+      "jumpAttempts": 0,
+      "jumpSuccesses": 0,
+      "steerCorrections": 0,
+      "coinsCollectedInWindow": 0,
+      "leanAngle": 0,
+      "downhillIntensity": 0,
+      "wheelRotation": 0,
+      "idleTime": 1.25
+    },
+    "camera": {
+      "position": [
+        12.371360068379081,
+        -6.158625865312253,
+        94.60707265344969
+      ],
+      "quaternion": [
+        0.0017008284482021212,
+        0.9981718888869189,
+        0.03399121916632706,
+        -0.04994581502084929
+      ]
+    },
+    "hud": {
+      ".hud-top": {
+        "x": 12,
+        "y": 10,
+        "width": 776,
+        "height": 55,
+        "text": "1 · Enchanted Garden\n        \n          \n          \n          \n        \n        \n      \n      \n        \n          \n          2450\n          x1",
+        "color": "rgb(244, 247, 255)"
+      },
+      ".hud-hearts": {
+        "x": 12,
+        "y": 10,
+        "width": 108,
+        "height": 44,
+        "text": "",
+        "color": "rgb(244, 247, 255)"
+      },
+      ".hud-score": {
+        "x": 590.203125,
+        "y": 10,
+        "width": 145.796875,
+        "height": 44,
+        "text": "2450\n          x1",
+        "color": "rgb(244, 247, 255)"
+      },
+      "#hud-world": {
+        "x": 283.59375,
+        "y": 14,
+        "width": 143,
+        "height": 15,
+        "text": "1 · Enchanted Garden",
+        "color": "rgb(255, 255, 255)"
+      },
+      "#hud-speed": {
+        "x": 343.239990234375,
+        "y": 390.4693603515625,
+        "width": 113.52001953125,
+        "height": 49.5306396484375,
+        "text": "50km/h\n      \n      SKY CRUISE",
+        "color": "rgb(244, 247, 255)"
+      }
+    },
+    "lightPositions": {
+      "key": [
+        -5.087590363808589,
+        26.061374134687746,
+        85
+      ],
+      "keyTarget": [
+        12.912409636191411,
+        -8.938625865312252,
+        112
+      ],
+      "rim": [
+        33.226527250572396,
+        8.261292811630886,
+        153.7726642733614
+      ],
+      "rimTarget": [
+        12.912409636191411,
+        -7.938625865312252,
+        100
+      ],
+      "sun": [
+        182.9124096361914,
+        135,
+        550
+      ]
+    },
+    "trackHash": "6c368a28f45cfaef5a571b85c2ca122527ae0439d31e7d3650a665aa5d5c5fc9",
+    "errors": []
+  },
+  {
+    "name": "small-hud",
+    "round": 1,
+    "tier": "medium",
+    "seed": 20261030,
+    "s": 100,
+    "viewport": [
+      640,
+      360
+    ],
+    "reducedMotion": true,
+    "post": true,
+    "renderScale": 1,
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+    "sceneCalls": 645,
+    "sceneTriangles": 183508,
+    "textures": 21,
+    "geometries": 104,
+    "rider": {
+      "supportId": null,
+      "s": 100,
+      "laneX": 0,
+      "y": 0,
+      "forwardSpeed": 14,
+      "lateralVelocity": 0,
+      "verticalVelocity": 0,
+      "isGrounded": true,
+      "coyoteTimer": 0,
+      "invulnerableTimer": 0,
+      "isInvulnerable": false,
+      "wobbleTimer": 0,
+      "activeShield": true,
+      "shieldTimer": 10,
+      "activeMagnet": true,
+      "magnetTimer": 8,
+      "activeDouble": false,
+      "doubleTimer": 0,
+      "activeOverdrive": true,
+      "overdriveTimer": 5,
+      "activeMagicRush": false,
+      "magicRushTimer": 0,
+      "faultGuardCharges": 0,
+      "activeSkyFlight": false,
+      "skyFlightTimer": 0,
+      "skyFlightDuration": 3.6,
+      "furthestS": 100,
+      "lastCheckpointS": 100,
+      "recentDamageCount": 0,
+      "activeAntigravity": true,
+      "antigravityTimer": 8,
+      "hoverOffset": 0,
+      "isGliding": false,
+      "jumpAttempts": 0,
+      "jumpSuccesses": 0,
+      "steerCorrections": 0,
+      "coinsCollectedInWindow": 0,
+      "leanAngle": 0,
+      "downhillIntensity": 0,
+      "wheelRotation": 0,
+      "idleTime": 1.25
+    },
+    "camera": {
+      "position": [
+        12.371360068379081,
+        -6.158625865312253,
+        94.60707265344969
+      ],
+      "quaternion": [
+        0.0017008284482021212,
+        0.9981718888869189,
+        0.03399121916632706,
+        -0.04994581502084929
+      ]
+    },
+    "hud": {
+      ".hud-top": {
+        "x": 12,
+        "y": 10,
+        "width": 616,
+        "height": 55,
+        "text": "1 · Enchanted Garden\n        \n          \n          \n          \n        \n        \n      \n      \n        \n          \n          1234567\n          x1",
+        "color": "rgb(244, 247, 255)"
+      },
+      ".hud-hearts": {
+        "x": 12,
+        "y": 10,
+        "width": 108,
+        "height": 44,
+        "text": "",
+        "color": "rgb(244, 247, 255)"
+      },
+      ".hud-score": {
+        "x": 396.203125,
+        "y": 10,
+        "width": 179.796875,
+        "height": 44,
+        "text": "1234567\n          x1",
+        "color": "rgb(244, 247, 255)"
+      },
+      "#hud-world": {
+        "x": 186.59375,
+        "y": 14,
+        "width": 143,
+        "height": 15,
+        "text": "1 · Enchanted Garden",
+        "color": "rgb(255, 255, 255)"
+      },
+      "#hud-speed": {
+        "x": 263.239990234375,
+        "y": 299.609375,
+        "width": 113.52001953125,
+        "height": 50.390625,
+        "text": "50km/h\n      \n      ★ STAR TURBO",
+        "color": "rgb(244, 247, 255)"
+      }
+    },
+    "lightPositions": {
+      "key": [
+        -5.097754784535679,
+        26.05547910938428,
+        84.99913458101727
+      ],
+      "keyTarget": [
+        12.90224521546432,
+        -8.94452089061572,
+        111.99913458101727
+      ],
+      "rim": [
+        33.226527250572396,
+        8.261292811630886,
+        153.7726642733614
+      ],
+      "rimTarget": [
+        12.912409636191411,
+        -7.938625865312252,
+        100
+      ],
+      "sun": [
+        182.9124096361914,
+        135,
+        550
+      ]
+    },
+    "trackHash": "6c368a28f45cfaef5a571b85c2ca122527ae0439d31e7d3650a665aa5d5c5fc9",
+    "errors": []
+  }
+]

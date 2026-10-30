@@ -1,0 +1,34 @@
+{
+  "checks": {
+    "js/game.js": true,
+    "css/game.css": true,
+    "ca-app-pub-3521560929268417/9134380216": true,
+    "ca-app-pub-3521560929268417/3871153080": true,
+    "diagnostics_retained": true
+  },
+  "apk_bytes": 5197742,
+  "apk_sha256": "7eafbcc7166b3eca0bbcbbe78c0420f09fdae8d7a12453f0b70ba55ff4de3a8a",
+  "signing": "external throwaway verification key, not production",
+  "tests": [
+    {
+      "name": "com.example.ExampleUnitTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-30T20:47:14.414Z",
+      "hostname": "8dd98b48be50",
+      "time": "0.019"
+    },
+    {
+      "name": "com.example.ads.AdManagerReadinessTest",
+      "tests": "10",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-30T20:47:14.961Z",
+      "hostname": "8dd98b48be50",
+      "time": "9.344"
+    }
+  ]
+}
