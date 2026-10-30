@@ -24,7 +24,7 @@ Object.assign(window.SkyScooterGame.prototype, {
     if (!this.hasActiveRun || !['PLAYING','PAUSED','COUNTDOWN'].includes(this.state)) return false;
     const stats = {};
     for (const key of ['hearts','score','distanceScore','coinScore','gemScore','jumpScore','obstaclePenaltyScore',
-      'consecutiveCoins','coinMultiplier','coinsCollectedThisRun','totalSpawnedCoinsEstimate']) stats[key] = this[key];
+      'consecutiveCoins','coinMultiplier','coinsCollectedThisRun','totalSpawnedCoinsEstimate','revivesUsed']) stats[key] = this[key];
     return window.GameStorage.saveRun({version:2,layoutVersion:2,savedAt:Date.now(),roundId:this.currentRoundId,
       isEndless:this.isEndless,runId:this.currentRunTxId,stats,rider:this.riderCtrl.captureState(),
       track:this.trackGen.captureState(),ml:{timer:this.mlWindowTimer,hadDamage:this.mlWindowHadDamage,
@@ -52,6 +52,9 @@ Object.assign(window.SkyScooterGame.prototype, {
   continueSavedRun() {
     const saved = window.GameStorage.getRun();
     if (!saved) { this.refreshContinueButton(); return; }
+    this.resetAdRequestState();
+    this.revivesUsed = saved.stats?.revivesUsed === 1 ? 1 : 0;
+    this.gameOverInterstitialShown = this.revivesUsed === 1;
     // Older saves predate penalty tracking; keep their existing score and default the new counter.
     this.obstaclePenaltyScore = 0;
     const round = saved.isEndless ? {...window.ROUNDS_DATA[15],id:99,name:'Endless Sky Tour',length:999999,baseSpeed:12}
