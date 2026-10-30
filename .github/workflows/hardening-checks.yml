@@ -1,0 +1,38 @@
+name: Release hardening checks
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm test && node tools/verify-ad-flow.cjs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+      - name: Compile, lint and shrink release without signing secrets
+        run: gradle --no-daemon :app:lintRelease :app:minifyReleaseWithR8
+      - name: Inspect resolved Fragment versions
+        run: gradle --no-daemon :app:dependencyInsight --dependency androidx.fragment --configuration releaseRuntimeClasspath
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hardening-reports
+          path: |
+            app/build/reports/lint-results-release.*
+            app/build/outputs/mapping/release/*
+          if-no-files-found: warn

@@ -24,18 +24,38 @@ import com.google.android.gms.ads.rewarded.RewardItem
  * Uses SKY SCOOTER's production ad unit IDs for all build types.
  * During development, register devices as test devices in AdMob to avoid invalid traffic.
  */
-class AdManager(private val context: Context) {
+class AdManager(
+    private val context: Context,
+    private val canRequestAds: () -> Boolean
+) {
+    private var generation = 0
+    private var destroyed = false
+    private var rewardedLoading = false
+    private var interstitialLoading = false
 
-    private var rewardedAd: RewardedAd? = null
-    private var interstitialAd: InterstitialAd? = null
+    fun destroy() {
+        destroyed = true
+        clearCachedAds()
+    }
+
+    fun clearCachedAds() {
+        generation++
+        rewardedLoading = false
+        interstitialLoading = false
+        rewardedAd = null
+        interstitialAd = null
+    }
+
+    @Volatile private var rewardedAd: RewardedAd? = null
+    @Volatile private var interstitialAd: InterstitialAd? = null
 
     fun preload() {
         loadRewarded()
         loadInterstitial()
     }
 
-    fun isRewardedLoaded(): Boolean = rewardedAd != null
-    fun isInterstitialLoaded(): Boolean = interstitialAd != null
+    fun isRewardedLoaded(): Boolean = canRequestAds() && rewardedAd != null
+    fun isInterstitialLoaded(): Boolean = canRequestAds() && interstitialAd != null
 
     fun showRewarded(
         activity: Activity,
@@ -43,7 +63,7 @@ class AdManager(private val context: Context) {
         onUnavailable: () -> Unit = {},
         onNotEarned: () -> Unit = {}
     ) {
-        val ad = rewardedAd
+        val ad = if (canRequestAds()) rewardedAd else null
         if (ad == null) {
             loadRewarded()
             onUnavailable()
@@ -78,7 +98,7 @@ class AdManager(private val context: Context) {
         activity: Activity,
         onFinished: () -> Unit = {}
     ) {
-        val ad = interstitialAd
+        val ad = if (canRequestAds()) interstitialAd else null
         if (ad == null) {
             loadInterstitial()
             onFinished()
@@ -105,6 +125,9 @@ class AdManager(private val context: Context) {
     }
 
     private fun loadRewarded() {
+        if (destroyed || !canRequestAds() || rewardedLoading || rewardedAd != null) return
+        rewardedLoading = true
+        val requestGeneration = generation
         val unitId = PROD_REWARDED_AD_UNIT_ID
         Log.d(TAG, "Loading rewarded; production ad unit")
 
@@ -115,23 +138,31 @@ class AdManager(private val context: Context) {
                 AdRequest.Builder().build(),
                 object : RewardedAdLoadCallback() {
                     override fun onAdLoaded(ad: RewardedAd) {
-                        rewardedAd = ad
+                        if (destroyed || requestGeneration != generation) return
+                        rewardedLoading = false
+                        rewardedAd = if (canRequestAds()) ad else null
                         Log.d(TAG, "Rewarded loaded")
                     }
 
                     override fun onAdFailedToLoad(adError: LoadAdError) {
+                        if (destroyed || requestGeneration != generation) return
+                        rewardedLoading = false
                         rewardedAd = null
                         Log.w(TAG, "Rewarded failed to load: ${adError.code} ${adError.message}")
                     }
                 }
             )
         } catch (t: Throwable) {
+            rewardedLoading = false
             rewardedAd = null
             Log.w(TAG, "Rewarded load exception", t)
         }
     }
 
     private fun loadInterstitial() {
+        if (destroyed || !canRequestAds() || interstitialLoading || interstitialAd != null) return
+        interstitialLoading = true
+        val requestGeneration = generation
         val unitId = PROD_INTERSTITIAL_AD_UNIT_ID
         Log.d(TAG, "Loading interstitial; production ad unit")
 
@@ -142,17 +173,22 @@ class AdManager(private val context: Context) {
                 AdRequest.Builder().build(),
                 object : InterstitialAdLoadCallback() {
                     override fun onAdLoaded(ad: InterstitialAd) {
-                        interstitialAd = ad
+                        if (destroyed || requestGeneration != generation) return
+                        interstitialLoading = false
+                        interstitialAd = if (canRequestAds()) ad else null
                         Log.d(TAG, "Interstitial loaded")
                     }
 
                     override fun onAdFailedToLoad(adError: LoadAdError) {
+                        if (destroyed || requestGeneration != generation) return
+                        interstitialLoading = false
                         interstitialAd = null
                         Log.w(TAG, "Interstitial failed to load: ${adError.code} ${adError.message}")
                     }
                 }
             )
         } catch (t: Throwable) {
+            interstitialLoading = false
             interstitialAd = null
             Log.w(TAG, "Interstitial load exception", t)
         }

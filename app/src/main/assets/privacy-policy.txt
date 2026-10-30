@@ -1,0 +1,24 @@
+SKY SCOOTER — LOUFFI EDITION: Privacy policy
+Effective date: 30 October 2026
+Developer: Salah Eddine Louffidi (LOUFFI)
+Contact: salahlouffidi@gmail.com
+
+Game data
+Settings, scores, virtual coins, unlocks, active-run snapshots and adaptive-difficulty information are stored on your device. Android backup may include this data according to your device settings. The game does not require an account or directly request your contacts, precise location, camera or microphone.
+
+Advertising and service providers
+Google AdMob serves interstitial and optional rewarded ads. Its SDK may collect and share IP addresses (including inferred approximate location), device and advertising identifiers, ad interactions and diagnostics for advertising, analytics and fraud prevention. Provider retention and processing are described in Google's policies:
+https://policies.google.com/privacy
+https://policies.google.com/technologies/ads
+
+Privacy choices
+Where required, the app requests privacy choices using Google's User Messaging Platform before requesting ads. Use Privacy choices in Settings to reopen the available form. Form availability depends on your region and the publisher's AdMob configuration. Android also provides advertising preferences in system settings.
+
+Local data and deletion
+Use the available game reset controls or clear the app's storage in Android settings to remove local game data. Android backups may restore it; manage backups separately in system settings. Contact the developer about information you provide directly. Google manages data processed by its services under its own policies and controls.
+
+Security and retention
+Game saves remain until removed or reset, subject to Android backup behavior. Third-party service retention follows provider policies. No storage or transmission method guarantees absolute security.
+
+Updates
+This policy may change when features or processing change. Check the effective date above.

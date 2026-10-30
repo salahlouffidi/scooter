@@ -32,6 +32,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.example.ads.ConsentController
 import com.example.ads.AdManager
 import com.google.android.gms.ads.MobileAds
 
@@ -46,10 +47,40 @@ class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
     private var appResumed = false
     private lateinit var adManager: AdManager
+    private lateinit var consentController: ConsentController
+    private var adsInitializationStarted = false
+    private var adsReady = false
 
     inner class AndroidBridge(private val context: Context) {
         private val saves = context.getSharedPreferences("louffi_active_run", Context.MODE_PRIVATE)
         private val activity: Activity? = context as? Activity
+
+        @JavascriptInterface
+        fun showPrivacyOptions() {
+            activity?.runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                adManager.clearCachedAds()
+                consentController.showPrivacyOptions { startAdsIfPermitted() }
+            }
+        }
+
+        @JavascriptInterface
+        fun showPrivacyPolicy() {
+            activity?.runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                val text = android.widget.TextView(this@MainActivity).apply {
+                    this.text = assets.open("privacy-policy.txt").bufferedReader().use { it.readText() }
+                    setPadding(32, 24, 32, 24)
+                    textSize = 16f
+                    autoLinkMask = android.text.util.Linkify.WEB_URLS
+                    movementMethod = android.text.method.LinkMovementMethod.getInstance()
+                }
+                val scroll = android.widget.ScrollView(this@MainActivity).apply { addView(text) }
+                android.app.AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Privacy policy").setView(scroll)
+                    .setPositiveButton("Close", null).show()
+            }
+        }
 
         @JavascriptInterface
         fun isRewardedAdReady(): Boolean =
@@ -213,14 +244,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        adManager = AdManager(applicationContext)
-        try {
-            MobileAds.initialize(this) {
-                runOnUiThread { adManager.preload() }
-            }
-        } catch (_: Throwable) {
-            // Keep the game usable on devices/environments where Google Mobile Ads cannot start.
+        consentController = ConsentController(this)
+        adManager = AdManager(applicationContext) {
+            adsReady && consentController.canRequestAds && !isFinishing && !isDestroyed
         }
+        consentController.gather { startAdsIfPermitted() }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 webView?.evaluateJavascript("""
@@ -317,6 +345,29 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun startAdsIfPermitted() {
+        if (isFinishing || isDestroyed || !consentController.canRequestAds) return
+        if (adsReady) {
+            adManager.preload()
+            return
+        }
+        if (adsInitializationStarted) return
+        adsInitializationStarted = true
+        try {
+            MobileAds.initialize(this) {
+                runOnUiThread {
+                    if (!isFinishing && !isDestroyed) {
+                        adsReady = true
+                        if (consentController.canRequestAds) adManager.preload()
+                    }
+                }
+            }
+        } catch (error: Exception) {
+            adsInitializationStarted = false
+            android.util.Log.w("ScooterConsent", "Ads initialization failed", error)
+        }
+    }
+
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         // Dialogs, the notification shade and the keyboard bring the bars back: hide them again.
@@ -348,6 +399,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        adsReady = false
+        if (::adManager.isInitialized) adManager.destroy()
         webView?.destroy()
         webView = null
         super.onDestroy()
