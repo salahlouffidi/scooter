@@ -53,6 +53,7 @@ jobs:
           path: |
             app/build/outputs/bundle/release/*.aab
             app/build/reports/lint-results-release.*
+            app/build/outputs/mapping/release/mapping.txt
           if-no-files-found: error
           retention-days: 7
       - name: Remove temporary signing key
