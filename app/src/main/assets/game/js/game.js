@@ -27,6 +27,9 @@ window.SkyScooterGame = class SkyScooterGame {
     this.rewardedRequestPending = false;
     this.waitingForGameOverInterstitial = false;
     this.gameOverInterstitialShown = false;
+    this.adRequestSequence = 0;
+    this.activeInterstitialRequestId = null;
+    this.activeRewardedRequestId = null;
 
     // Unique run ID for idempotent reward transactions
     this.currentRunTxId = '';
@@ -300,6 +303,7 @@ window.SkyScooterGame = class SkyScooterGame {
     this.saveActiveRun();
     this.hasActiveRun=false;
     this.cancelCountdown();
+    this.resetAdRequestState();
     this.input.resetAll();
     this.state = 'MENU';
     this.hideAllScreens();
@@ -347,9 +351,7 @@ window.SkyScooterGame = class SkyScooterGame {
     document.getElementById('hud-world').textContent = `${roundData.id === 99 ? '∞' : roundData.id} · ${roundData.name}`;
     this.hearts = 3;
     this.revivesUsed = 0;
-    this.rewardedRequestPending = false;
-    this.waitingForGameOverInterstitial = false;
-    this.gameOverInterstitialShown = false;
+    this.resetAdRequestState();
     this.score = 0;
     this.distanceScore = 0;
     this.coinScore = 0;
@@ -628,22 +630,24 @@ window.SkyScooterGame = class SkyScooterGame {
     // Record coins to wallet. GameStorage uses the run transaction id so this stays idempotent.
     window.GameStorage.addCoins(this.coinsCollectedThisRun, this.currentRunTxId);
 
-    // Show one interstitial at the first Game Over of a run. If no ad is ready,
-    // Android immediately calls onInterstitialClosed() and the Game Over UI appears.
+    this.showGameOverScreen();
+
+    // Show one interstitial at the first Game Over of a run. The Game Over UI is
+    // already usable while Android finishes the request (or reports no ad).
     if (!this.gameOverInterstitialShown &&
         window.AndroidBridge &&
         window.AndroidBridge.showInterstitial) {
       this.gameOverInterstitialShown = true;
       this.waitingForGameOverInterstitial = true;
+      const requestId = ++this.adRequestSequence;
+      this.activeInterstitialRequestId = requestId;
       try {
-        window.AndroidBridge.showInterstitial();
-        return;
+        window.AndroidBridge.showInterstitial(requestId);
       } catch (e) {
         this.waitingForGameOverInterstitial = false;
+        this.activeInterstitialRequestId = null;
       }
     }
-
-    this.showGameOverScreen();
   }
 
   showGameOverScreen() {
@@ -666,16 +670,37 @@ window.SkyScooterGame = class SkyScooterGame {
     }
   }
 
-  onInterstitialClosed() {
-    if (this.state !== 'GAME_OVER' || !this.waitingForGameOverInterstitial) return;
+  resetAdRequestState() {
+    this.rewardedRequestPending = false;
     this.waitingForGameOverInterstitial = false;
-    this.showGameOverScreen();
+    this.gameOverInterstitialShown = false;
+    this.activeInterstitialRequestId = null;
+    this.activeRewardedRequestId = null;
+  }
+
+  isAdRequestCurrent(format, requestId) {
+    if (this.state !== 'GAME_OVER' || !Number.isSafeInteger(requestId) || requestId <= 0) return false;
+    if (format === 'interstitial') {
+      return this.waitingForGameOverInterstitial && this.activeInterstitialRequestId === requestId;
+    }
+    if (format === 'rewarded') {
+      return this.rewardedRequestPending && this.activeRewardedRequestId === requestId;
+    }
+    return false;
+  }
+
+  onInterstitialClosed(requestId) {
+    if (!this.isAdRequestCurrent('interstitial', requestId)) return;
+    this.waitingForGameOverInterstitial = false;
+    this.activeInterstitialRequestId = null;
   }
 
   requestRewardedRevive() {
-    if (this.state !== 'GAME_OVER' || this.revivesUsed >= 1 || this.rewardedRequestPending) return;
+    if (this.state !== 'GAME_OVER' || this.revivesUsed >= 1 || this.rewardedRequestPending || this.waitingForGameOverInterstitial) return;
 
     this.rewardedRequestPending = true;
+    const requestId = ++this.adRequestSequence;
+    this.activeRewardedRequestId = requestId;
     const button = document.getElementById('btn-go-revive');
     if (button) {
       button.disabled = true;
@@ -684,18 +709,19 @@ window.SkyScooterGame = class SkyScooterGame {
 
     if (window.AndroidBridge && window.AndroidBridge.showRewardedRevive) {
       try {
-        window.AndroidBridge.showRewardedRevive();
+        window.AndroidBridge.showRewardedRevive(requestId);
         return;
       } catch (e) {}
     }
 
-    this.onRewardedAdUnavailable();
+    this.onRewardedAdUnavailable(requestId);
   }
 
-  onRewardedReviveEarned() {
-    if (this.state !== 'GAME_OVER' || !this.rewardedRequestPending || this.revivesUsed >= 1) return;
+  onRewardedReviveEarned(requestId) {
+    if (!this.isAdRequestCurrent('rewarded', requestId) || this.revivesUsed >= 1) return;
 
     this.rewardedRequestPending = false;
+    this.activeRewardedRequestId = null;
     this.revivesUsed = 1;
     this.hearts = 1;
     this.hasActiveRun = true;
@@ -713,17 +739,26 @@ window.SkyScooterGame = class SkyScooterGame {
     this.vibrate(80);
   }
 
-  onRewardedAdUnavailable() {
+  onRewardedAdUnavailable(requestId) {
+    if (!this.isAdRequestCurrent('rewarded', requestId)) return;
     this.rewardedRequestPending = false;
+    this.activeRewardedRequestId = null;
+    const button = document.getElementById('btn-go-revive');
+    if (button && this.revivesUsed < 1) {
+      button.disabled = false;
+      button.textContent = 'Ad unavailable, try again';
+    }
+  }
+
+  onRewardedAdNotCompleted(requestId) {
+    if (!this.isAdRequestCurrent('rewarded', requestId)) return;
+    this.rewardedRequestPending = false;
+    this.activeRewardedRequestId = null;
     const button = document.getElementById('btn-go-revive');
     if (button && this.revivesUsed < 1) {
       button.disabled = false;
       button.textContent = 'REVIVE · WATCH AD';
     }
-  }
-
-  onRewardedAdNotCompleted() {
-    this.onRewardedAdUnavailable();
   }
 
   triggerRoundComplete() {
