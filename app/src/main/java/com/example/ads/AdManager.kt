@@ -24,7 +24,14 @@ import com.google.android.gms.ads.rewarded.RewardItem
  * Uses SKY SCOOTER's production ad unit IDs for all build types.
  * During development, register devices as test devices in AdMob to avoid invalid traffic.
  */
-class AdManager(private val context: Context) {
+class AdManager(
+    private val context: Context,
+    private val canRequestAds: () -> Boolean
+) {
+    fun clearCachedAds() {
+        rewardedAd = null
+        interstitialAd = null
+    }
 
     private var rewardedAd: RewardedAd? = null
     private var interstitialAd: InterstitialAd? = null
@@ -34,8 +41,8 @@ class AdManager(private val context: Context) {
         loadInterstitial()
     }
 
-    fun isRewardedLoaded(): Boolean = rewardedAd != null
-    fun isInterstitialLoaded(): Boolean = interstitialAd != null
+    fun isRewardedLoaded(): Boolean = canRequestAds() && rewardedAd != null
+    fun isInterstitialLoaded(): Boolean = canRequestAds() && interstitialAd != null
 
     fun showRewarded(
         activity: Activity,
@@ -43,7 +50,7 @@ class AdManager(private val context: Context) {
         onUnavailable: () -> Unit = {},
         onNotEarned: () -> Unit = {}
     ) {
-        val ad = rewardedAd
+        val ad = if (canRequestAds()) rewardedAd else null
         if (ad == null) {
             loadRewarded()
             onUnavailable()
@@ -78,7 +85,7 @@ class AdManager(private val context: Context) {
         activity: Activity,
         onFinished: () -> Unit = {}
     ) {
-        val ad = interstitialAd
+        val ad = if (canRequestAds()) interstitialAd else null
         if (ad == null) {
             loadInterstitial()
             onFinished()
@@ -105,6 +112,7 @@ class AdManager(private val context: Context) {
     }
 
     private fun loadRewarded() {
+        if (!canRequestAds()) return
         val unitId = PROD_REWARDED_AD_UNIT_ID
         Log.d(TAG, "Loading rewarded; production ad unit")
 
@@ -115,7 +123,7 @@ class AdManager(private val context: Context) {
                 AdRequest.Builder().build(),
                 object : RewardedAdLoadCallback() {
                     override fun onAdLoaded(ad: RewardedAd) {
-                        rewardedAd = ad
+                        rewardedAd = if (canRequestAds()) ad else null
                         Log.d(TAG, "Rewarded loaded")
                     }
 
@@ -132,6 +140,7 @@ class AdManager(private val context: Context) {
     }
 
     private fun loadInterstitial() {
+        if (!canRequestAds()) return
         val unitId = PROD_INTERSTITIAL_AD_UNIT_ID
         Log.d(TAG, "Loading interstitial; production ad unit")
 
@@ -142,7 +151,7 @@ class AdManager(private val context: Context) {
                 AdRequest.Builder().build(),
                 object : InterstitialAdLoadCallback() {
                     override fun onAdLoaded(ad: InterstitialAd) {
-                        interstitialAd = ad
+                        interstitialAd = if (canRequestAds()) ad else null
                         Log.d(TAG, "Interstitial loaded")
                     }
 
