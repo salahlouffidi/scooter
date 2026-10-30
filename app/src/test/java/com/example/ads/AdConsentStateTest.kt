@@ -35,6 +35,17 @@ class AdConsentStateTest {
         assertTrue(state.canRequestAds)
         assertFalse(state.beginInitialization())
     }
+    @Test fun duplicatePrivacyRequestsCannotReopenOrUnblockTheForm() {
+        val state = AdConsentState()
+        state.updateConsent(true)
+        assertTrue(state.beginInitialization())
+        state.initializationComplete()
+        assertTrue(state.pauseForConsent())
+        assertFalse(state.pauseForConsent())
+        assertFalse(state.canRequestAds)
+        state.updateConsent(false)
+        assertFalse(state.canRequestAds)
+    }
     @Test fun destructionIgnoresLateCallbacks() {
         val state = AdConsentState()
         state.updateConsent(true)

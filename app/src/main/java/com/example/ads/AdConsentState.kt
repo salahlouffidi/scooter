@@ -9,7 +9,11 @@ internal class AdConsentState {
     private var initializing = false
 
     val canRequestAds: Boolean get() = permitted && !formOpen && ready && !destroyed
-    fun pauseForConsent() { formOpen = true }
+    fun pauseForConsent(): Boolean {
+        if (destroyed || formOpen) return false
+        formOpen = true
+        return true
+    }
     fun updateConsent(allowed: Boolean) {
         permitted = allowed
         formOpen = false

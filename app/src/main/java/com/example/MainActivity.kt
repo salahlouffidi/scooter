@@ -236,7 +236,7 @@ class MainActivity : ComponentActivity() {
                 val info = UserMessagingPlatform.getConsentInformation(host)
                 if (info.privacyOptionsRequirementStatus !=
                     ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED) return@runOnUiThread
-                adConsentState.pauseForConsent()
+                if (!adConsentState.pauseForConsent()) return@runOnUiThread
                 adManager.clearCachedAds()
                 try {
                     UserMessagingPlatform.showPrivacyOptionsForm(host) { error ->
