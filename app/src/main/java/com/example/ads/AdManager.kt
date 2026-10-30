@@ -3,7 +3,6 @@ package com.example.ads
 import android.app.Activity
 import android.content.Context
 import android.util.Log
-import com.example.BuildConfig
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
@@ -22,8 +21,8 @@ import com.google.android.gms.ads.rewarded.RewardItem
  * - show with the active Activity
  * - preload the next ad after dismissal
  *
- * Debug builds use Google's official test units.
- * Release builds use SKY SCOOTER's production units.
+ * Uses SKY SCOOTER's production ad unit IDs for all build types.
+ * During development, register devices as test devices in AdMob to avoid invalid traffic.
  */
 class AdManager(private val context: Context) {
 
@@ -106,8 +105,8 @@ class AdManager(private val context: Context) {
     }
 
     private fun loadRewarded() {
-        val unitId = if (BuildConfig.DEBUG) TEST_REWARDED_AD_UNIT_ID else PROD_REWARDED_AD_UNIT_ID
-        Log.d(TAG, "Loading rewarded; test=${BuildConfig.DEBUG}")
+        val unitId = PROD_REWARDED_AD_UNIT_ID
+        Log.d(TAG, "Loading rewarded; production ad unit")
 
         try {
             RewardedAd.load(
@@ -133,8 +132,8 @@ class AdManager(private val context: Context) {
     }
 
     private fun loadInterstitial() {
-        val unitId = if (BuildConfig.DEBUG) TEST_INTERSTITIAL_AD_UNIT_ID else PROD_INTERSTITIAL_AD_UNIT_ID
-        Log.d(TAG, "Loading interstitial; test=${BuildConfig.DEBUG}")
+        val unitId = PROD_INTERSTITIAL_AD_UNIT_ID
+        Log.d(TAG, "Loading interstitial; production ad unit")
 
         try {
             InterstitialAd.load(
@@ -168,10 +167,6 @@ class AdManager(private val context: Context) {
         private const val PROD_INTERSTITIAL_AD_UNIT_ID =
             "ca-app-pub-3521560929268417/9134380216"
 
-        // Official Google test units for debug builds.
-        private const val TEST_REWARDED_AD_UNIT_ID =
-            "ca-app-pub-3940256099942544/5224354917"
-        private const val TEST_INTERSTITIAL_AD_UNIT_ID =
-            "ca-app-pub-3940256099942544/1033173712"
+
     }
 }
