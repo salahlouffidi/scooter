@@ -27,6 +27,7 @@ class ConsentController(private val activity: Activity) {
                 }
             },
             { error ->
+                permitted = information.canRequestAds()
                 formPending = false
                 Log.w("ScooterConsent", "Consent update: ${error.errorCode}")
                 // A previous valid UMP decision can still permit ads after an update error.
@@ -47,6 +48,7 @@ class ConsentController(private val activity: Activity) {
         }
         formPending = true
         UserMessagingPlatform.showPrivacyOptionsForm(activity) { error ->
+            permitted = information.canRequestAds()
             formPending = false
             if (error != null) Log.w("ScooterConsent", "Privacy options: ${error.errorCode}")
             if (!activity.isFinishing && !activity.isDestroyed) onChanged()
