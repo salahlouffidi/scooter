@@ -1,0 +1,60 @@
+name: Signed release candidate
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check gameplay and ad flow without requesting ads
+        run: |
+          npm test
+          node tools/verify-ad-flow.cjs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+      - name: Prepare upload key
+        env:
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$UPLOAD_KEYSTORE_BASE64" || { echo 'Missing UPLOAD_KEYSTORE_BASE64 secret'; exit 1; }
+          test -n "$STORE_PASSWORD" || { echo 'Missing STORE_PASSWORD secret'; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo 'Missing KEY_PASSWORD secret'; exit 1; }
+          umask 077
+          printf '%s' "$UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/scooter-upload.jks"
+          echo "KEYSTORE_PATH=$RUNNER_TEMP/scooter-upload.jks" >> "$GITHUB_ENV"
+      - name: Lint and build signed bundle
+        run: gradle --no-daemon :app:lintRelease :app:bundleRelease
+      - name: Verify bundle signature
+        run: |
+          set -euo pipefail
+          jarsigner -verify app/build/outputs/bundle/release/app-release.aab > "$RUNNER_TEMP/signature.txt" 2>&1
+          cat "$RUNNER_TEMP/signature.txt"
+          grep -q 'jar verified' "$RUNNER_TEMP/signature.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scooter-release-candidate
+          path: |
+            app/build/outputs/bundle/release/*.aab
+            app/build/reports/lint-results-release.*
+          if-no-files-found: error
+          retention-days: 7
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/scooter-upload.jks"
