@@ -25,7 +25,7 @@ jobs:
         with:
           gradle-version: '9.3.1'
       - name: Consent state unit tests
-        run: gradle --no-daemon :app:testReleaseUnitTest --tests com.example.ads.AdConsentStateTest
+        run: gradle --no-daemon -p tools/consent-tests test
       - name: Compile, lint and shrink release without signing secrets
         run: gradle --no-daemon :app:lintRelease :app:minifyReleaseWithR8
       - name: Inspect resolved Fragment versions
@@ -36,6 +36,6 @@ jobs:
           name: consent-release-reports
           path: |
             app/build/reports/lint-results-release.*
-            app/build/test-results/testReleaseUnitTest/*.xml
+            tools/consent-tests/build/test-results/test/*.xml
             app/build/outputs/mapping/release/*
           if-no-files-found: warn
