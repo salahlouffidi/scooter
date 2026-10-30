@@ -1187,6 +1187,12 @@ window.SkyScooterGame = class SkyScooterGame {
     set('set-postfx', s.postFx, 'checked');
     set('set-adaptive-res', s.adaptiveResolution, 'checked');
     set('set-show-fps', s.showFps, 'checked');
+
+    const privacyOpt = document.getElementById('btn-privacy-options');
+    if (privacyOpt) {
+      const required = window.AndroidBridge?.isPrivacyOptionsRequired?.() || false;
+      privacyOpt.classList.toggle('hidden', !required);
+    }
   }
 
   wireSettingsForm() {
@@ -1231,6 +1237,18 @@ window.SkyScooterGame = class SkyScooterGame {
       el?.addEventListener('change', saveAndApply);
       // Sliders preview live so stick size/opacity can be tuned by eye.
       if (el && el.type === 'range') el.addEventListener('input', saveAndApply);
+    });
+
+    document.getElementById('btn-privacy-policy')?.addEventListener('click', () => {
+      if (window.AndroidBridge?.openPrivacyPolicy) {
+        window.AndroidBridge.openPrivacyPolicy();
+      } else {
+        window.open('https://salahlouffidi.github.io/sky-scooter-privacy.html', '_blank');
+      }
+    });
+
+    document.getElementById('btn-privacy-options')?.addEventListener('click', () => {
+      window.AndroidBridge?.showPrivacyOptions?.();
     });
 
     document.getElementById('btn-reset-ml')?.addEventListener('click', () => {

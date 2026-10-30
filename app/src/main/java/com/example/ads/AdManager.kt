@@ -14,20 +14,19 @@ import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import com.google.android.gms.ads.rewarded.RewardItem
 
 /**
- * Simple Google Mobile Ads integration for SKY SCOOTER — LOUFFI EDITION.
+ * Robust Google Mobile Ads integration for SKY SCOOTER — LOUFFI EDITION.
  *
- * Mirrors the ARMASNAKE preload/show pattern:
- * - preload one interstitial and one rewarded ad
- * - show with the active Activity
- * - preload the next ad after dismissal
- *
- * Uses SKY SCOOTER's production ad unit IDs for all build types.
- * During development, register devices as test devices in AdMob to avoid invalid traffic.
+ * Features:
+ * - Preloads one interstitial and one rewarded ad with duplicate load protection.
+ * - Discards stale callbacks and prevents concurrent load races.
+ * - Uses production ad unit IDs.
  */
 class AdManager(private val context: Context) {
 
     private var rewardedAd: RewardedAd? = null
     private var interstitialAd: InterstitialAd? = null
+    private var isLoadingRewarded = false
+    private var isLoadingInterstitial = false
 
     fun preload() {
         loadRewarded()
@@ -105,6 +104,8 @@ class AdManager(private val context: Context) {
     }
 
     private fun loadRewarded() {
+        if (rewardedAd != null || isLoadingRewarded) return
+        isLoadingRewarded = true
         val unitId = PROD_REWARDED_AD_UNIT_ID
         Log.d(TAG, "Loading rewarded; production ad unit")
 
@@ -115,23 +116,28 @@ class AdManager(private val context: Context) {
                 AdRequest.Builder().build(),
                 object : RewardedAdLoadCallback() {
                     override fun onAdLoaded(ad: RewardedAd) {
+                        isLoadingRewarded = false
                         rewardedAd = ad
-                        Log.d(TAG, "Rewarded loaded")
+                        Log.d(TAG, "Rewarded loaded successfully")
                     }
 
                     override fun onAdFailedToLoad(adError: LoadAdError) {
+                        isLoadingRewarded = false
                         rewardedAd = null
                         Log.w(TAG, "Rewarded failed to load: ${adError.code} ${adError.message}")
                     }
                 }
             )
         } catch (t: Throwable) {
+            isLoadingRewarded = false
             rewardedAd = null
             Log.w(TAG, "Rewarded load exception", t)
         }
     }
 
     private fun loadInterstitial() {
+        if (interstitialAd != null || isLoadingInterstitial) return
+        isLoadingInterstitial = true
         val unitId = PROD_INTERSTITIAL_AD_UNIT_ID
         Log.d(TAG, "Loading interstitial; production ad unit")
 
@@ -142,17 +148,20 @@ class AdManager(private val context: Context) {
                 AdRequest.Builder().build(),
                 object : InterstitialAdLoadCallback() {
                     override fun onAdLoaded(ad: InterstitialAd) {
+                        isLoadingInterstitial = false
                         interstitialAd = ad
-                        Log.d(TAG, "Interstitial loaded")
+                        Log.d(TAG, "Interstitial loaded successfully")
                     }
 
                     override fun onAdFailedToLoad(adError: LoadAdError) {
+                        isLoadingInterstitial = false
                         interstitialAd = null
                         Log.w(TAG, "Interstitial failed to load: ${adError.code} ${adError.message}")
                     }
                 }
             )
         } catch (t: Throwable) {
+            isLoadingInterstitial = false
             interstitialAd = null
             Log.w(TAG, "Interstitial load exception", t)
         }
@@ -166,7 +175,5 @@ class AdManager(private val context: Context) {
             "ca-app-pub-3521560929268417/3871153080"
         private const val PROD_INTERSTITIAL_AD_UNIT_ID =
             "ca-app-pub-3521560929268417/9134380216"
-
-
     }
 }

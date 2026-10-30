@@ -34,6 +34,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.ads.AdManager
 import com.google.android.gms.ads.MobileAds
+import com.google.android.ump.ConsentInformation
+import com.google.android.ump.ConsentRequestParameters
+import com.google.android.ump.UserMessagingPlatform
 
 class MainActivity : ComponentActivity() {
 
@@ -200,6 +203,40 @@ class MainActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
+        fun openPrivacyPolicy() {
+            val host = activity ?: return
+            host.runOnUiThread {
+                try {
+                    val intent = android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse("https://salahlouffidi.github.io/sky-scooter-privacy.html")
+                    )
+                    host.startActivity(intent)
+                } catch (_: Throwable) {}
+            }
+        }
+
+        @JavascriptInterface
+        fun isPrivacyOptionsRequired(): Boolean {
+            return try {
+                val info = UserMessagingPlatform.getConsentInformation(context)
+                info.privacyOptionsRequirementStatus == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED
+            } catch (_: Throwable) {
+                false
+            }
+        }
+
+        @JavascriptInterface
+        fun showPrivacyOptions() {
+            val host = activity ?: return
+            host.runOnUiThread {
+                try {
+                    UserMessagingPlatform.showPrivacyOptionsForm(host) { _ -> }
+                } catch (_: Throwable) {}
+            }
+        }
+
+        @JavascriptInterface
         fun getAppVersion(): String = "1.0.0-louffi"
     }
 
@@ -209,17 +246,45 @@ class MainActivity : ComponentActivity() {
         controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
 
+    private fun initializeAds() {
+        try {
+            MobileAds.initialize(this) {
+                runOnUiThread { adManager.preload() }
+            }
+        } catch (_: Throwable) {}
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         adManager = AdManager(applicationContext)
         try {
-            MobileAds.initialize(this) {
-                runOnUiThread { adManager.preload() }
+            val consentInformation = UserMessagingPlatform.getConsentInformation(this)
+            val params = ConsentRequestParameters.Builder().build()
+            consentInformation.requestConsentInfoUpdate(
+                this,
+                params,
+                {
+                    UserMessagingPlatform.loadAndShowConsentFormIfRequired(
+                        this
+                    ) { _ ->
+                        if (consentInformation.canRequestAds()) {
+                            initializeAds()
+                        }
+                    }
+                },
+                { _ ->
+                    if (consentInformation.canRequestAds()) {
+                        initializeAds()
+                    }
+                }
+            )
+            if (consentInformation.canRequestAds()) {
+                initializeAds()
             }
         } catch (_: Throwable) {
-            // Keep the game usable on devices/environments where Google Mobile Ads cannot start.
+            initializeAds()
         }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {

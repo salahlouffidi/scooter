@@ -1,21 +1,27 @@
 # Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Preserve JavaScript Interface and AndroidBridge methods called from WebView
+-keepclassmembers class com.example.MainActivity$AndroidBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keep class com.example.MainActivity$AndroidBridge { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Google Mobile Ads SDK & UMP
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+-keep class com.google.android.gms.ads.** { *; }
+-dontwarn com.google.android.gms.ads.**
+-keep class com.google.android.ump.** { *; }
+-dontwarn com.google.android.ump.**
+-keep class com.google.android.gms.common.** { *; }
+-dontwarn com.google.android.gms.common.**
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Serialization / Moshi / Retrofit / Room
+-keep class com.squareup.moshi.** { *; }
+-dontwarn com.squareup.moshi.**
+-keep class retrofit2.** { *; }
+-dontwarn retrofit2.**
+-keep class androidx.room.** { *; }
+-dontwarn androidx.room.**
+
+# Line numbers for debugging stack traces if needed
+-keepattributes SourceFile,LineNumberTable
