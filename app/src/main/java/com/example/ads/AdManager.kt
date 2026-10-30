@@ -28,13 +28,26 @@ class AdManager(
     private val context: Context,
     private val canRequestAds: () -> Boolean
 ) {
+    private var generation = 0
+    private var destroyed = false
+    private var rewardedLoading = false
+    private var interstitialLoading = false
+
+    fun destroy() {
+        destroyed = true
+        clearCachedAds()
+    }
+
     fun clearCachedAds() {
+        generation++
+        rewardedLoading = false
+        interstitialLoading = false
         rewardedAd = null
         interstitialAd = null
     }
 
-    private var rewardedAd: RewardedAd? = null
-    private var interstitialAd: InterstitialAd? = null
+    @Volatile private var rewardedAd: RewardedAd? = null
+    @Volatile private var interstitialAd: InterstitialAd? = null
 
     fun preload() {
         loadRewarded()
@@ -112,7 +125,9 @@ class AdManager(
     }
 
     private fun loadRewarded() {
-        if (!canRequestAds()) return
+        if (destroyed || !canRequestAds() || rewardedLoading || rewardedAd != null) return
+        rewardedLoading = true
+        val requestGeneration = generation
         val unitId = PROD_REWARDED_AD_UNIT_ID
         Log.d(TAG, "Loading rewarded; production ad unit")
 
@@ -123,24 +138,31 @@ class AdManager(
                 AdRequest.Builder().build(),
                 object : RewardedAdLoadCallback() {
                     override fun onAdLoaded(ad: RewardedAd) {
+                        if (destroyed || requestGeneration != generation) return
+                        rewardedLoading = false
                         rewardedAd = if (canRequestAds()) ad else null
                         Log.d(TAG, "Rewarded loaded")
                     }
 
                     override fun onAdFailedToLoad(adError: LoadAdError) {
+                        if (destroyed || requestGeneration != generation) return
+                        rewardedLoading = false
                         rewardedAd = null
                         Log.w(TAG, "Rewarded failed to load: ${adError.code} ${adError.message}")
                     }
                 }
             )
         } catch (t: Throwable) {
+            rewardedLoading = false
             rewardedAd = null
             Log.w(TAG, "Rewarded load exception", t)
         }
     }
 
     private fun loadInterstitial() {
-        if (!canRequestAds()) return
+        if (destroyed || !canRequestAds() || interstitialLoading || interstitialAd != null) return
+        interstitialLoading = true
+        val requestGeneration = generation
         val unitId = PROD_INTERSTITIAL_AD_UNIT_ID
         Log.d(TAG, "Loading interstitial; production ad unit")
 
@@ -151,17 +173,22 @@ class AdManager(
                 AdRequest.Builder().build(),
                 object : InterstitialAdLoadCallback() {
                     override fun onAdLoaded(ad: InterstitialAd) {
+                        if (destroyed || requestGeneration != generation) return
+                        interstitialLoading = false
                         interstitialAd = if (canRequestAds()) ad else null
                         Log.d(TAG, "Interstitial loaded")
                     }
 
                     override fun onAdFailedToLoad(adError: LoadAdError) {
+                        if (destroyed || requestGeneration != generation) return
+                        interstitialLoading = false
                         interstitialAd = null
                         Log.w(TAG, "Interstitial failed to load: ${adError.code} ${adError.message}")
                     }
                 }
             )
         } catch (t: Throwable) {
+            interstitialLoading = false
             interstitialAd = null
             Log.w(TAG, "Interstitial load exception", t)
         }

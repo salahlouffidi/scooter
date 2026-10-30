@@ -399,6 +399,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        adsReady = false
+        if (::adManager.isInitialized) adManager.destroy()
         webView?.destroy()
         webView = null
         super.onDestroy()
