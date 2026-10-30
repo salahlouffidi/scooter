@@ -52,6 +52,24 @@ class MainActivity : ComponentActivity() {
         private val activity: Activity? = context as? Activity
 
         @JavascriptInterface
+        fun showPrivacyPolicy() {
+            activity?.runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                val text = android.widget.TextView(this@MainActivity).apply {
+                    text = assets.open("privacy-policy.txt").bufferedReader().use { it.readText() }
+                    setPadding(32, 24, 32, 24)
+                    textSize = 16f
+                    autoLinkMask = android.text.util.Linkify.WEB_URLS
+                    movementMethod = android.text.method.LinkMovementMethod.getInstance()
+                }
+                val scroll = android.widget.ScrollView(this@MainActivity).apply { addView(text) }
+                android.app.AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Privacy policy").setView(scroll)
+                    .setPositiveButton("Close", null).show()
+            }
+        }
+
+        @JavascriptInterface
         fun isRewardedAdReady(): Boolean =
             ::adManager.isInitialized && adManager.isRewardedLoaded()
 
