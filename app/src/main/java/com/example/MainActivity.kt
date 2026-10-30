@@ -32,6 +32,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.example.ads.AdConsentState
 import com.example.ads.AdManager
 import com.google.android.gms.ads.MobileAds
 import com.google.android.ump.ConsentInformation
@@ -49,6 +50,7 @@ class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
     private var appResumed = false
     private lateinit var adManager: AdManager
+    private val adConsentState = AdConsentState()
 
     inner class AndroidBridge(private val context: Context) {
         private val saves = context.getSharedPreferences("louffi_active_run", Context.MODE_PRIVATE)
@@ -230,9 +232,21 @@ class MainActivity : ComponentActivity() {
         fun showPrivacyOptions() {
             val host = activity ?: return
             host.runOnUiThread {
+                if (host.isFinishing || host.isDestroyed) return@runOnUiThread
+                val info = UserMessagingPlatform.getConsentInformation(host)
+                if (info.privacyOptionsRequirementStatus !=
+                    ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED) return@runOnUiThread
+                if (!adConsentState.pauseForConsent()) return@runOnUiThread
+                adManager.clearCachedAds()
                 try {
-                    UserMessagingPlatform.showPrivacyOptionsForm(host) { _ -> }
-                } catch (_: Throwable) {}
+                    UserMessagingPlatform.showPrivacyOptionsForm(host) { error ->
+                        if (error != null) android.util.Log.w("ScooterConsent", "Privacy form: ${error.errorCode}")
+                        applyConsent(info.canRequestAds())
+                    }
+                } catch (error: Exception) {
+                    android.util.Log.w("ScooterConsent", "Privacy form failed", error)
+                    applyConsent(false)
+                }
             }
         }
 
@@ -246,45 +260,56 @@ class MainActivity : ComponentActivity() {
         controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
 
-    private fun initializeAds() {
-        try {
-            MobileAds.initialize(this) {
-                runOnUiThread { adManager.preload() }
+    private fun applyConsent(allowed: Boolean) {
+        if (isFinishing || isDestroyed) return
+        adConsentState.updateConsent(allowed)
+        if (!allowed) {
+            adManager.clearCachedAds()
+            return
+        }
+        if (adConsentState.canRequestAds) {
+            adManager.preload()
+        } else if (adConsentState.beginInitialization()) {
+            try {
+                MobileAds.initialize(this) {
+                    runOnUiThread {
+                        adConsentState.initializationComplete()
+                        if (!isFinishing && !isDestroyed && adConsentState.canRequestAds) adManager.preload()
+                    }
+                }
+            } catch (error: Exception) {
+                adConsentState.initializationFailed()
+                android.util.Log.w("ScooterConsent", "Ads initialization failed", error)
             }
-        } catch (_: Throwable) {}
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        adManager = AdManager(applicationContext)
+        adManager = AdManager(applicationContext) { adConsentState.canRequestAds }
         try {
             val consentInformation = UserMessagingPlatform.getConsentInformation(this)
-            val params = ConsentRequestParameters.Builder().build()
             consentInformation.requestConsentInfoUpdate(
-                this,
-                params,
+                this, ConsentRequestParameters.Builder().build(),
                 {
-                    UserMessagingPlatform.loadAndShowConsentFormIfRequired(
-                        this
-                    ) { _ ->
-                        if (consentInformation.canRequestAds()) {
-                            initializeAds()
+                    if (!isFinishing && !isDestroyed) {
+                        UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { error ->
+                            if (error != null) android.util.Log.w("ScooterConsent", "Consent form: ${error.errorCode}")
+                            applyConsent(consentInformation.canRequestAds())
                         }
                     }
                 },
-                { _ ->
-                    if (consentInformation.canRequestAds()) {
-                        initializeAds()
-                    }
+                { error ->
+                    android.util.Log.w("ScooterConsent", "Consent update: ${error.errorCode}")
+                    // Only a valid persisted UMP decision can allow ads on an update failure.
+                    applyConsent(consentInformation.canRequestAds())
                 }
             )
-            if (consentInformation.canRequestAds()) {
-                initializeAds()
-            }
-        } catch (_: Throwable) {
-            initializeAds()
+        } catch (error: Exception) {
+            android.util.Log.w("ScooterConsent", "Consent setup failed", error)
+            applyConsent(false)
         }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -314,7 +339,7 @@ class MainActivity : ComponentActivity() {
         hideSystemBars()
 
         setContent {
-            val bridge = remember { AndroidBridge(this) }
+            val bridge: AndroidBridge = remember { AndroidBridge(this) }
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
@@ -413,6 +438,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        adConsentState.destroy()
+        if (::adManager.isInitialized) adManager.destroy()
         webView?.destroy()
         webView = null
         super.onDestroy()
