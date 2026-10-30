@@ -21,9 +21,7 @@ class ConsentController(private val activity: Activity) {
                 if (activity.isFinishing || activity.isDestroyed) return@requestConsentInfoUpdate
                 UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) { error ->
                     permitted = information.canRequestAds()
-                    permitted = information.canRequestAds()
-                permitted = information.canRequestAds()
-            formPending = false
+                    formPending = false
                     if (error != null) Log.w("ScooterConsent", "Consent form: ${error.errorCode}")
                     if (!activity.isFinishing && !activity.isDestroyed) onChanged()
                 }
