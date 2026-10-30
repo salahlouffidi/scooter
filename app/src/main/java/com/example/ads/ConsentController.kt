@@ -9,8 +9,9 @@ import com.google.android.ump.UserMessagingPlatform
 /** Use UMP's persisted decision, refreshed at each launch; never infer consent locally. */
 class ConsentController(private val activity: Activity) {
     private val information = UserMessagingPlatform.getConsentInformation(activity)
-    private var formPending = false
-    val canRequestAds: Boolean get() = information.canRequestAds() && !formPending
+    @Volatile private var formPending = false
+    @Volatile private var permitted = false
+    val canRequestAds: Boolean get() = permitted && !formPending
 
     fun gather(onChanged: () -> Unit) {
         formPending = true
@@ -19,7 +20,10 @@ class ConsentController(private val activity: Activity) {
             {
                 if (activity.isFinishing || activity.isDestroyed) return@requestConsentInfoUpdate
                 UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) { error ->
-                    formPending = false
+                    permitted = information.canRequestAds()
+                    permitted = information.canRequestAds()
+                permitted = information.canRequestAds()
+            formPending = false
                     if (error != null) Log.w("ScooterConsent", "Consent form: ${error.errorCode}")
                     if (!activity.isFinishing && !activity.isDestroyed) onChanged()
                 }
