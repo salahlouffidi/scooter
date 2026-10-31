@@ -227,8 +227,7 @@ window.SkyScooterGame = class SkyScooterGame {
       dirIntensity = 1.7; hemiIntensity = 0.85; exposure = 1.0;
       rimColor = new THREE.Color(0x9fd9ff); rimIntensity = 1.0;
     } else if (isWarm) {
-      // Keep the warm sky/rim, but avoid painting every nearby material orange.
-      dirColor = new THREE.Color(0xffd8ad);
+      dirColor = new THREE.Color(0xffc48f);
       dirIntensity = 2.3; hemiIntensity = 0.92; exposure = 1.0;
       rimColor = new THREE.Color(0xffa26b); rimIntensity = 1.2;
     } else {
