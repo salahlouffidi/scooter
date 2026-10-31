@@ -32,9 +32,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import com.example.ads.AdDiagnostics
 import com.example.ads.AdManager
-import com.example.ads.MobileAdsInitializer
+import com.google.android.gms.ads.MobileAds
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
@@ -50,33 +49,22 @@ class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
     private var appResumed = false
     private lateinit var adManager: AdManager
-    private var consentInformation: ConsentInformation? = null
-    private var adsDestroyed = false
-    private var sdkInitializationRequested = false
-    private var cancelSdkListener: (() -> Unit)? = null
-    private var privacyChoicesOpen = false
-    @Volatile private var currentGameState = "BOOT"
-    private var webDocumentGeneration = 0L
+    private var isAdsInitialized = false
+    private var isPrivacyFormShowing = false
 
-    private fun withCurrentAdRequest(format: String, requestId: Long, show: (WebView) -> Unit) {
-        val view = webView ?: return
-        val documentGeneration = webDocumentGeneration
-        if (adsDestroyed || isFinishing || requestId <= 0) return
-        view.evaluateJavascript("window.gameInstance?.isAdRequestCurrent?.('$format', $requestId) === true;") { result ->
-            if (adsDestroyed || webView !== view || documentGeneration != webDocumentGeneration) return@evaluateJavascript
-            if (result == "true" && currentGameState == "GAME_OVER" && appResumed && !isFinishing) {
-                show(view)
-            } else {
-                AdDiagnostics.event("display.stale_or_background", "format=$format request=$requestId")
-                val callback = if (format == "interstitial") "onInterstitialClosed" else "onRewardedAdUnavailable"
-                view.evaluateJavascript("window.gameInstance?.$callback?.($requestId);", null)
+    private fun initializeAdsIfNeeded() {
+        if (isAdsInitialized) return
+        try {
+            val consentInfo = UserMessagingPlatform.getConsentInformation(this)
+            if (consentInfo.canRequestAds()) {
+                isAdsInitialized = true
+                MobileAds.initialize(this) {
+                    runOnUiThread {
+                        adManager.preload()
+                    }
+                }
             }
-        }
-    }
-
-    // Outside Compose's generic remember scope so lint resolves the concrete interface.
-    private fun installAndroidBridge(view: WebView, bridge: AndroidBridge) {
-        view.addJavascriptInterface(bridge, "AndroidBridge")
+        } catch (_: Throwable) {}
     }
 
     inner class AndroidBridge(private val context: Context) {
@@ -84,38 +72,47 @@ class MainActivity : ComponentActivity() {
         private val activity: Activity? = context as? Activity
 
         @JavascriptInterface
-        fun showInterstitial(requestId: Long) {
+        fun isRewardedAdReady(): Boolean =
+            adManager.isRewardedLoaded()
+
+        @JavascriptInterface
+        fun showInterstitial() {
             val host = activity ?: return
             host.runOnUiThread {
-                withCurrentAdRequest("interstitial", requestId) { view ->
-                    val documentGeneration = webDocumentGeneration
-                    adManager.showInterstitial(host) {
-                        if (!adsDestroyed && webView === view && documentGeneration == webDocumentGeneration) view.evaluateJavascript(
-                            "window.gameInstance?.onInterstitialClosed?.($requestId);", null
-                        )
-                    }
+                adManager.showInterstitial(host) {
+                    webView?.evaluateJavascript(
+                        "window.gameInstance?.onInterstitialClosed?.();",
+                        null
+                    )
                 }
             }
         }
 
         @JavascriptInterface
-        fun showRewardedRevive(requestId: Long) {
+        fun showRewardedRevive() {
             val host = activity ?: return
             host.runOnUiThread {
-                withCurrentAdRequest("rewarded", requestId) { view ->
-                    val documentGeneration = webDocumentGeneration
-                    fun callback(method: String) {
-                        if (!adsDestroyed && webView === view && documentGeneration == webDocumentGeneration) view.evaluateJavascript(
-                            "window.gameInstance?.$method?.($requestId);", null
+                adManager.showRewarded(
+                    activity = host,
+                    onRewardEarned = {
+                        webView?.evaluateJavascript(
+                            "window.gameInstance?.onRewardedReviveEarned?.();",
+                            null
+                        )
+                    },
+                    onUnavailable = {
+                        webView?.evaluateJavascript(
+                            "window.gameInstance?.onRewardedAdUnavailable?.();",
+                            null
+                        )
+                    },
+                    onNotEarned = {
+                        webView?.evaluateJavascript(
+                            "window.gameInstance?.onRewardedAdNotCompleted?.();",
+                            null
                         )
                     }
-                    adManager.showRewarded(
-                        activity = host,
-                        onRewardEarned = { callback("onRewardedReviveEarned") },
-                        onUnavailable = { callback("onRewardedAdUnavailable") },
-                        onNotEarned = { callback("onRewardedAdNotCompleted") }
-                    )
-                }
+                )
             }
         }
 
@@ -150,8 +147,6 @@ class MainActivity : ComponentActivity() {
             }
         } catch (_: Exception) { null }
 
-        // Single pulse. On devices with amplitude control, longer pulses are also stronger,
-        // so a coin tick feels light and a crash feels heavy instead of just longer.
         @JavascriptInterface
         fun vibrate(milliseconds: Long) {
             val ms = milliseconds.coerceIn(5L, 500L)
@@ -168,7 +163,6 @@ class MainActivity : ComponentActivity() {
             } catch (_: Exception) {}
         }
 
-        // Pattern from JS: [pause, pulse, pause, pulse, ...] in milliseconds (max 16 entries).
         @JavascriptInterface
         fun vibratePattern(json: String, strength: Double) {
             val v = vibrator() ?: return
@@ -193,12 +187,8 @@ class MainActivity : ComponentActivity() {
             } catch (_: Exception) {}
         }
 
-        // Keep the screen awake and ask for sustained (thermally stable) performance only
-        // while a run is in progress.
         @JavascriptInterface
         fun onGameStateChanged(state: String) {
-            // Set before posting window work so a queued ad cannot overtake a new run.
-            currentGameState = state
             val playing = state == "PLAYING" || state == "COUNTDOWN"
             val host = activity ?: return
             host.runOnUiThread {
@@ -238,21 +228,27 @@ class MainActivity : ComponentActivity() {
         fun showPrivacyOptions() {
             val host = activity ?: return
             host.runOnUiThread {
-                if (adsDestroyed || privacyChoicesOpen) return@runOnUiThread
-                privacyChoicesOpen = true
-                adManager.suspendForConsentChange()
-                AdDiagnostics.event("ump.privacy.start")
+                if (isPrivacyFormShowing) return@runOnUiThread
+                isPrivacyFormShowing = true
+
+                // Suspend ad requests, invalidate cached and in-flight ads while form is open
+                adManager.invalidateAds()
+
                 try {
-                    UserMessagingPlatform.showPrivacyOptionsForm(host) { error ->
-                        if (adsDestroyed) return@showPrivacyOptionsForm
-                        privacyChoicesOpen = false
-                        AdDiagnostics.event("ump.privacy.complete", "errorCode=${error?.errorCode} message=${error?.message}")
-                        refreshAdPermission("privacy.complete")
+                    UserMessagingPlatform.showPrivacyOptionsForm(host) { _ ->
+                        isPrivacyFormShowing = false
+                        // Recheck UMP permission after dismissal
+                        try {
+                            val info = UserMessagingPlatform.getConsentInformation(host)
+                            if (info.canRequestAds()) {
+                                initializeAdsIfNeeded()
+                            } else {
+                                adManager.invalidateAds()
+                            }
+                        } catch (_: Throwable) {}
                     }
-                } catch (error: Exception) {
-                    privacyChoicesOpen = false
-                    AdDiagnostics.exception("ump.privacy.exception", error)
-                    refreshAdPermission("privacy.exception")
+                } catch (_: Throwable) {
+                    isPrivacyFormShowing = false
                 }
             }
         }
@@ -267,77 +263,48 @@ class MainActivity : ComponentActivity() {
         controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
 
-    private fun umpPermitsRequests(): Boolean = try {
-        consentInformation?.canRequestAds() == true
-    } catch (error: Exception) {
-        AdDiagnostics.exception("ump.permission.exception", error)
-        false
-    }
-
-    private fun refreshAdPermission(stage: String) {
-        if (adsDestroyed) return
-        val allowed = !privacyChoicesOpen && umpPermitsRequests()
-        AdDiagnostics.event("ump.check", "source=$stage canRequestAds=$allowed privacyChoicesOpen=$privacyChoicesOpen")
-        adManager.setConsentAllowed(allowed)
-        if (allowed && !sdkInitializationRequested) {
-            sdkInitializationRequested = true
-            cancelSdkListener = MobileAdsInitializer.initialize(applicationContext) { ready ->
-                if (adsDestroyed) return@initialize
-                if (!ready) sdkInitializationRequested = false
-                // Consent may have changed while initialization was in flight.
-                adManager.setConsentAllowed(!privacyChoicesOpen && umpPermitsRequests())
-                adManager.setSdkReady(ready)
-            }
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        adManager = AdManager(applicationContext, canRequestAds = { !privacyChoicesOpen && umpPermitsRequests() })
-        AdDiagnostics.event("activity.create")
+        adManager = AdManager(applicationContext)
         try {
-            val info = UserMessagingPlatform.getConsentInformation(this)
-            consentInformation = info
+            val consentInformation = UserMessagingPlatform.getConsentInformation(this)
             val params = ConsentRequestParameters.Builder().build()
-            AdDiagnostics.event("ump.update.start")
-            info.requestConsentInfoUpdate(
+            consentInformation.requestConsentInfoUpdate(
                 this,
                 params,
                 {
-                    if (adsDestroyed) return@requestConsentInfoUpdate
-                    AdDiagnostics.event("ump.update.success")
-                    if (info.consentStatus == ConsentInformation.ConsentStatus.REQUIRED) {
-                        privacyChoicesOpen = true
-                        adManager.suspendForConsentChange()
-                    }
-                    refreshAdPermission("update.success")
-                    AdDiagnostics.event("ump.form.start")
-                    try {
-                        UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { error ->
-                            if (adsDestroyed) return@loadAndShowConsentFormIfRequired
-                            privacyChoicesOpen = false
-                            AdDiagnostics.event("ump.form.complete", "errorCode=${error?.errorCode} message=${error?.message}")
-                            refreshAdPermission("form.complete")
+                    UserMessagingPlatform.loadAndShowConsentFormIfRequired(
+                        this
+                    ) { _ ->
+                        if (consentInformation.canRequestAds()) {
+                            initializeAdsIfNeeded()
+                        } else {
+                            adManager.invalidateAds()
                         }
-                    } catch (error: Exception) {
-                        privacyChoicesOpen = false
-                        AdDiagnostics.exception("ump.form.exception", error)
-                        refreshAdPermission("form.exception")
                     }
                 },
-                { error ->
-                    if (adsDestroyed) return@requestConsentInfoUpdate
-                    AdDiagnostics.event("ump.update.failed", "errorCode=${error.errorCode} message=${error.message}")
-                    refreshAdPermission("update.failed")
+                { _ ->
+                    if (consentInformation.canRequestAds()) {
+                        initializeAdsIfNeeded()
+                    } else {
+                        adManager.invalidateAds()
+                    }
                 }
             )
-            refreshAdPermission("update.requested.previous_session")
-        } catch (error: Exception) {
-            AdDiagnostics.exception("ump.update.exception", error)
-            refreshAdPermission("update.exception") // Fail closed unless UMP explicitly permits requests.
+            if (consentInformation.canRequestAds()) {
+                initializeAdsIfNeeded()
+            }
+        } catch (_: Throwable) {
+            try {
+                val consentInformation = UserMessagingPlatform.getConsentInformation(this)
+                if (consentInformation.canRequestAds()) {
+                    initializeAdsIfNeeded()
+                }
+            } catch (_: Throwable) {}
         }
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 webView?.evaluateJavascript("""
@@ -355,8 +322,6 @@ class MainActivity : ComponentActivity() {
             }
         })
 
-        // Immersive sticky full screen for the arcade game; draw into the notch area too so the
-        // game fills the whole display (the HUD respects env(safe-area-inset-*)).
         WindowCompat.setDecorFitsSystemWindows(window, false)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes = window.attributes.apply {
@@ -366,7 +331,7 @@ class MainActivity : ComponentActivity() {
         hideSystemBars()
 
         setContent {
-            val bridge: AndroidBridge = remember { AndroidBridge(this) }
+            val bridge = remember { AndroidBridge(this) }
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
@@ -379,11 +344,9 @@ class MainActivity : ComponentActivity() {
                         overScrollMode = View.OVER_SCROLL_NEVER
                         isVerticalScrollBarEnabled = false
                         isHorizontalScrollBarEnabled = false
-                        // A game surface: no context menu and no system haptic echo on touch.
                         isLongClickable = false
                         setOnLongClickListener { true }
                         isHapticFeedbackEnabled = false
-                        // Edge swipes next to the thumb-stick must not trigger system back gestures.
                         addOnLayoutChangeListener { v, l, t, r, b, _, _, _, _ ->
                             ViewCompat.setSystemGestureExclusionRects(v, listOf(Rect(0, 0, r - l, b - t)))
                         }
@@ -398,7 +361,6 @@ class MainActivity : ComponentActivity() {
                             cacheMode = WebSettings.LOAD_DEFAULT
                             useWideViewPort = true
                             loadWithOverviewMode = true
-                            // Fixed UI scale: the system font-size setting must not reflow the HUD.
                             textZoom = 100
                             setSupportZoom(false)
                             builtInZoomControls = false
@@ -406,12 +368,6 @@ class MainActivity : ComponentActivity() {
                         }
                         webChromeClient = WebChromeClient()
                         webViewClient = object : WebViewClient() {
-                            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                                webDocumentGeneration++
-                                currentGameState = "BOOT"
-                                AdDiagnostics.event("webview.document.start", "generation=$webDocumentGeneration")
-                            }
-
                             override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
                                 view?.let { wv ->
                                     (wv.parent as? ViewGroup)?.removeView(wv)
@@ -424,7 +380,7 @@ class MainActivity : ComponentActivity() {
                                 return true
                             }
                         }
-                        installAndroidBridge(this, bridge)
+                        addJavascriptInterface(bridge, "AndroidBridge")
                         loadUrl("file:///android_asset/game/index.html")
                         this@MainActivity.webView = this
                     }
@@ -442,28 +398,22 @@ class MainActivity : ComponentActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        // Dialogs, the notification shade and the keyboard bring the bars back: hide them again.
         if (hasFocus) hideSystemBars()
     }
 
     override fun onResume() {
         super.onResume()
         appResumed = true
-        AdDiagnostics.event("activity.resume")
-        if (::adManager.isInitialized) refreshAdPermission("activity.resume")
         webView?.onResume()
         webView?.evaluateJavascript("window.gameInstance?.onAppForeground();", null)
     }
 
     override fun onPause() {
         appResumed = false
-        AdDiagnostics.event("activity.pause")
         val view = webView
-        // Let JavaScript freeze and save before pausing the WebView itself.
         view?.evaluateJavascript("window.gameInstance?.onAppBackground();") {
             if (!appResumed && webView === view) view?.onPause()
         }
-        // Never hold the screen awake or request sustained performance while backgrounded.
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         super.onPause()
     }
@@ -474,17 +424,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        adsDestroyed = true
-        cancelSdkListener?.invoke()
-        cancelSdkListener = null
-        if (::adManager.isInitialized) adManager.destroy()
+        adManager.invalidateAds()
         webView?.destroy()
         webView = null
         super.onDestroy()
     }
-}
-
-@androidx.compose.runtime.Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    androidx.compose.material3.Text(text = "Hello $name!", modifier = modifier)
 }
