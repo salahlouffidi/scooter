@@ -1,0 +1,48 @@
+name: SkyScooter
+options:
+  bundleIdPrefix: com.aistudio
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+packages:
+  GoogleMobileAds:
+    url: https://github.com/googleads/swift-package-manager-google-mobile-ads
+    from: 12.0.0
+  GoogleUserMessagingPlatform:
+    url: https://github.com/googleads/swift-package-manager-google-user-messaging-platform
+    from: 3.0.0
+targets:
+  SkyScooter:
+    type: application
+    platform: iOS
+    sources:
+      - path: SkyScooter
+      # The game itself is shared with Android: one copy, bundled as a folder.
+      - path: ../app/src/main/assets/game
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - package: GoogleMobileAds
+      - package: GoogleUserMessagingPlatform
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aistudio.skyscooter.louffi
+        PRODUCT_NAME: SkyScooter
+        INFOPLIST_FILE: SkyScooter/Info.plist
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_VERSION: "5.0"
+        ENABLE_BITCODE: NO
+        OTHER_LDFLAGS: ["-ObjC"]
+        CODE_SIGN_STYLE: Automatic
+schemes:
+  SkyScooter:
+    build:
+      targets:
+        SkyScooter: all
+    run:
+      config: Debug
+    archive:
+      config: Release

@@ -1,0 +1,80 @@
+name: iOS build
+
+on:
+  push:
+    branches: [ios]
+    paths:
+      - 'ios/**'
+      - 'app/src/main/assets/game/**'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          cd ios && xcodegen generate
+          xcodebuild -version
+
+      - name: Build for simulator
+        run: |
+          cd ios
+          xcodebuild -project SkyScooter.xcodeproj -scheme SkyScooter \
+            -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO build | tail -n 40
+          test -d build/sim/Build/Products/Debug-iphonesimulator/SkyScooter.app
+
+      - name: Run in simulator and take screenshots
+        run: |
+          set -euo pipefail
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for r in sorted(d,reverse=True) if 'iOS' in r for x in d[r] if x['name'].startswith('iPhone')))")
+          echo "Simulator $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" ios/build/sim/Build/Products/Debug-iphonesimulator/SkyScooter.app
+          mkdir -p shots
+          xcrun simctl spawn "$UDID" log stream --style compact --predicate 'eventMessage CONTAINS "SkyScooter"' > shots/app.log 2>&1 &
+          LOGPID=$!
+          xcrun simctl launch "$UDID" com.aistudio.skyscooter.louffi
+          sleep 20; xcrun simctl io "$UDID" screenshot shots/boot-20s.png
+          sleep 20; xcrun simctl io "$UDID" screenshot shots/boot-40s.png
+          kill $LOGPID || true
+          echo '----- app log -----'; cat shots/app.log
+          grep -q 'SkyScooterProbe' shots/app.log || { echo 'Game did not report boot probe'; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulator-screenshots
+          path: shots/
+          retention-days: 14
+
+      - name: Build unsigned device .ipa (sign with Sideloadly)
+        run: |
+          set -euo pipefail
+          cd ios
+          xcodebuild -project SkyScooter.xcodeproj -scheme SkyScooter \
+            -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/SkyScooter.xcarchive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" archive | tail -n 20
+          mkdir -p build/ipa/Payload
+          cp -R build/SkyScooter.xcarchive/Products/Applications/SkyScooter.app build/ipa/Payload/
+          (cd build/ipa && zip -qry ../SkyScooter-unsigned.ipa Payload)
+          ls -la build/SkyScooter-unsigned.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SkyScooter-ipa
+          path: ios/build/SkyScooter-unsigned.ipa
+          retention-days: 30
