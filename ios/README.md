@@ -23,8 +23,8 @@ A free Apple ID signature lasts 7 days; repeat step 3 to renew.
 ## Before publishing on the App Store
 
 - Apple Developer account ($99/year).
-- In AdMob, add an **iOS app** for Sky Scooter and replace the three test ids in
-  `ios/SkyScooter/Info.plist` (`GADApplicationIdentifier`, `SSInterstitialAdUnit`,
-  `SSRewardedAdUnit`). The current values are Google's public test ids.
+- AdMob iOS app `ca-app-pub-3521560929268417~2032831923` is set in `Info.plist`
+  (interstitial `/2051471235`, rewarded `/8246886486`). Once the app is live, link it
+  to its App Store listing in AdMob to lift the "limited ad serving" state.
 - Add `app-ads.txt` coverage for the iOS app (same file on salahlouffidi.github.io).
 - Signing + TestFlight upload step in the workflow (needs the account).

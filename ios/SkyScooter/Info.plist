@@ -46,14 +46,13 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 
-	<!-- AdMob. These are Google's public TEST ids. Before publishing, create the iOS app
-	     in AdMob and replace these three values with the real iOS ids. -->
+	<!-- AdMob: real ids of the iOS app "Sky Scooter: Louffi Edition". -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-3521560929268417~2032831923</string>
 	<key>SSInterstitialAdUnit</key>
-	<string>ca-app-pub-3940256099942544/4411468910</string>
+	<string>ca-app-pub-3521560929268417/2051471235</string>
 	<key>SSRewardedAdUnit</key>
-	<string>ca-app-pub-3940256099942544/1712485313</string>
+	<string>ca-app-pub-3521560929268417/8246886486</string>
 	<key>GADDelayAppMeasurementInit</key>
 	<true/>
 	<key>SKAdNetworkItems</key>
