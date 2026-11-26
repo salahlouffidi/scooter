@@ -51,6 +51,9 @@ jobs:
           kill $LOGPID || true
           echo '----- app log -----'; cat shots/app.log
           grep -q 'SkyScooterProbe' shots/app.log || { echo 'Game did not report boot probe'; exit 1; }
+          # Small preview inside the log, for reviewers without artifact access.
+          sips -Z 800 -s format jpeg -s formatOptions 60 shots/boot-40s.png --out shots/preview.jpg >/dev/null
+          echo "PREVIEW_B64_BEGIN"; base64 -i shots/preview.jpg | tr -d '\n'; echo; echo "PREVIEW_B64_END"
 
       - uses: actions/upload-artifact@v4
         if: always()
