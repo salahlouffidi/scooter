@@ -27,9 +27,11 @@ jobs:
 
       - name: Capture 6.9-inch landscape screenshots (2868x1320)
         run: |
-          set -euo pipefail
+          set -euxo pipefail
+          xcrun simctl list devices available
           APP=ios/build/sim/Build/Products/Debug-iphonesimulator/SkyScooter.app
-          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for r in sorted(d,reverse=True) if 'iOS' in r for x in d[r] if 'Pro Max' in x['name']))")
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for r in sorted(d,reverse=True) if 'iOS' in r for x in d[r] if 'Pro Max' in x['name']))" || true)
+          [ -n "$UDID" ] || UDID=$(xcrun simctl create shots "iPhone 16 Pro Max")
           xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID" -b
           xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 || true
           xcrun simctl install "$UDID" "$APP"
