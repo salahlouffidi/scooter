@@ -1,0 +1,62 @@
+name: iOS App Store screenshots
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ios]
+    paths: ['.github/workflows/ios-store-screenshots.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  shots:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build for simulator
+        run: |
+          brew install xcodegen
+          cd ios && xcodegen generate
+          xcodebuild -project SkyScooter.xcodeproj -scheme SkyScooter \
+            -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO build | tail -n 5
+
+      - name: Capture 6.9-inch landscape screenshots (2868x1320)
+        run: |
+          set -euo pipefail
+          APP=ios/build/sim/Build/Products/Debug-iphonesimulator/SkyScooter.app
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for r in sorted(d,reverse=True) if 'iOS' in r for x in d[r] if 'Pro Max' in x['name']))")
+          xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 || true
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p store
+          shoot () { # name, scene, seconds
+            xcrun simctl terminate "$UDID" com.aistudio.skyscooter.louffi || true
+            if [ -n "$2" ]; then xcrun simctl launch "$UDID" com.aistudio.skyscooter.louffi -ssScene "$2"
+            else xcrun simctl launch "$UDID" com.aistudio.skyscooter.louffi; fi
+            sleep "$3"
+            xcrun simctl io "$UDID" screenshot "store/raw-$1.png"
+            sips -r 270 "store/raw-$1.png" --out "store/$1.png" >/dev/null
+            rm "store/raw-$1.png"
+            sips -g pixelWidth -g pixelHeight "store/$1.png" | tail -2
+          }
+          shoot 01-menu "" 25
+          shoot 02-worlds rounds 25
+          shoot 03-garden round:1 16
+          shoot 04-crystal round:6 16
+          shoot 05-volcano round:8 16
+          shoot 06-storm round:13 16
+          for f in store/*.png; do
+            sips -Z 640 -s format jpeg -s formatOptions 55 "$f" --out /tmp/p.jpg >/dev/null
+            echo "PREVIEW $(basename "$f") $(base64 -i /tmp/p.jpg | tr -d '\n')"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-store-screenshots-6.9in
+          path: store/
+          retention-days: 30

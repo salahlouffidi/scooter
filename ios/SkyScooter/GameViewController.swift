@@ -80,6 +80,16 @@ final class GameViewController: UIViewController, WKScriptMessageHandler, WKNavi
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         pushNativeState()
         #if DEBUG
+        // Store-screenshot scenes, launched from CI with `-ssScene rounds` or `-ssScene round:6`.
+        if let scene = UserDefaults.standard.string(forKey: "ssScene") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in
+                if scene == "rounds" {
+                    self?.js("document.getElementById('btn-menu-rounds')?.click();")
+                } else if scene.hasPrefix("round:"), let n = Int(scene.dropFirst(6)) {
+                    self?.js("window.gameInstance?.startRound?.(\(n), false, true);")
+                }
+            }
+        }
         // Boot probe used by the CI simulator check.
         DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in
             self?.webView.evaluateJavaScript(
